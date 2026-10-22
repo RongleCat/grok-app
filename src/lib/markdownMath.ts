@@ -56,15 +56,74 @@ export const MARKDOWN_REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
 const LATEX_HINT =
   /\\(?:int|sum|prod|frac|sqrt|mathrm|mathbf|operatorname|begin|end|left|right|bigl|bigr|Bigl|Bigr|cdot|times|alpha|beta|gamma|pi|theta|infty|partial|nabla|leq|geq|neq|to|rightarrow)|[_^]\s*\{/;
 
+/**
+ * One rewrite pass of math normalization. `pattern` must be a global regex;
+ * `rewrite` receives the full match and the captured body and returns the
+ * replacement (returning `full` keeps the text unchanged).
+ *
+ * The stream-reveal offset mapping
+ * (`streamReveal.mapOffsetsThroughNormalization`) reuses this table, so the
+ * rewrite order and implementation have a single source.
+ */
+export type MarkdownMathRewrite = {
+  pattern: RegExp;
+  rewrite: (full: string, body: string) => string;
+};
+
+export const MARKDOWN_MATH_REWRITES: readonly MarkdownMathRewrite[] = [
+  { pattern: /\\\[([\s\S]+?)\\\]/g, rewrite: (_full, body) => `$$${body}$$` },
+  { pattern: /\\\(([\s\S]+?)\\\)/g, rewrite: (_full, body) => `$${body}$` },
+  {
+    pattern: /^[ \t]*\[(?!\s*$)(?![^\]]+\]\()([^\n]+)\][ \t]*$/gm,
+    rewrite: (full, body) => (LATEX_HINT.test(body) ? `$$${body}$$` : full),
+  },
+];
+
+export type MarkdownMathRewriteMatch = {
+  start: number;
+  end: number;
+  replacement: string;
+};
+
+/**
+ * Runs one rewrite and returns the before / after offset pairs (`start` /
+ * `end` are pre-rewrite coordinates). Matches `String.prototype.replace`
+ * global semantics so normalization and offset mapping can share it.
+ */
+export function applyMarkdownMathRewrite(
+  src: string,
+  rewrite: MarkdownMathRewrite,
+): { text: string; matches: MarkdownMathRewriteMatch[] } {
+  // Clone the regex: a global regex reuses lastIndex, so state must not leak
+  // across calls.
+  const pattern = new RegExp(rewrite.pattern.source, rewrite.pattern.flags);
+  const matches: MarkdownMathRewriteMatch[] = [];
+  let out = "";
+  let cursor = 0;
+  for (const match of src.matchAll(pattern)) {
+    const full = match[0];
+    const start = match.index ?? cursor;
+    const replacement = rewrite.rewrite(
+      full,
+      (match[1] as string | undefined) ?? "",
+    );
+    out += src.slice(cursor, start);
+    out += replacement;
+    cursor = start + full.length;
+    if (replacement !== full) {
+      matches.push({ start, end: cursor, replacement });
+    }
+  }
+  out += src.slice(cursor);
+  return { text: out, matches };
+}
+
 export function normalizeMarkdownMath(src: string): string {
   if (!src) return src;
-  let out = src.replace(/\\\[([\s\S]+?)\\\]/g, (_m, body: string) => `$$${body}$$`);
-  out = out.replace(/\\\(([\s\S]+?)\\\)/g, (_m, body: string) => `$${body}$`);
-  out = out.replace(
-    /^[ \t]*\[(?!\s*$)(?![^\]]+\]\()([^\n]+)\][ \t]*$/gm,
-    (full, body: string) => (LATEX_HINT.test(body) ? `$$${body}$$` : full),
+  return MARKDOWN_MATH_REWRITES.reduce(
+    (acc, rewrite) => applyMarkdownMathRewrite(acc, rewrite).text,
+    src,
   );
-  return out;
 }
 
 /** Skip remark-math + KaTeX when the source has no math delimiters. */

@@ -278,6 +278,8 @@ export const esSettings = {
   "settings.themeDesc": "Seguir el sistema, o fijar claro / oscuro",
   "settings.welcomeMotion": "Animación de bienvenida",
   "settings.welcomeMotionDesc": "En los chats nuevos, reproduce la animación de entrada que eleva la marca y muestra «¿Qué haremos hoy?». Si se desactiva, el contenido sigue visible.",
+  "settings.outputMotion": "Animación de la salida del modelo",
+  "settings.outputMotionDesc": "El texto y los bloques aparecen con un fundido mientras el modelo responde. Si lo desactivas, la conversación permanece estática; «Reducir movimiento» del sistema siempre tiene prioridad.",
   "settings.themeSystem": "Sistema",
   "settings.themeLight": "Claro",
   "settings.themeDark": "Oscuro",

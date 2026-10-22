@@ -3,11 +3,13 @@ import type { MessageSegment } from "./session";
 import {
   buildAssistantTimeline,
   buildTimelineUnits,
+  coalesceAdjacentThoughts,
   foldProcessIntoTimeline,
   isPhaseWorthy,
   phaseTitleModel,
   shouldShowTrailingLiveThinking,
   weaveSpeechAndTools,
+  type TimelineUnit,
 } from "./timelinePhases";
 import type { MessageToolSegment } from "./session";
 
@@ -27,6 +29,26 @@ function tool(
 }
 
 describe("timelinePhases", () => {
+  it("keeps thought boundaries when a single-text group normalizes back", () => {
+    const units: TimelineUnit[] = [
+      { kind: "thought", text: "plan", si: 0, streaming: false, chunkEnds: [4] },
+      { kind: "thought", text: "", si: 1, streaming: false },
+    ];
+
+    expect(coalesceAdjacentThoughts(units)).toEqual([
+      { kind: "thought", text: "plan", si: 0, streaming: false, chunkEnds: [4] },
+    ]);
+
+    // Offsets stop lining up after joining segments, so boundaries must be
+    // dropped.
+    const joined = coalesceAdjacentThoughts([
+      { kind: "thought", text: "a", si: 0, streaming: false, chunkEnds: [1] },
+      { kind: "thought", text: "b", si: 1, streaming: false },
+    ]);
+    expect(joined[0]).toMatchObject({ kind: "thought-group", texts: ["a", "b"] });
+    expect((joined[0] as { chunkEnds?: number[] }).chunkEnds).toBeUndefined();
+  });
+
   it("isPhaseWorthy: thought+tool or ≥2 tools", () => {
     expect(isPhaseWorthy(["plan"], [tool("a", "Read a")])).toBe(true);
     expect(isPhaseWorthy([], [tool("a", "a"), tool("b", "b")])).toBe(true);
@@ -640,5 +662,22 @@ describe("foldProcessIntoTimeline", () => {
       expect(phase.thoughts[0]).toContain("Look at both projects");
       expect(phase.tools).toHaveLength(2);
     }
+  });
+
+  it("carries stream chunk boundaries onto content units", () => {
+    const units = buildAssistantTimeline(
+      [{ kind: "content", text: "Hello world.", chunkEnds: [6, 12] }],
+      { streaming: true },
+    );
+
+    expect(units).toEqual([
+      {
+        kind: "content",
+        text: "Hello world.",
+        si: 0,
+        streaming: true,
+        chunkEnds: [6, 12],
+      },
+    ]);
   });
 });

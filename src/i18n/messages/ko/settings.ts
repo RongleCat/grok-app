@@ -278,6 +278,8 @@ export const koSettings = {
   "settings.themeDesc": "시스템을 따르거나 라이트 / 다크를 고정",
   "settings.welcomeMotion": "환영 애니메이션",
   "settings.welcomeMotionDesc": "새 채팅에서 브랜드가 위로 이동하고 “오늘 무엇을 할까요?”가 나타나는 입장 애니메이션을 재생합니다. 꺼도 콘텐츠는 계속 표시됩니다.",
+  "settings.outputMotion": "모델 출력 애니메이션",
+  "settings.outputMotionDesc": "모델이 응답을 스트리밍하는 동안 텍스트와 블록이 페이드 인됩니다. 끄면 출력이 정적으로 유지됩니다. 시스템의 ‘동작 줄이기’가 항상 우선합니다.",
   "settings.themeSystem": "시스템",
   "settings.themeLight": "가볍게",
   "settings.themeDark": "다크",

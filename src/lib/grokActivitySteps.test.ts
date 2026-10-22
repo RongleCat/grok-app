@@ -272,6 +272,30 @@ describe("grokActivitySteps explore-group", () => {
     expect(steps[3]).toMatchObject({ type: "edit-group", count: 2 });
   });
 
+  it("keeps chunk boundaries for thought text with a trailing newline", () => {
+    const steps = buildGrokActivitySteps(
+      [{ kind: "thought", text: "先核对仓库。\n", chunkEnds: [6, 7] }],
+      { live: true, messageStreaming: true },
+    );
+
+    expect(steps[0]).toMatchObject({
+      type: "thought",
+      text: "先核对仓库。",
+      chunkEnds: [6, 7],
+      streaming: true,
+    });
+  });
+
+  it("drops boundaries when leading whitespace shifts the thought text", () => {
+    const steps = buildGrokActivitySteps(
+      [{ kind: "thought", text: "  先核对", chunkEnds: [5] }],
+      { live: true, messageStreaming: true },
+    );
+
+    expect(steps[0]).toMatchObject({ type: "thought", text: "先核对" });
+    expect((steps[0] as { chunkEnds?: number[] }).chunkEnds).toBeUndefined();
+  });
+
   it("browse breaks an explore run (keeps its own Browsed row)", () => {
     const items: GrokPhaseItem[] = [
       { kind: "tool", tool: tool("r1", "read_file", "Read", { input: "a.ts" }) },

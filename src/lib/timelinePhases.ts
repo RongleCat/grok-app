@@ -22,9 +22,9 @@ import { classifyToolKind } from "./toolDisplay";
 
 /** Ordered work unit inside a phase (Grok activity rail). */
 export type TimelinePhaseItem =
-  | { kind: "thought"; text: string }
+  | { kind: "thought"; text: string; chunkEnds?: number[] }
   /** User-facing mid-turn prose (not journal CoT). */
-  | { kind: "speech"; text: string }
+  | { kind: "speech"; text: string; chunkEnds?: number[] }
   | { kind: "tool"; tool: MessageToolSegment };
 
 export interface TimelinePhase {
@@ -51,6 +51,9 @@ export type TimelineUnit =
       text: string;
       si: number;
       streaming: boolean;
+      /** Cumulative UTF-16 end offsets of the model's streamed chunks; absent
+       * on history. */
+      chunkEnds?: number[];
     }
   /** Adjacent bare thoughts merged for one collapsible Thought chrome. */
   | {
@@ -58,6 +61,9 @@ export type TimelineUnit =
       texts: string[];
       si: number;
       streaming: boolean;
+      /** Only valid when `texts` holds a single segment; offsets stop lining
+       * up once segments are joined. */
+      chunkEnds?: number[];
     }
   | {
       kind: "tool";
@@ -69,6 +75,9 @@ export type TimelineUnit =
       text: string;
       si: number;
       streaming: boolean;
+      /** Cumulative UTF-16 end offsets of the model's streamed chunks; absent
+       * on history. */
+      chunkEnds?: number[];
     };
 
 function toolRunning(t: MessageToolSegment): boolean {
@@ -222,6 +231,7 @@ export function buildTimelineUnits(
           si: entry.si,
           streaming:
             live && streaming && isLastThought && !hasTools,
+          chunkEnds: entry.item.chunkEnds,
         });
       } else if (entry.item.kind === "tool") {
         out.push({ kind: "tool", tool: entry.item.tool, si: entry.si });
@@ -273,6 +283,7 @@ export function buildTimelineUnits(
         text: seg.text,
         si,
         streaming: streaming && si === segs.length - 1,
+        chunkEnds: seg.chunkEnds,
       });
       continue;
     }
@@ -281,7 +292,10 @@ export function buildTimelineUnits(
       if (bufHasTools(buf)) {
         flush(false);
       }
-      buf.items.push({ item: { kind: "thought", text: seg.text }, si });
+      buf.items.push({
+        item: { kind: "thought", text: seg.text, chunkEnds: seg.chunkEnds },
+        si,
+      });
       continue;
     }
     // tool
@@ -357,18 +371,26 @@ export function coalesceAdjacentThoughts(
     if (prev?.kind === "thought-group") {
       if (u.text.trim() || u.streaming) {
         prev.texts.push(u.text);
+        // Offsets become invalid once segments are joined; a single-segment
+        // group keeps its original boundaries.
+        prev.chunkEnds = undefined;
       }
       if (u.streaming) prev.streaming = true;
       continue;
     }
     if (prev?.kind === "thought") {
       const texts = [prev.text];
-      if (u.text.trim() || u.streaming) texts.push(u.text);
+      let chunkEnds = prev.chunkEnds;
+      if (u.text.trim() || u.streaming) {
+        texts.push(u.text);
+        chunkEnds = undefined;
+      }
       out[out.length - 1] = {
         kind: "thought-group",
         texts,
         si: prev.si,
         streaming: !!(prev.streaming || u.streaming),
+        chunkEnds,
       };
       continue;
     }
@@ -383,6 +405,7 @@ export function coalesceAdjacentThoughts(
         text: u.texts[0]!,
         si: u.si,
         streaming: u.streaming,
+        chunkEnds: u.chunkEnds,
       };
     }
     return u;

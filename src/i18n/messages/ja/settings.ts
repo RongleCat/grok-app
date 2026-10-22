@@ -278,6 +278,8 @@ export const jaSettings = {
   "settings.themeDesc": "システムに従うか、ライト / ダークを固定",
   "settings.welcomeMotion": "ウェルカムアニメーション",
   "settings.welcomeMotionDesc": "新しいチャットで、ブランドが上に移動し「今日は何をしますか？」が現れる入場アニメーションを再生します。オフにしても内容は表示されます。",
+  "settings.outputMotion": "モデル出力のアニメーション",
+  "settings.outputMotionDesc": "モデルが応答をストリーミングする間、テキストとブロックがフェードインします。オフにすると出力は静止します。システムの「視差効果を減らす」が常に優先されます。",
   "settings.themeSystem": "システム",
   "settings.themeLight": "ライト",
   "settings.themeDark": "ダーク",

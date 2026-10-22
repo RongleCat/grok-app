@@ -22,6 +22,7 @@ import {
   toolExpandHasBody,
 } from "@/lib/toolDisplay";
 import { normalizeTaskStatus } from "@/lib/sessionTasks";
+import { claimEntrance } from "@/lib/entranceLedger";
 import {
   loadToolStepsAutoCollapsePref,
   resolveFoldExpanded,
@@ -84,6 +85,12 @@ export const TimelineToolRow = memo(function TimelineToolRow({
   // Shared with phase GrokActivityStepRow — type + call args, never stdout.
   const summary = resolveToolPrimaryLabel(tool, (key, params) =>
     tr(key as MessageKey, params as Record<string, string> | undefined),
+  );
+
+  // A tool call enters only once: collapsing, the stream-end handoff to the
+  // settled list, and virtualization remounts never replay it.
+  const [animateEntrance] = useState(() =>
+    claimEntrance(`tool:${tool.toolCallId || summary}`),
   );
 
   // Cheap caret check only — do not strip/split full stdout while collapsed (#1018).
@@ -153,6 +160,7 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     <div
       className={
         "grok-act__step lobe-timeline-tool" +
+        (animateEntrance ? " chat-block-enter" : "") +
         (failed ? " is-error" : "") +
         (running ? " is-running" : "") +
         (showBody ? " is-expanded" : "") +

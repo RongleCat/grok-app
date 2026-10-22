@@ -86,7 +86,12 @@ export const CodeBlock = memo(function CodeBlock({
   };
 
   return (
-    <div className={cn("chat-code", showLineNumbers && "chat-code--lines")}>
+    <div
+      className={cn(
+        "chat-code chat-md-enter",
+        showLineNumbers && "chat-code--lines",
+      )}
+    >
       <div className="chat-code__bar">
         <span className="chat-code__lang">{lang}</span>
         <div className="chat-code__bar-actions">

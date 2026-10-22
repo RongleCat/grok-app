@@ -75,6 +75,11 @@ import {
   WELCOME_MOTION_CHANGE_EVENT,
 } from "@/lib/welcomeMotionPref";
 import {
+  applyOutputMotionToDocument,
+  loadOutputMotionPref,
+  OUTPUT_MOTION_CHANGE_EVENT,
+} from "@/lib/outputMotionPref";
+import {
   applyWindowAlwaysOnTop,
   loadWindowAlwaysOnTopPref,
 } from "@/lib/windowAlwaysOnTop";
@@ -132,6 +137,9 @@ export function useWorkbenchDisplayPrefs() {
   );
   const [welcomeMotionEnabled, setWelcomeMotionEnabled] = useState(() =>
     loadWelcomeMotionPref(localStorage),
+  );
+  const [outputMotionEnabled, setOutputMotionEnabled] = useState(() =>
+    loadOutputMotionPref(localStorage),
   );
   const [goalOrchUiEnabled, setGoalOrchUiEnabled] = useState(() =>
     loadGoalOrchUiEnabled(localStorage),
@@ -195,6 +203,11 @@ export function useWorkbenchDisplayPrefs() {
     WELCOME_MOTION_CHANGE_EVENT,
     () => loadWelcomeMotionPref(localStorage),
     setWelcomeMotionEnabled,
+  );
+  useBooleanPrefSync(
+    OUTPUT_MOTION_CHANGE_EVENT,
+    () => loadOutputMotionPref(localStorage),
+    setOutputMotionEnabled,
   );
   useBooleanPrefSync(
     GOAL_ORCH_UI_CHANGE_EVENT,
@@ -277,6 +290,10 @@ export function useWorkbenchDisplayPrefs() {
     void applyWindowAlwaysOnTop(windowAlwaysOnTop);
   }, [windowAlwaysOnTop]);
 
+  useEffect(() => {
+    applyOutputMotionToDocument(outputMotionEnabled);
+  }, [outputMotionEnabled]);
+
   return {
     showMessageTimestamps,
     setShowMessageTimestamps,
@@ -286,6 +303,8 @@ export function useWorkbenchDisplayPrefs() {
     setReplaceProviderBrandLogo,
     welcomeMotionEnabled,
     setWelcomeMotionEnabled,
+    outputMotionEnabled,
+    setOutputMotionEnabled,
     goalOrchUiEnabled,
     setGoalOrchUiEnabled,
     goalOrchEvents,

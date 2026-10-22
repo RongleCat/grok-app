@@ -170,6 +170,8 @@ pub(super) struct PendingStreamEmit {
     pub(super) kind: StreamKind,
     pub(super) message_id: String,
     pub(super) text: String,
+    /// UTF-16 code-unit length of every merged chunk, in arrival order.
+    pub(super) chunk_lens: Vec<usize>,
     pub(super) thought_phase: String,
     pub(super) done: bool,
     pub(super) first_at: Instant,

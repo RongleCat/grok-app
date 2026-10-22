@@ -32,6 +32,11 @@ export type GrokActivityStep =
       type: "speech";
       key: string;
       text: string;
+      /** True while streaming: the body reveals by chunk only then. */
+      streaming: boolean;
+      /** Cumulative model chunk end offsets (raw-text coordinates); absent for
+       * history or trimmed text. */
+      chunkEnds?: number[];
     }
   | {
       type: "thought";
@@ -39,6 +44,8 @@ export type GrokActivityStep =
       summary: string | null;
       streaming: boolean;
       text: string;
+      /** Same coordinates as `text`; absent when split into parts or trimmed. */
+      chunkEnds?: number[];
     }
   | {
       type: "bash-group";
@@ -114,8 +121,8 @@ export type GrokActivityStep =
     };
 
 export type GrokPhaseItem =
-  | { kind: "thought"; text: string }
-  | { kind: "speech"; text: string }
+  | { kind: "thought"; text: string; chunkEnds?: number[] }
+  | { kind: "speech"; text: string; chunkEnds?: number[] }
   | { kind: "tool"; tool: MessageToolSegment };
 
 function toolRunning(t: MessageToolSegment): boolean {
@@ -306,6 +313,8 @@ function buildStepsInternal(
           type: "speech",
           key: `sp-${i}`,
           text: item.text,
+          streaming: live && messageStreaming,
+          chunkEnds: item.chunkEnds,
         });
       }
       i += 1;
@@ -318,6 +327,13 @@ function buildStepsInternal(
         !toolsAfter &&
         (i === items.length - 1 ||
           items.slice(i + 1).every((x) => x.kind === "thought" && !x.text.trim()));
+      // Streamed thoughts often end with a newline; offsets still line up only
+      // when nothing but trailing whitespace was trimmed. Splitting into parts
+      // or trimming leading whitespace shifts every offset — skip reveal then.
+      const chunkEnds =
+        parts.length === 1 && parts[0] === item.text.trimEnd()
+          ? item.chunkEnds
+          : undefined;
 
       if (!parts.length) {
         steps.push({
@@ -326,6 +342,7 @@ function buildStepsInternal(
           summary: null,
           streaming: live && messageStreaming && isLastThoughtBurst,
           text: item.text,
+          chunkEnds,
         });
       } else {
         parts.forEach((part, pi) => {
@@ -340,6 +357,7 @@ function buildStepsInternal(
             summary: extractThinkingSummary(part),
             streaming,
             text: part,
+            chunkEnds,
           });
         });
       }

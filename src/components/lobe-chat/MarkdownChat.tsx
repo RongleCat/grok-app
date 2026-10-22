@@ -4,13 +4,14 @@
 
 import {
   memo,
+  isValidElement,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import type { Locale } from "@/i18n";
 import {
   MARKDOWN_REHYPE_PLUGINS,
@@ -59,8 +60,18 @@ import { softCloseMarkdown } from "@/lib/softCloseMarkdown";
 import {
   resolveMarkdownPaintSource,
   resolveStreamMarkdownParseMs,
+  resolveStreamRevealMode,
+  type StreamRevealMode,
 } from "@/lib/streamRenderPolicy";
 import { splitStableMarkdownTail } from "@/lib/markdownTail";
+import {
+  createStreamRevealState,
+  mapOffsetsThroughNormalization,
+  syncStreamRevealState,
+  type StreamRevealState,
+} from "@/lib/streamReveal";
+import { rehypeStreamReveal } from "@/lib/rehypeStreamReveal";
+import { useOutputMotionEnabled } from "@/hooks/useOutputMotionEnabled";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./CodeBlock";
 import { MermaidBlock } from "./MermaidBlock";
@@ -122,6 +133,12 @@ function textFromChildren(children: ReactNode): string {
   }
   if (Array.isArray(children)) {
     return children.map(textFromChildren).join("");
+  }
+  // Stream-reveal spans wrap inline-code / link leaves — keep reading their text.
+  if (isValidElement(children)) {
+    return textFromChildren(
+      (children.props as { children?: ReactNode }).children,
+    );
   }
   return "";
 }
@@ -279,6 +296,7 @@ export const MarkdownChat = memo(function MarkdownChat({
   findQuery = "",
   findActiveOccurrence = null,
   findOccurrenceBase = 0,
+  chunkEnds,
 }: {
   children: string;
   streaming?: boolean;
@@ -303,7 +321,13 @@ export const MarkdownChat = memo(function MarkdownChat({
   findActiveOccurrence?: number | null;
   /** Starting occurrence index for multi-segment assistant bodies. */
   findOccurrenceBase?: number;
+  /**
+   * Cumulative UTF-16 end offsets of the model's streamed chunks for
+   * `children`. Absent on history / journal replay — no reveal then.
+   */
+  chunkEnds?: number[];
 }) {
+  const outputMotionEnabled = useOutputMotionEnabled();
   const tr = useMemo(() => createT(locale), [locale]);
   const imageLabels = useMemo(() => imageUiLabels(locale), [locale]);
   const videoLabels = useMemo(() => videoUiLabels(locale), [locale]);
@@ -351,7 +375,8 @@ export const MarkdownChat = memo(function MarkdownChat({
   // Store-level content notify throttle + markdown parse throttle pace paints.
   const buffered = streaming ? softDisplayed : children || "";
   const liveText = buffered || (streaming ? " " : "");
-  const source = normalizeMarkdownMath(softCloseMarkdown(liveText, streaming));
+  const preNormalized = softCloseMarkdown(liveText, streaming);
+  const source = normalizeMarkdownMath(preNormalized);
   const parseMs = resolveStreamMarkdownParseMs(source.length, streaming);
 
   /**
@@ -758,6 +783,117 @@ export const MarkdownChat = memo(function MarkdownChat({
     [painted, streaming, qFind],
   );
 
+  // Reveal budget: long replies or very fine-grained chunks keep block entrance
+  // only, so the live tail never carries hundreds of animated spans. The
+  // decision runs before offset mapping — once downgraded, neither mapping nor
+  // rehype runs. The downgrade is sticky for the current streamed reply:
+  // flipping around the threshold would tear down and rebuild painted spans,
+  // which flickers the tail.
+  const revealModeRef = useRef<StreamRevealMode>("chunk");
+  if (!streaming) {
+    revealModeRef.current = "chunk";
+  } else if (
+    resolveStreamRevealMode({
+      streaming,
+      contentLength: source.length,
+      // At most one span per boundary, so the boundary count bounds the tail
+      // span count.
+      pendingChunkCount: chunkEnds?.length ?? 0,
+    }) === "block"
+  ) {
+    revealModeRef.current = "block";
+  }
+  const revealMode: StreamRevealMode = streaming
+    ? revealModeRef.current
+    : "block";
+  const revealQuery = streaming && !qFind && revealMode === "chunk";
+
+  // Boundaries are stream-text offsets; the parser sees the normalized source.
+  const revealEnds = useMemo(
+    () =>
+      revealQuery && chunkEnds?.length
+        ? mapOffsetsThroughNormalization(preNormalized, chunkEnds)
+        : null,
+    [revealQuery, chunkEnds, preNormalized],
+  );
+  // The animation threshold is frozen on the first render (mount / session
+  // switch) so text that already exists never replays, and a chunk that just
+  // animated is never turned back into a static span on the next parse tick.
+  const revealStateRef = useRef<StreamRevealState | null>(null);
+  if (!revealStateRef.current) {
+    revealStateRef.current = createStreamRevealState(
+      revealEnds ?? [],
+      chunkEnds ?? [],
+      painted.length,
+      painted.trim().length > 0,
+    );
+  }
+  if (revealEnds) {
+    revealStateRef.current = syncStreamRevealState(
+      revealStateRef.current,
+      revealEnds,
+      chunkEnds ?? [],
+      painted.length,
+      outputMotionEnabled,
+    );
+  }
+  const revealState = revealStateRef.current;
+  const revealFrom = revealState.revealFrom;
+  // No mapped boundaries (not streaming, find open, downgraded) → no rehype
+  // plugin.
+  const revealActive = revealEnds != null;
+
+  const tailRehypePlugins = useMemo((): NonNullable<
+    Options["rehypePlugins"]
+  > | null => {
+    if (!revealActive || !revealEnds) return null;
+    return [
+      ...rehypePlugins,
+      [
+        rehypeStreamReveal,
+        {
+          chunkEnds: revealEnds,
+          revealFrom,
+          indices: revealState.indices,
+          // HAST offsets are fragment-local; the tail starts at prefix.length.
+          sourceOffset: tailSplit.prefix.length,
+        },
+      ],
+    ];
+  }, [
+    revealActive,
+    revealEnds,
+    revealState,
+    revealFrom,
+    rehypePlugins,
+    tailSplit.prefix.length,
+  ]);
+
+  const tailMarkdown = (
+    <ReactMarkdown
+      remarkPlugins={remarkPlugins}
+      rehypePlugins={tailRehypePlugins ?? rehypePlugins}
+      components={components}
+    >
+      {tailSplit.tail}
+    </ReactMarkdown>
+  );
+  // The stable prefix is a separate ReactMarkdown; the tail gets a scope
+  // marker, so finished blocks that move into the prefix leave the --live
+  // scope and do not replay entrance on remount. The wrapper is always
+  // present (display: contents) so the tail never remounts when streaming
+  // ends.
+  const liveTailMarkdown = (
+    <div
+      className={
+        "chat-md__stream-tail" +
+        (streaming ? " chat-md__stream-tail--live" : "")
+      }
+    >
+      {tailMarkdown}
+    </div>
+  );
+
   return (
     <div
       className={cn(
@@ -775,22 +911,10 @@ export const MarkdownChat = memo(function MarkdownChat({
             source={tailSplit.prefix}
             components={components}
           />
-          <ReactMarkdown
-            remarkPlugins={remarkPlugins}
-            rehypePlugins={rehypePlugins}
-            components={components}
-          >
-            {tailSplit.tail}
-          </ReactMarkdown>
+          {liveTailMarkdown}
         </>
       ) : (
-        <ReactMarkdown
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          components={components}
-        >
-          {painted}
-        </ReactMarkdown>
+        liveTailMarkdown
       )}
     </div>
   );

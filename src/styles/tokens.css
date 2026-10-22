@@ -71,6 +71,26 @@
   --motion-normal: 200ms;
   --motion-pane: 320ms;
   --motion-pane-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /*
+   * Stream reveal only: duration / in-batch stagger step / per-batch delay cap.
+   * Does not reuse --motion-normal, to avoid coupling with window transitions.
+   */
+  --motion-stream-reveal: 340ms;
+  --motion-stream-reveal-step: 24ms;
+  --motion-stream-reveal-max: 144ms;
+  --motion-stream-reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Block-level content (thinking header / phase block / tool row / code and
+   * diagram containers) entrance. */
+  --motion-block-enter: 280ms;
+  --motion-block-enter-ease: cubic-bezier(0.34, 1.3, 0.64, 1);
+  /* Tool row / phase block state colour change. */
+  --motion-state-change: 180ms;
+  /* Expanded body (thinking body / tool output) entrance; shorter than block
+   * entrance to avoid input lag. */
+  --motion-detail-enter: 200ms;
+  /* Collapsed header "current activity" swap: 800ms; the next swap can cut it
+   * short and start over. */
+  --motion-now-swap: 800ms;
 
   /* Solid window base — never leave transparent or theme switches flash white */
   --bg-app: #0d0d0d;
@@ -339,6 +359,18 @@
     --motion-normal: 0ms;
     /* Keep pane interpolation. OS Reduce Motion zeroing this makes
      * click-toggle look like a hard cut. */
+  }
+
+  /* Stream reveal is zeroed too; DOM structure stays unchanged so toggling the
+   * preference never rebuilds the tree. */
+  :root {
+    --motion-stream-reveal: 0ms;
+    --motion-stream-reveal-step: 0ms;
+    --motion-stream-reveal-max: 0ms;
+    --motion-block-enter: 0ms;
+    --motion-detail-enter: 0ms;
+    --motion-state-change: 0ms;
+    --motion-now-swap: 0ms;
   }
 }
 

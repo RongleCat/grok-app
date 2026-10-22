@@ -278,6 +278,8 @@ export const deSettings = {
   "settings.themeDesc": "Dem System folgen oder Hell / Dunkel festlegen",
   "settings.welcomeMotion": "Willkommensanimation",
   "settings.welcomeMotionDesc": "In neuen Chats die Animation abspielen, bei der die Marke nach oben gleitet und „Was möchtest du heute machen?“ eingeblendet wird. Wenn deaktiviert, bleiben die Inhalte sichtbar.",
+  "settings.outputMotion": "Modellausgabe-Animation",
+  "settings.outputMotionDesc": "Text und Blöcke werden eingeblendet, während das Modell antwortet. Wenn du dies ausschaltest, bleibt der Verlauf statisch; „Bewegung reduzieren“ in den Systemeinstellungen hat immer Vorrang.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Hell",
   "settings.themeDark": "Dunkel",

@@ -71,8 +71,24 @@ export interface MessageToolSegment {
 
 /** Ordered assistant turn pieces — thinking, tools, and body as they arrived. */
 export type MessageSegment =
-  | { kind: "thought"; text: string }
-  | { kind: "content"; text: string }
+  | {
+      kind: "thought";
+      text: string;
+      /**
+       * Cumulative UTF-16 end offsets of the model's streamed chunks.
+       * Absent on history / journal replay / CLI import — those never reveal.
+       */
+      chunkEnds?: number[];
+    }
+  | {
+      kind: "content";
+      text: string;
+      /**
+       * Cumulative UTF-16 end offsets of the model's streamed chunks.
+       * Absent on history / journal replay / CLI import — those never reveal.
+       */
+      chunkEnds?: number[];
+    }
   | MessageToolSegment;
 
 export interface ChatMessage {
@@ -194,6 +210,8 @@ export interface StreamPayload {
   kind?: "assistant" | "thought";
   /** Host hint: open | new | continue | none — split multi-phase thinking. */
   thoughtPhase?: "open" | "new" | "continue" | "none" | string;
+  /** UTF-16 length of each decoded model chunk merged into `text`, in order. */
+  chunkLens?: number[];
 }
 export interface PermissionPayload {
   rpcId: number;

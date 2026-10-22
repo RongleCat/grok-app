@@ -14,6 +14,8 @@ export type CoalesceStreamChunk = {
   done?: boolean | null;
   kind?: string | null;
   thoughtPhase?: string | null;
+  /** UTF-16 length of each model chunk inside `text`, in arrival order. */
+  chunkLens?: number[];
 };
 
 /**
@@ -56,6 +58,23 @@ export function streamChunkNeedsImmediateFlush(chunk: CoalesceStreamChunk): bool
 }
 
 /**
+ * Chunk lengths for one side of a merge. A side must contribute its text length
+ * in UTF-16 units even when the host omitted (or sent inconsistent) lengths,
+ * otherwise `sum(chunkLens) !== text.length` and reveal offsets drift.
+ */
+function chunkLensFor(
+  text: string,
+  lens: readonly number[] | undefined,
+): number[] {
+  if (!text) return [];
+  if (lens?.length) {
+    const sum = lens.reduce((total, len) => total + len, 0);
+    if (sum === text.length) return [...lens];
+  }
+  return [text.length];
+}
+
+/**
  * Merge `next` into `prev` when they share the coalesce key.
  * Returns null when they cannot merge (caller should flush prev first).
  */
@@ -64,20 +83,31 @@ export function mergeStreamChunks(
   next: CoalesceStreamChunk,
 ): CoalesceStreamChunk | null {
   if (streamCoalesceKey(prev) !== streamCoalesceKey(next)) return null;
-  const text = `${prev.text ?? ""}${next.text ?? ""}`;
+  const prevText = prev.text ?? "";
+  const nextText = next.text ?? "";
+  const text = `${prevText}${nextText}`;
   const done = !!(prev.done || next.done);
   // Prefer the latest non-empty thought phase (new/open/continue).
   const thoughtPhase =
     next.thoughtPhase && next.thoughtPhase !== "none"
       ? next.thoughtPhase
       : prev.thoughtPhase;
-  return {
+  const merged: CoalesceStreamChunk = {
     ...prev,
     ...next,
     text,
     done,
     thoughtPhase: thoughtPhase ?? next.thoughtPhase ?? prev.thoughtPhase,
   };
+  // Boundaries must concatenate in the same order as the text; a side without
+  // them contributes its whole text as one chunk.
+  if (prev.chunkLens || next.chunkLens) {
+    merged.chunkLens = [
+      ...chunkLensFor(prevText, prev.chunkLens),
+      ...chunkLensFor(nextText, next.chunkLens),
+    ];
+  }
+  return merged;
 }
 
 export type StreamCoalescerOptions = {

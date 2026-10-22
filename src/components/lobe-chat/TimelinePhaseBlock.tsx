@@ -29,7 +29,11 @@ import {
 import type { Locale, MessageKey } from "@/i18n";
 import { createT } from "@/i18n";
 import { COLLAPSE_ALL_ACTIVITY_EVENT } from "@/lib/collapseAllActivity";
+import { claimEntrance } from "@/lib/entranceLedger";
+import { toolSegmentIsRunning } from "./TimelineToolRow";
+import { StepMainText } from "./StepMainText";
 import type { TimelinePhase } from "@/lib/timelinePhases";
+import type { MessageToolSegment } from "@/lib/session";
 import {
   loadToolStepsAutoCollapsePref,
   resolveFoldExpanded,
@@ -162,106 +166,26 @@ function StepIcon({ step }: { step: GrokActivityStep }) {
   return <IconCircle size={size} stroke={stroke} />;
 }
 
-function exploreLabel(
-  step: Extract<GrokActivityStep, { type: "explore-group" }>,
-  tr: ReturnType<typeof createT>,
-): string {
-  // “探索 · 1 次搜索, 3 个文件” — omit a clause when its count is zero so a
-  // pure-read burst reads as “探索 · 3 个文件”.
-  const parts: string[] = [];
-  if (step.searches > 0) {
-    parts.push(
-      step.searches === 1
-        ? tr("chat.exploreSearchesOne")
-        : tr("chat.exploreSearches", { n: String(step.searches) }),
-    );
-  }
-  if (step.reads > 0) {
-    parts.push(
-      step.reads === 1
-        ? tr("chat.exploreFilesOne")
-        : tr("chat.exploreFiles", { n: String(step.reads) }),
-    );
-  }
-  const detail = parts.join(", ");
-  return detail ? `${tr("chat.explored")} · ${detail}` : tr("chat.explored");
-}
 
-function StepMainText({
-  step,
-  tr,
-}: {
-  step: GrokActivityStep;
-  tr: ReturnType<typeof createT>;
-}) {
-  switch (step.type) {
-    case "speech":
-      return null;
-    case "thought":
-      return (
-        <span className="grok-act__label-text">
-          {step.summary || tr("chat.thinkingLabel")}
-        </span>
-      );
-    case "bash-group":
-      return (
-        <span className="grok-act__label-text">
-          {step.count === 1
-            ? tr("chat.ranCommandsOne")
-            : tr("chat.ranCommands", { n: String(step.count) })}
-        </span>
-      );
-    case "edit-group":
-      return (
-        <span className="grok-act__label-text">
-          {step.count === 1
-            ? tr("chat.editedFilesOne")
-            : tr("chat.editedFiles", { n: String(step.count) })}
-        </span>
-      );
-    case "search-group":
-      return (
-        <span className="grok-act__label-text">
-          {step.count === 1
-            ? tr("chat.ranSearch")
-            : tr("chat.ranSearches", { n: String(step.count) })}
-        </span>
-      );
-    case "explore-group":
-      return (
-        <span className="grok-act__label-text">{exploreLabel(step, tr)}</span>
-      );
-    case "web-search":
-      return (
-        <span className="grok-act__label-text">
-          <span className="grok-act__label-prefix">
-            {tr("chat.searchedWebForPrefix")}
-          </span>
-          <span className="grok-act__label-query"> {step.query}</span>
-        </span>
-      );
-    case "browse":
-      return (
-        <span className="grok-act__label-text">
-          <span className="grok-act__label-prefix">{tr("chat.browsedPrefix")}</span>
-          <span className="grok-act__label-url"> {step.url}</span>
-        </span>
-      );
-    case "tool": {
-      // Same primary-label resolver as bare TimelineToolRow.
-      const label = resolveToolPrimaryLabel(step.tool, (key, params) =>
-        tr(key as MessageKey, params as Record<string, string> | undefined),
-      );
-      return <span className="grok-act__label-text">{label}</span>;
-    }
-  }
+/** In-phase tool-like steps (thinking and phase speech excluded). */
+function isToolActivityStep(step: GrokActivityStep): boolean {
+  return (
+    step.type === "tool" ||
+    step.type === "web-search" ||
+    step.type === "browse" ||
+    step.type === "explore-group" ||
+    step.type === "bash-group" ||
+    step.type === "edit-group"
+  );
 }
 
 const GrokActivityStepRow = memo(function GrokActivityStepRow({
   step,
   isLast,
+  isFirst,
   tr,
   locale,
+  live = false,
   expanded,
   onUserToggle,
   onPolicySync,
@@ -273,8 +197,14 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
 }: {
   step: GrokActivityStep;
   isLast: boolean;
+  /** The first row draws no top rail; every other row draws half a segment so
+   * two adjacent rows form one centred short line. */
+  isFirst?: boolean;
   tr: ReturnType<typeof createT>;
   locale: Locale;
+  /** Whether the phase was still generating when mounted; turning live later
+   * does not replay entrance. */
+  live?: boolean;
   /** Parent-owned open state — survives VirtualList → map remount. */
   expanded: boolean;
   /** User click: mark user-toggled + set open (parent). */
@@ -318,6 +248,12 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
         : "running" in step
           ? !!step.running
           : false;
+  // Same rule as the phase block: only tool rows mounted while the phase is
+  // already live animate. Each step enters once — collapsing / expanding or
+  // the stream-end remount never replays it.
+  const [entered] = useState(
+    () => live && isToolActivityStep(step) && claimEntrance(`step:${step.key}`),
+  );
   const resultCount =
     step.type === "web-search" ? step.resultCount : undefined;
   const domains =
@@ -404,6 +340,10 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
           <MarkdownChat
             locale={locale}
             pathCards={false}
+            // Phase speech reveals only while the phase is live; a finished
+            // phase stays static.
+            streaming={step.streaming}
+            chunkEnds={step.streaming ? step.chunkEnds : undefined}
             findQuery={findQuery}
             findActiveOccurrence={findActiveOccurrence}
             findOccurrenceBase={speechFindBase}
@@ -423,6 +363,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
         (failed ? " is-error" : "") +
         (running ? " is-running" : "") +
         (isLast ? " is-last" : "") +
+        (entered ? " chat-block-enter" : "") +
         (showBody ? " lobe-timeline-tool is-expanded" : "")
       }
       role="listitem"
@@ -431,6 +372,9 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
       data-expanded={hasBody ? (open ? "1" : "0") : undefined}
     >
       <div className="grok-act__icon-col" aria-hidden>
+        {!isFirst ? (
+          <span className="grok-act__rail grok-act__rail--top" />
+        ) : null}
         <span className="grok-act__icon">
           <StepIcon step={step} />
         </span>
@@ -484,6 +428,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
                 steps={step.children}
                 tr={tr}
                 locale={locale}
+                live={live}
                 findQuery={findQuery}
                 findActiveOccurrence={findActiveOccurrence}
                 messageContent={messageContent}
@@ -492,7 +437,15 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
             </div>
           ) : step.type === "thought" ? (
             <div ref={thoughtBodyRef} className="grok-act__thought-body">
-              <MarkdownChat locale={locale} muted pathCards={false}>
+              <MarkdownChat
+                locale={locale}
+                muted
+                pathCards={false}
+                // Same reveal as the standalone thinking block; enabled only
+                // while this thought is still streaming.
+                streaming={step.streaming}
+                chunkEnds={step.streaming ? step.chunkEnds : undefined}
+              >
                 {step.text}
               </MarkdownChat>
             </div>
@@ -608,8 +561,10 @@ export function GrokActivitySteps({
       <GrokActivityStepRow
         step={step}
         isLast={idx === total - 1}
+        isFirst={idx === 0}
         tr={tr}
         locale={locale}
+        live={live}
         expanded={expandState.expandedKeys.has(step.key)}
         onUserToggle={onUserToggle}
         onPolicySync={onPolicySync}
@@ -624,6 +579,7 @@ export function GrokActivitySteps({
       total,
       tr,
       locale,
+      live,
       expandState.expandedKeys,
       onUserToggle,
       onPolicySync,
@@ -661,8 +617,10 @@ export function GrokActivitySteps({
             key={step.key}
             step={step}
             isLast={idx === total - 1}
+            isFirst={idx === 0}
             tr={tr}
             locale={locale}
+            live={live}
             findQuery={findQuery}
             findActiveOccurrence={findActiveOccurrence}
             messageContent={messageContent}
@@ -754,6 +712,47 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
   // must not keep "Working for …" forever once the turn is done.
   const phaseRunning =
     !!messageStreaming && (phase.live || phase.runningCount > 0);
+  // The collapsed header shows what the agent is doing right now: the tool
+  // row's primary label, or "Thinking" during a thought. Switching in-phase
+  // activity remounts the label node, which fades it in.
+  const liveActivity = useMemo(() => {
+    if (!phaseRunning) return null;
+    const labelFor = (tool: MessageToolSegment) =>
+      resolveToolPrimaryLabel(tool, (key, params) =>
+        tr(key as MessageKey, params as Record<string, string> | undefined),
+      );
+    // Prefer a tool that is still running (the last one for parallel calls).
+    for (let i = phase.items.length - 1; i >= 0; i--) {
+      const item = phase.items[i]!;
+      if (item.kind === "tool" && toolSegmentIsRunning(item.tool)) {
+        return {
+          key: `tool:${item.tool.toolCallId || i}`,
+          label: labelFor(item.tool),
+        };
+      }
+    }
+    // Otherwise fall back to the newest work item: thinking, or the tool that
+    // just finished.
+    for (let i = phase.items.length - 1; i >= 0; i--) {
+      const item = phase.items[i]!;
+      if (item.kind === "thought") {
+        return { key: `thought:${i}`, label: tr("chat.thinking") };
+      }
+      if (item.kind === "tool") {
+        return {
+          key: `tool:${item.tool.toolCallId || i}`,
+          label: labelFor(item.tool),
+        };
+      }
+    }
+    return null;
+  }, [phase.items, phaseRunning, tr]);
+  // Only phases that are already live when mounted animate; turning running
+  // later does not replay entrance. Each phase enters once — history phases
+  // claim no key at mount.
+  const [entered] = useState(
+    () => phaseRunning && claimEntrance(`phase:${phase.id}`),
+  );
   const wantOpen = workPhaseDefaultOpen({
     running: phaseRunning,
     errorCount: phase.errorCount,
@@ -877,7 +876,10 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
     <div
       className={
         "grok-act" +
-        (phaseRunning ? " is-live" : expanded ? " is-open" : " is-collapsed")
+        (phaseRunning ? " is-live" : expanded ? " is-open" : " is-collapsed") +
+        // Block entrance is only for phases that first appear in the live
+        // tail; history rows never get this class.
+        (entered ? " chat-block-enter" : "")
       }
       data-testid="timeline-phase"
       data-phase-id={phase.id}
@@ -899,7 +901,19 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
         <span className="grok-act__header-icon" aria-hidden>
           <IconGridDots size={15} stroke={1.5} />
         </span>
-        <span className="grok-act__header-text">{phaseChromeLabel}</span>
+        <span className="grok-act__header-text">
+          {phaseChromeLabel}
+          {liveActivity ? (
+            <span
+              key={liveActivity.key}
+              className="grok-act__now"
+              title={liveActivity.label}
+            >
+              {" · "}
+              {liveActivity.label}
+            </span>
+          ) : null}
+        </span>
         <span className="grok-act__header-caret" aria-hidden>
           {expanded ? (
             <IconChevronDown size={12} stroke={2} />

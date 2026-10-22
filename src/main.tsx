@@ -80,6 +80,10 @@ import {
   loadMessageActionsVisibility,
 } from "./lib/messageActionsPref";
 import {
+  applyOutputMotionToDocument,
+  loadOutputMotionPref,
+} from "./lib/outputMotionPref";
+import {
   applyComposerMinRows,
   loadComposerMinRows,
 } from "./lib/composerMinRows";
@@ -117,6 +121,8 @@ applyMsgRailSide(loadMsgRailSide(localStorage));
 applySidebarDensity(loadSidebarDensity(localStorage), undefined, false);
 // Message action buttons (Appearance) — html[data-msg-actions].
 applyMessageActionsVisibility(loadMessageActionsVisibility(localStorage));
+// Model output motion (Appearance) — html[data-output-motion="off"].
+applyOutputMotionToDocument(loadOutputMotionPref(localStorage));
 // Composer empty min-height (General → Composer) — html[data-composer-min-rows].
 applyComposerMinRows(loadComposerMinRows(localStorage));
 // Windows WebView2: a page text-drag can stick input until the process restarts.

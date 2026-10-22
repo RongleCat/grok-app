@@ -91,6 +91,8 @@ export interface SettingsPageProps {
   onReplaceProviderBrandLogo?: (v: boolean) => void;
   welcomeMotionEnabled?: boolean;
   onWelcomeMotionEnabled?: (v: boolean) => void;
+  outputMotionEnabled?: boolean;
+  onOutputMotionEnabled?: (v: boolean) => void;
   goalOrchUiEnabled?: boolean;
   onGoalOrchUiEnabled?: (v: boolean) => void;
   messageTimeFormat?: MessageTimeFormat;

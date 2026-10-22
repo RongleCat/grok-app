@@ -1,0 +1,114 @@
+/*
+ * Block-level content entrance:
+ * - chat-block-enter: row containers in the live tail (thinking header, phase
+ *   block, tool row, tool expand panel).
+ * - chat-md-enter: containers embedded in markdown (code / Mermaid) and the
+ *   structured JSON panel; the markdown tail is wrapped in
+ *   `.chat-md__stream-tail`, which only gets `--live` while streaming;
+ *   finished blocks move into the stable prefix and no longer match, so they
+ *   never replay.
+ * - chat-detail-enter: bodies mounted only after expanding (thinking body);
+ *   nodes that already carry a block entrance class do not stack it, so one
+ *   node keeps a single animation.
+ * Entrance only animates opacity; icon and text positions stay fixed for the
+ * whole animation (no CLS).
+ * History rows do not match the `.lobe-chat__live-tail` scope, so scrolling
+ * back and virtualization remounts never replay; tool rows / phase blocks also
+ * use a one-shot ledger, so the same block never plays twice on remount.
+ */
+
+@keyframes chat-block-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes chat-detail-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scope marker only; takes no part in layout. */
+.chat-md__stream-tail {
+  display: contents;
+}
+
+.lobe-chat__live-tail .chat-block-enter,
+.lobe-chat__live-tail .chat-md__stream-tail--live .chat-md-enter,
+.lobe-chat__live-tail .struct-json.chat-md-enter {
+  animation: chat-block-enter var(--motion-block-enter)
+    var(--motion-block-enter-ease) backwards;
+}
+
+.lobe-chat__live-tail .chat-detail-enter {
+  animation: chat-detail-enter var(--motion-detail-enter)
+    var(--motion-block-enter-ease) backwards;
+}
+
+/* Tool row / phase block state changes (running → done / failed) are no longer
+ * hard cuts. */
+.lobe-chat__live-tail .grok-act__label,
+.lobe-chat__live-tail .grok-act__label-text,
+.lobe-chat__live-tail .grok-act__icon {
+  transition:
+    color var(--motion-state-change) ease,
+    opacity var(--motion-state-change) ease;
+}
+
+/*
+ * Collapsed header "current activity" swap: 800ms fade-in, no movement.
+ * The label is keyed by activity, so the next swap unmounts the old node and
+ * starts over from the first frame, which cuts the previous animation short by
+ * construction; no throttling, so frequent tool changes still each respond.
+ */
+@keyframes chat-now-swap {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lobe-chat__live-tail .grok-act__now {
+  animation: chat-now-swap var(--motion-now-swap) ease-out backwards;
+}
+
+/* The in-app master switch and system Reduce Motion win; DOM structure stays
+ * unchanged. */
+html[data-output-motion="off"] .lobe-chat__live-tail .chat-block-enter,
+html[data-output-motion="off"] .lobe-chat__live-tail .chat-md__stream-tail--live .chat-md-enter,
+html[data-output-motion="off"] .lobe-chat__live-tail .struct-json.chat-md-enter,
+html[data-output-motion="off"] .lobe-chat__live-tail .chat-detail-enter,
+html[data-output-motion="off"] .lobe-chat__live-tail .grok-act__now {
+  animation: none;
+}
+
+html[data-output-motion="off"] .lobe-chat__live-tail .grok-act__label,
+html[data-output-motion="off"] .lobe-chat__live-tail .grok-act__label-text,
+html[data-output-motion="off"] .lobe-chat__live-tail .grok-act__icon {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobe-chat__live-tail .chat-block-enter,
+  .lobe-chat__live-tail .chat-md__stream-tail--live .chat-md-enter,
+  .lobe-chat__live-tail .struct-json.chat-md-enter,
+  .lobe-chat__live-tail .chat-detail-enter,
+  .lobe-chat__live-tail .grok-act__now {
+    animation: none;
+  }
+
+  .lobe-chat__live-tail .grok-act__label,
+  .lobe-chat__live-tail .grok-act__label-text,
+  .lobe-chat__live-tail .grok-act__icon {
+    transition: none;
+  }
+}

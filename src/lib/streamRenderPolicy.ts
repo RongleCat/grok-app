@@ -124,6 +124,59 @@ export function resolveMarkdownPaintSource(
 }
 
 /**
+ * Reveal cap for a single reply, in painted characters. Past it, chunks are no
+ * longer split individually and only block entrance remains. Matches the
+ * Windows long-answer spill threshold — beyond that line a single markdown
+ * tree is already a known hotspot.
+ */
+export const STREAM_REVEAL_MAX_CHARS = 8000;
+
+/**
+ * Budget for animated spans alive in the live tail at once. Each chunk
+ * boundary past the reveal threshold yields at most one animated span, and
+ * every span runs a blur filter, which costs more than plain opacity; hundreds
+ * of filters from very fine chunks would outweigh the motion itself, so this
+ * budget is lower than a fade-only one.
+ */
+export const STREAM_REVEAL_MAX_SPANS = 400;
+
+/** `chunk` = per-chunk text fade-in; `block` = block container entrance only. */
+export type StreamRevealMode = "chunk" | "block";
+
+/**
+ * Decides whether the current streamed reply is still worth revealing per
+ * chunk.
+ *
+ * Reveal buys a sense of writing, at the cost of one inline span per chunk,
+ * one split during parsing, and one CSS animation. Long replies or very fine
+ * chunks stack hundreds of spans in the always-mounted live tail — exactly
+ * where a low-end laptop drops scroll frames. Over budget, the component keeps
+ * its own block entrance and renders the body as plain markdown: content stays
+ * fully readable, only the per-chunk fade is lost.
+ *
+ * Callers must latch the result for the whole lifetime of that reply —
+ * switching around the threshold would tear down and rebuild painted spans,
+ * which flickers the tail.
+ *
+ * @param opts.streaming Only a reply that is still growing needs motion.
+ * @param opts.contentLength Painted characters of this reply.
+ * @param opts.pendingChunkCount Chunk boundaries produced by this reply.
+ *   Each boundary yields at most one animated span, so this bounds the span
+ *   count; boundaries already folded into the stable prefix only make the
+ *   budget slightly conservative.
+ */
+export function resolveStreamRevealMode(opts: {
+  streaming: boolean;
+  contentLength: number;
+  pendingChunkCount: number;
+}): StreamRevealMode {
+  if (!opts.streaming) return "block";
+  if (opts.contentLength >= STREAM_REVEAL_MAX_CHARS) return "block";
+  if (opts.pendingChunkCount > STREAM_REVEAL_MAX_SPANS) return "block";
+  return "chunk";
+}
+
+/**
  * Wallpaper `<video>` should decode whenever the window is visible. Streaming
  * must not pause/restart it because that rebuilds the compositor layer.
  */

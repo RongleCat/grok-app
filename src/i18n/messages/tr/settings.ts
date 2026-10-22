@@ -301,6 +301,8 @@ export const trSettings = {
   "settings.themeDesc": "Sistemi takip edin ya da açık / koyu sabitleyin",
   "settings.welcomeMotion": "Karşılama animasyonu",
   "settings.welcomeMotionDesc": "Yeni sohbetlerde markayı yükseltip “Bugün ne yapıyoruz?” yazısını gösteren giriş animasyonunu oynatır. Kapalıyken içerik yine görünür.",
+  "settings.outputMotion": "Model çıktısı animasyonu",
+  "settings.outputMotionDesc": "Model yanıtı akıtırken metin ve bloklar yumuşakça belirir. Kapattığınızda çıktı hareketsiz kalır; sistemdeki “Hareketi azalt” her zaman önceliklidir.",
   "settings.themeSystem": "Sistem",
   "settings.themeLight": "Açık",
   "settings.themeDark": "Koyu",

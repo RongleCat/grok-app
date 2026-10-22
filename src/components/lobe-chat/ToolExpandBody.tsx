@@ -16,6 +16,7 @@ import { useMemo } from "react";
 import { CopyIconButton } from "@/components/CopyIconButton";
 import { createT, type Locale } from "@/i18n";
 import type { toolExpandBody } from "@/lib/toolDisplay";
+import { cn } from "@/lib/utils";
 
 export type ToolExpandBodyModel = ReturnType<typeof toolExpandBody>;
 
@@ -36,7 +37,10 @@ export function ToolExpandBody({
   const copyOutput = outputFull || (showDetail ? detailTail : "");
   const copiedLabel = tr("message.copied");
   return (
-    <div className={className}>
+    // The expand panel reuses block entrance; one node keeps a single
+    // animation, so detail entrance only applies to bodies without the block
+    // entrance class.
+    <div className={cn(className, "chat-block-enter")}>
       {failHintShort ? (
         <div className="lobe-timeline-tool__fail-hint" title={failHint}>
           {failHintShort}

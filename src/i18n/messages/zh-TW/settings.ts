@@ -302,6 +302,8 @@ export const zhTWSettings = {
   "settings.themeDesc": "跟隨系統，或固定淺色 / 深色",
   "settings.welcomeMotion": "歡迎動畫",
   "settings.welcomeMotionDesc": "在新對話中播放品牌上移及「今天做什麼？」的入場動畫；關閉後內容仍會顯示。",
+  "settings.outputMotion": "模型輸出動效",
+  "settings.outputMotionDesc": "模型串流輸出時，文字和內容區塊會淡入；關閉後輸出保持靜止。系統中的「減少動態效果」始終優先。",
   "settings.themeSystem": "跟隨系統",
   "settings.themeLight": "淺色",
   "settings.themeDark": "深色",

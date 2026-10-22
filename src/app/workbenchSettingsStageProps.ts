@@ -136,6 +136,8 @@ export type WorkbenchSettingsStageProps = {
   replaceProviderBrandLogo: boolean;
   welcomeMotionEnabled: boolean;
   setWelcomeMotionEnabled: Dispatch<SetStateAction<boolean>>;
+  outputMotionEnabled: boolean;
+  setOutputMotionEnabled: Dispatch<SetStateAction<boolean>>;
   restoreSessions: (rows: SessionRow[]) => Promise<void>;
   runAccountLogin: (method?: "oauth" | "device") => Promise<boolean>;
   runAccountLogout: () => Promise<void>;

@@ -108,6 +108,28 @@ describe("settingsCatalog", () => {
     ).toEqual([]);
   });
 
+  it("registers the output motion switch on appearance → interface", () => {
+    const entry = SETTINGS_ENTRIES.find(
+      (e) => e.id === "appearance.outputMotion",
+    );
+    expect(entry).toMatchObject({
+      section: "appearance",
+      tab: "interface",
+      anchorId: "settings-anchor-outputMotion",
+      labelKey: "settings.outputMotion",
+      descKeys: ["settings.outputMotionDesc"],
+    });
+    const tZh = createT("zh");
+    const tEn = createT("en");
+    for (const query of ["输出动效", "动画", "motion", "animation"]) {
+      const hits = searchSettingsEntries(query, tZh, tEn);
+      expect(
+        hits.some((h) => h.entry.id === "appearance.outputMotion"),
+        `search miss for ${query}`,
+      ).toBe(true);
+    }
+  });
+
   it("parseSettingsHash handles section and tab", () => {
     expect(parseSettingsHash("settings")).toEqual({
       section: "general",

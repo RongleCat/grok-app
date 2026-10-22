@@ -23,9 +23,19 @@ describe("ToolExpandBody copy", () => {
       },
       false,
     );
-    render(<ToolExpandBody body={body} locale="en" />);
+    const { container } = render(
+      <ToolExpandBody body={body} locale="en" />,
+    );
     expect(screen.getByText("pwd")).toBeTruthy();
     expect(screen.queryByTestId("tool-output")).toBeNull();
+    expect(
+      container.firstElementChild?.classList.contains("chat-block-enter"),
+    ).toBe(true);
+    // One node keeps a single animation: detail entrance never stacks on top
+    // of block entrance.
+    expect(
+      container.firstElementChild?.classList.contains("chat-detail-enter"),
+    ).toBe(false);
     fireEvent.click(screen.getByTestId("tool-copy-command"));
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith("pwd");

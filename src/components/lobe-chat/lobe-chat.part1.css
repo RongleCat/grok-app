@@ -811,10 +811,12 @@ html[data-msg-actions="hover"]
   min-width: 0;
 }
 
-.chat-md > *:first-child {
+.chat-md > *:first-child,
+.chat-md > .chat-md__stream-tail:first-child > *:first-child {
   margin-top: 0;
 }
-.chat-md > *:last-child {
+.chat-md > *:last-child,
+.chat-md > .chat-md__stream-tail:last-child > *:last-child {
   margin-bottom: 0;
 }
 

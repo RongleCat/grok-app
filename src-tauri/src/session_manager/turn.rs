@@ -431,6 +431,11 @@ impl SessionManager {
                 agent_prompt,
                 Duration::from_millis(25),
                 move |chunk: StreamChunk| {
+                    let chunk_lens = if chunk.text.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![utf16_len(&chunk.text)]
+                    };
                     let _ = app_done.emit(
                         "session://stream",
                         serde_json::json!({
@@ -438,7 +443,8 @@ impl SessionManager {
                             "messageId": chunk.message_id,
                             "text": chunk.text,
                             "done": chunk.done,
-                            "kind": "assistant"
+                            "kind": "assistant",
+                            "chunkLens": chunk_lens,
                         }),
                     );
                     let pending_journal = mgr.with_session_mut(&turn_sid, |s| {

@@ -52,6 +52,7 @@ import {
   type SessionSnapshot,
   type StreamPayload,
 } from "@/lib/session";
+import { sanitizeChunkLens } from "@/lib/session/chunkLens";
 import {
   applyResolvedSessionMedia,
   collectSessionRelativeMediaRefs,
@@ -1114,6 +1115,7 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               done: !!raw.done,
               kind: (raw.kind as StreamPayload["kind"]) || "assistant",
               thoughtPhase: raw.thoughtPhase ?? undefined,
+              chunkLens: raw.chunkLens,
             });
           },
         });
@@ -1128,7 +1130,11 @@ export function useSessionHostEvents(ctx: SessionHostEventsCtx) {
               toolEventCoalescer?.flushAll();
               streamCoalescer?.flushAll();
             }
-            streamCoalescer?.push(chunk);
+            // Host input is untrusted: drop boundary tables that do not add up.
+            streamCoalescer?.push({
+              ...chunk,
+              chunkLens: sanitizeChunkLens(chunk.text, chunk.chunkLens),
+            });
           }),
         );
        track(

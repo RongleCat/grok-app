@@ -33,6 +33,7 @@ mod types;
 mod watchdog;
 
 // Multi-session event routing (P0 shared-process load-replay safety).
+pub(crate) use stream::utf16_len;
 pub(crate) use stream::StreamEmitPayload;
 pub(crate) use stream::{
     has_turn_end_marker_after_last_user, resolve_turn_event_route, SessionRouteHint, TurnEventRoute,

@@ -278,6 +278,8 @@ export const frSettings = {
   "settings.themeDesc": "Suivre le système, ou verrouiller clair / sombre",
   "settings.welcomeMotion": "Animation de bienvenue",
   "settings.welcomeMotionDesc": "Dans les nouvelles discussions, jouer l’animation d’entrée qui fait monter la marque et révèle « Que faisons-nous aujourd’hui ? ». Le contenu reste visible lorsqu’elle est désactivée.",
+  "settings.outputMotion": "Animation de la sortie du modèle",
+  "settings.outputMotionDesc": "Le texte et les blocs apparaissent en fondu pendant que le modèle répond. Si vous désactivez cette option, la conversation reste statique ; « Réduire les animations » du système reste toujours prioritaire.",
   "settings.themeSystem": "Système",
   "settings.themeLight": "Clair",
   "settings.themeDark": "Sombre",

@@ -29,6 +29,33 @@ describe("CodeBlock line gutter", () => {
     expect(gutter?.textContent).toBe("1\n2");
   });
 
+  it("puts the markdown entrance class on the container, not on the gutter or pre", () => {
+    render(
+      <CodeBlock showLineNumbers language="ts">
+        {"const a = 1;\n"}
+      </CodeBlock>,
+    );
+    const root = document.querySelector(".chat-code");
+    expect(root?.classList.contains("chat-md-enter")).toBe(true);
+    expect(document.querySelectorAll(".chat-md-enter")).toHaveLength(1);
+    expect(
+      document.querySelector(".chat-code__gutter")?.classList.contains(
+        "chat-md-enter",
+      ),
+    ).toBe(false);
+    expect(
+      document.querySelector(".chat-code__pre")?.classList.contains(
+        "chat-md-enter",
+      ),
+    ).toBe(false);
+    expect(document.querySelector(".chat-code__pre > code")?.textContent).toBe(
+      "const a = 1;\n",
+    );
+    expect(
+      document.querySelector(".chat-code__pre > code")?.childNodes,
+    ).toHaveLength(1);
+  });
+
   it("does not mount one node per line on a 5000-line fence", () => {
     const code = Array.from(
       { length: 5000 },

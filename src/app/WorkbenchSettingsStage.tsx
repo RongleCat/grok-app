@@ -9,6 +9,8 @@ import { saveMessageTimestampsPref } from "@/lib/messageTimestampsPref";
 import { saveShowReplyLengthPref } from "@/lib/messageLength";
 import { saveReplaceProviderBrandLogoPref } from "@/lib/replaceProviderBrandLogoPref";
 import { saveWelcomeMotionPref } from "@/lib/welcomeMotionPref";
+import { saveOutputMotionPref } from "@/lib/outputMotionPref";
+import { notifyAppearanceChanged } from "@/lib/appearanceLiveSync";
 import { saveMessageTimeFormatPref } from "@/lib/messageTimeFormatPref";
 import { saveSidebarShowRelativeTimePref } from "@/lib/sidebarShowRelativeTimePref";
 import { writeOpenTargetStorage } from "@/lib/openEditorHonesty";
@@ -83,6 +85,7 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
     voiceDictationAutoSend, voiceId, voiceKeepAgentsOnEnd, wallpaperRecord, wallpaperScrim, wallpaperBlur, wallpaperUrl,
     winTaskbarOverlay, windowAlwaysOnTop, workflowsEnabled, zenMode,
     welcomeMotionEnabled, setWelcomeMotionEnabled,
+    outputMotionEnabled, setOutputMotionEnabled,
   } = p;
   return (
         <div
@@ -147,6 +150,12 @@ export function WorkbenchSettingsStage(p: WorkbenchSettingsStageProps) {
           onWelcomeMotionEnabled={(v) => {
           saveWelcomeMotionPref(v, localStorage);
           setWelcomeMotionEnabled(v);
+          }}
+          outputMotionEnabled={outputMotionEnabled}
+          onOutputMotionEnabled={(v) => {
+          saveOutputMotionPref(v, localStorage);
+          setOutputMotionEnabled(v);
+          notifyAppearanceChanged();
           }}
           goalOrchUiEnabled={goalOrchUiEnabled}
           onGoalOrchUiEnabled={(v) => {

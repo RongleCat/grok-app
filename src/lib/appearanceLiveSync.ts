@@ -44,6 +44,11 @@ import {
   WELCOME_MOTION_CHANGE_EVENT,
 } from "@/lib/welcomeMotionPref";
 import {
+  applyOutputMotionToDocument,
+  loadOutputMotionPref,
+  OUTPUT_MOTION_CHANGE_EVENT,
+} from "@/lib/outputMotionPref";
+import {
   loadGoalOrchUiEnabled,
   GOAL_ORCH_UI_CHANGE_EVENT,
 } from "@/lib/goalOrch";
@@ -132,6 +137,9 @@ export function hydrateDocumentAppearancePrefs(): void {
     loadReplaceProviderBrandLogoPref(),
   );
   dispatchBool(WELCOME_MOTION_CHANGE_EVENT, loadWelcomeMotionPref());
+  const outputMotionEnabled = loadOutputMotionPref();
+  applyOutputMotionToDocument(outputMotionEnabled);
+  dispatchBool(OUTPUT_MOTION_CHANGE_EVENT, outputMotionEnabled);
   dispatchBool(GOAL_ORCH_UI_CHANGE_EVENT, loadGoalOrchUiEnabled());
   dispatchBool(
     SIDEBAR_SHOW_RELATIVE_TIME_CHANGE_EVENT,

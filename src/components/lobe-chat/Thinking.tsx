@@ -46,9 +46,16 @@ export const Thinking = memo(function Thinking({
   startedAt,
   locale = "en",
   onOpenExternalLink,
+  chunkEnds,
 }: {
   content?: string | ReactNode;
   thinking?: boolean;
+  /**
+   * Cumulative UTF-16 end offsets of the model's streamed thinking chunks.
+   * Only used while `thinking` is true; history / journal replay has no such
+   * field.
+   */
+  chunkEnds?: number[];
   /** Duration in ms when known (live timer or history). */
   durationMs?: number;
   /**
@@ -230,7 +237,12 @@ export const Thinking = memo(function Thinking({
     >
       <button
         type="button"
-        className="grok-thought__header"
+        className={cn(
+          "grok-thought__header",
+          // Block entrance plays only on the first mount of the live thinking
+          // header; expanding / collapsing does not remount it.
+          thinking && "chat-block-enter",
+        )}
         aria-expanded={hasBody ? expanded : undefined}
         onClick={toggle}
         disabled={!hasBody}
@@ -265,12 +277,19 @@ export const Thinking = memo(function Thinking({
 
       {/* Collapsed: header only. Expanded: muted dig-in body. */}
       {expanded && hasBody ? (
-        <div ref={thoughtBodyRef} className="grok-thought__body">
+        <div
+          ref={thoughtBodyRef}
+          className="grok-thought__body chat-detail-enter"
+        >
           {typeof content === "string" ? (
             <MarkdownChat
               locale={locale}
               muted
               pathCards={false}
+              // Same reveal as the assistant body; no span splitting once the
+              // episode has finished.
+              streaming={!!thinking}
+              chunkEnds={thinking ? chunkEnds : undefined}
               onOpenExternalLink={onOpenExternalLink}
             >
               {content}

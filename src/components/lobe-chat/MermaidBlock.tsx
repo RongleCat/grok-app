@@ -130,7 +130,7 @@ export const MermaidBlock = memo(function MermaidBlock({
   return (
     <div
       className={cn(
-        "chat-code chat-mermaid",
+        "chat-code chat-mermaid chat-md-enter",
         pending && "is-pending",
         error && "is-error",
       )}

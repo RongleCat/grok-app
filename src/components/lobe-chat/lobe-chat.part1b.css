@@ -379,6 +379,45 @@
   display: none;
 }
 
+/*
+ * Stream reveal: live-tail text is split into spans on model chunk boundaries
+ * and goes from blurred to sharp when mounted. Spans stay inline so wrapping
+ * and text selection are unchanged. `backwards` holds the first frame during
+ * the delay and then returns to the element's default style — the filter never
+ * stays on for every revealed span.
+ */
+@keyframes chat-stream-reveal-in {
+  from {
+    opacity: 0;
+    filter: blur(2.5px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.lobe-chat__live-tail .chat-md [data-reveal="1"] {
+  animation: chat-stream-reveal-in var(--motion-stream-reveal)
+    var(--motion-stream-reveal-ease) backwards;
+  animation-delay: min(
+    calc(var(--reveal-i, 0) * var(--motion-stream-reveal-step)),
+    var(--motion-stream-reveal-max)
+  );
+}
+
+/* In-app master switch (ticket 02 only writes this attribute); DOM structure
+ * stays unchanged. */
+html[data-output-motion="off"] .lobe-chat__live-tail .chat-md [data-reveal] {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobe-chat__live-tail .chat-md [data-reveal] {
+    animation: none;
+  }
+}
+
 /* Muted prose only — do not paint code blocks with secondary/low-contrast ink */
 .chat-md--muted {
   color: var(--chat-text-2);

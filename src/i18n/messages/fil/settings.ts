@@ -278,6 +278,8 @@ export const filSettings = {
   "settings.themeDesc": "Sundin ang system, o i-lock sa maliwanag / madilim",
   "settings.welcomeMotion": "Animasyon ng pagbati",
   "settings.welcomeMotionDesc": "Sa mga bagong chat, i-play ang entrance animation na itinataas ang brand at ipinapakita ang “Ano ang gagawin natin ngayon?”. Mananatiling nakikita ang nilalaman kapag naka-off.",
+  "settings.outputMotion": "Animasyon ng output ng modelo",
+  "settings.outputMotionDesc": "Fade in ang teksto at mga block habang nag-stream ang modelo ng sagot. Kapag naka-off, mananatiling static ang transcript; laging nangunguna ang “Reduce Motion” sa system settings.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Maliwanag",
   "settings.themeDark": "Madilim",

@@ -35,8 +35,19 @@
 .grok-act__header:hover .grok-act__header-icon {
   opacity: 1;
 }
+.grok-act__header {
+  max-width: 100%;
+}
 .grok-act__header-text {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Current activity sits on the same line as "Working for Ns"; long labels
+ * truncate so the header never wraps and changes height. */
+.grok-act__now {
+  font-variant-numeric: normal;
 }
 .grok-act__header-caret {
   display: inline-flex;
@@ -95,6 +106,9 @@
   min-height: 0;
 }
 .grok-act__steps--virtual .grok-act__step {
+  /* Fixed row height, so off-screen rows can safely skip rendering. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
   height: 36px;
   min-height: 36px;
   max-height: 36px;
@@ -103,11 +117,12 @@
   box-sizing: border-box;
 }
 .grok-act__steps--virtual .grok-act__main {
+  padding-top: 0;
   padding-bottom: 0;
   justify-content: center;
 }
-.grok-act__steps--virtual .grok-act__icon-col {
-  padding-top: 10px; /* center 16px icon in 36px row */
+.grok-act__steps--virtual .grok-act__step {
+  --grok-act-icon-pad: 10px; /* icon offset inside a 36px virtual row */
 }
 .grok-act__steps--virtual .grok-act__step.is-last .grok-act__main {
   padding-bottom: 0;
@@ -123,17 +138,18 @@
   flex-shrink: 0;
   margin: 0;
   padding: 0;
+  /* Icon offset within the row; the short connector is derived from it so the
+   * line sits centred in the gap between icons. */
+  --grok-act-icon-pad: 3px;
+  --grok-act-rail-dash: 8px;
   color: var(--grok-act-fg);
   font-size: var(--grok-act-font, 13px);
   line-height: 1.4;
   font-weight: 400;
   font-family: inherit;
-  /* Scroll-perf: rows outside the viewport inside a tall "Worked for …"
-   * phase skip style/layout/paint entirely. `auto 36px` remembers the real
-   * size once rendered; 36px matches GROK_ACTIVITY_STEP_ROW_PX for rows
-   * never rendered yet. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 36px;
+  /* content-visibility is only for 36px virtual rows: collapsed rows size to
+   * their content, and recomputing the intrinsic size on hover repaint would
+   * jitter icons / connectors by about 1px. */
 }
 /* Expanded / speech rows cannot keep the collapsed 36px intrinsic size.
  * WebView2 then paints the title, command, and child steps in one box
@@ -156,6 +172,22 @@
   max-height: none;
   overflow: visible;
 }
+/* Expanded virtual rows no longer keep a fixed height: main content aligns to
+ * the top and the icon returns to the first line, otherwise the icon would
+ * follow the row centring and drop below the title. */
+.grok-act__steps--virtual .grok-act__step.is-expanded .grok-act__main,
+.grok-act__steps--virtual .grok-act__step[data-expanded="1"] .grok-act__main,
+.grok-act__steps--virtual .grok-act__step--speech .grok-act__main {
+  padding-top: 2px;
+  justify-content: flex-start;
+}
+.grok-act__steps--virtual .grok-act__step.is-expanded .grok-act__icon-col,
+.grok-act__steps--virtual .grok-act__step[data-expanded="1"] .grok-act__icon-col,
+.grok-act__steps--virtual .grok-act__step--speech .grok-act__icon-col {
+  justify-content: flex-start;
+  /* Aligns with the first body line (main padding-top 2px + 1.4 line height). */
+  padding-top: 3px;
+}
 .grok-act__step.is-error {
   color: var(--chat-danger, #c44);
 }
@@ -165,12 +197,15 @@
 }
 
 .grok-act__icon-col {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: var(--grok-act-icon, 16px);
   flex-shrink: 0;
-  padding-top: 2px;
+  /* The icon is positioned by padding instead of reserving space for the
+   * connector, so the first row is never taller than the others. */
+  padding-top: var(--grok-act-icon-pad, 3px);
 }
 .grok-act__icon {
   display: inline-flex;
@@ -192,12 +227,56 @@
 }
 
 /* Vertical connector — continuous, 1px, light gray */
-.grok-act__rail {
-  flex: 1 1 auto;
+.grok-act__rail,
+.grok-act__rail--top {
+  position: absolute;
+  left: 50%;
   width: 1px;
-  min-height: 10px;
-  margin: 4px 0 0;
+  transform: translateX(-50%);
   background: var(--grok-act-rail);
+}
+/*
+ * Short connector: 8px, centred in the gap between the two icons above and
+ * below. Gap G = row height - icon height (independent of padding). The lower
+ * half starts at icon bottom + (G/2 - D/2) and its height is the smaller of D
+ * and the space left in this row; the upper half is supplied by the next row
+ * starting from its top edge.
+ */
+.grok-act__rail {
+  top: calc(
+    var(--grok-act-icon-pad, 3px) + var(--grok-act-icon, 16px) +
+      max(
+        3px,
+        (100% - var(--grok-act-icon, 16px)) / 2 -
+          var(--grok-act-rail-dash, 8px) / 2
+      )
+  );
+  height: min(
+    var(--grok-act-rail-dash, 8px),
+    calc(
+      (100% - var(--grok-act-icon, 16px)) / 2 -
+        var(--grok-act-icon-pad, 3px) + var(--grok-act-rail-dash, 8px) / 2
+    )
+  );
+}
+/*
+ * The upper half must not be derived from this row's height: is-last rows are
+ * 8px shorter than normal rows, so a half computed from the current row would
+ * cut into the icon and leave a large gap above with none below.
+ * Collapsed (mapped) rows already end their lower half at the row boundary, so
+ * their upper half is always 0; only 36px virtual rows need to cross the
+ * boundary by 4px.
+ */
+.grok-act__rail--top {
+  top: 0;
+  height: 0;
+}
+.grok-act__steps--virtual
+  .grok-act__step:not(.is-expanded):not([data-expanded="1"]):not(
+    .grok-act__step--speech
+  )
+  .grok-act__rail--top {
+  height: calc(var(--grok-act-rail-dash, 8px) / 2);
 }
 
 .grok-act__main {
@@ -284,6 +363,7 @@
 .grok-act__meta {
   display: inline-flex;
   align-items: center;
+  align-self: center;
   gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
@@ -302,6 +382,8 @@
   flex-direction: row-reverse;
 }
 .grok-act__favicon {
+  display: block;
+  align-self: center;
   width: 16px;
   height: 16px;
   border-radius: 50%;

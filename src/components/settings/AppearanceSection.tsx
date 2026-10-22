@@ -122,6 +122,8 @@ export function AppearanceSection() {
     onTheme,
     onThemeSchedule,
     onWelcomeMotionEnabled,
+    onOutputMotionEnabled,
+    outputMotionEnabled = true,
     onWallpaper,
     onWallpaperAdjust,
     onWallpaperFile,
@@ -857,6 +859,29 @@ export function AppearanceSection() {
                     onWelcomeMotionEnabled(!welcomeMotionEnabled)
                   }
                   ariaLabel={t("settings.welcomeMotion")}
+                />
+              </div>
+            ) : null}
+            {onOutputMotionEnabled ? (
+              <div
+                className={
+                  "settings-row" +
+                  rowHighlight("settings-anchor-outputMotion")
+                }
+                id="settings-anchor-outputMotion"
+              >
+                <div className="settings-row__text">
+                  <SettingsLabelWithTip
+                    label={t("settings.outputMotion")}
+                    tip={t("settings.outputMotionDesc")}
+                  />
+                </div>
+                <UiCheck
+                  checked={!!outputMotionEnabled}
+                  onChange={() =>
+                    onOutputMotionEnabled(!outputMotionEnabled)
+                  }
+                  ariaLabel={t("settings.outputMotion")}
                 />
               </div>
             ) : null}

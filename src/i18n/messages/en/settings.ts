@@ -301,6 +301,8 @@ export const enSettings = {
   "settings.themeDesc": "Follow the system, or lock light / dark",
   "settings.welcomeMotion": "Welcome animation",
   "settings.welcomeMotionDesc": "In new chats, play the entrance animation that lifts the brand and reveals “What will we do today?”. The content remains visible when disabled.",
+  "settings.outputMotion": "Model output motion",
+  "settings.outputMotionDesc": "Fade in text and blocks as the model streams its reply. Turning this off keeps the transcript static; Reduce Motion in your system settings always takes precedence.",
   "settings.themeSystem": "System",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",

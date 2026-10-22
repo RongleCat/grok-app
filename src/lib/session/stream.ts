@@ -3,7 +3,6 @@ import { localPathIdentity } from "../pathNormalize";
 import type {
   ChatMessage,
   MessageAttachment,
-  MessageSegment,
   StreamPayload,
 } from "./types";
 import { isInjectedPromptMarker, isTurnPromptMessage } from "./types";
@@ -433,6 +432,7 @@ export function applyStreamChunk(
           ensureSegments(prev),
           chunk.text,
           phaseHint,
+          chunk.chunkLens,
         ),
       );
       const derived = deriveFieldsFromSegments(segs);
@@ -451,7 +451,12 @@ export function applyStreamChunk(
       next[idx] = appendThought(next[idx]!);
       return syncTurnToolsIntoAssistant(next, idx);
     }
-    const segs: MessageSegment[] = [{ kind: "thought", text: chunk.text }];
+    const segs = appendThoughtToSegments(
+      [],
+      chunk.text,
+      phaseHint,
+      chunk.chunkLens,
+    );
     const withAsst: ChatMessage[] = [
       ...messages,
       {
@@ -489,7 +494,7 @@ export function applyStreamChunk(
 
   if (idx < 0) {
     if (!chunk.text) return messages;
-    const segs: MessageSegment[] = [{ kind: "content", text: chunk.text }];
+    const segs = appendContentToSegments([], chunk.text, chunk.chunkLens);
     const withAsst: ChatMessage[] = [
       ...messages,
       {
@@ -506,7 +511,11 @@ export function applyStreamChunk(
   const next = messages.slice();
   const prev = next[idx]!;
   const segs = compactMessageSegments(
-    appendContentToSegments(ensureSegments(prev), chunk.text || ""),
+    appendContentToSegments(
+      ensureSegments(prev),
+      chunk.text || "",
+      chunk.chunkLens,
+    ),
   );
   const derived = deriveFieldsFromSegments(segs);
   next[idx] = {

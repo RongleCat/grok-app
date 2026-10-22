@@ -37,6 +37,128 @@ describe("streamCoalesce", () => {
     });
   });
 
+  it("concatenates chunk lengths in the same order as the text", () => {
+    const merged = mergeStreamChunks(
+      {
+        sessionId: "s",
+        messageId: "m",
+        kind: "assistant",
+        text: "hel",
+        chunkLens: [3],
+      },
+      {
+        sessionId: "s",
+        messageId: "m",
+        kind: "assistant",
+        text: "lo there",
+        chunkLens: [2, 6],
+      },
+    );
+
+    expect(merged?.text).toBe("hello there");
+    expect(merged?.chunkLens).toEqual([3, 2, 6]);
+    expect(merged?.chunkLens?.reduce((sum, n) => sum + n, 0)).toBe(
+      merged?.text?.length,
+    );
+  });
+
+  it("conserves boundaries in every lens/text combination", () => {
+    const base = { sessionId: "s", messageId: "m", kind: "assistant" };
+    const cases: {
+      name: string;
+      prev: { text: string; chunkLens?: number[] };
+      next: { text: string; chunkLens?: number[] };
+      expected: number[] | undefined;
+    }[] = [
+      {
+        name: "both carry lengths",
+        prev: { text: "abc", chunkLens: [1, 2] },
+        next: { text: "de", chunkLens: [2] },
+        expected: [1, 2, 2],
+      },
+      {
+        name: "prev carries, next does not",
+        prev: { text: "abc", chunkLens: [1, 2] },
+        next: { text: "de" },
+        expected: [1, 2, 2],
+      },
+      {
+        name: "next carries, prev does not",
+        prev: { text: "abc" },
+        next: { text: "de", chunkLens: [1, 1] },
+        expected: [3, 1, 1],
+      },
+      {
+        name: "neither carries",
+        prev: { text: "abc" },
+        next: { text: "de" },
+        expected: undefined,
+      },
+      {
+        name: "empty text side",
+        prev: { text: "", chunkLens: [] },
+        next: { text: "de", chunkLens: [2] },
+        expected: [2],
+      },
+      {
+        name: "inconsistent lengths fall back to one chunk",
+        prev: { text: "abc", chunkLens: [1] },
+        next: { text: "de" },
+        expected: [3, 2],
+      },
+    ];
+
+    for (const { name, prev, next, expected } of cases) {
+      const merged = mergeStreamChunks({ ...base, ...prev }, { ...base, ...next });
+      expect(merged?.chunkLens, name).toEqual(expected);
+      if (merged?.chunkLens) {
+        expect(
+          merged.chunkLens.reduce((sum, n) => sum + n, 0),
+          name,
+        ).toBe(merged.text?.length);
+      }
+    }
+  });
+
+  it("counts CJK and emoji in UTF-16 code units", () => {
+    const merged = mergeStreamChunks(
+      { sessionId: "s", messageId: "m", kind: "assistant", text: "世界😀" },
+      {
+        sessionId: "s",
+        messageId: "m",
+        kind: "assistant",
+        text: "好",
+        chunkLens: [1],
+      },
+    );
+
+    expect(merged?.text).toBe("世界😀好");
+    expect(merged?.chunkLens).toEqual([4, 1]);
+    expect(merged?.chunkLens?.reduce((sum, n) => sum + n, 0)).toBe(
+      merged?.text?.length,
+    );
+  });
+
+  it("keeps chunk lengths on the immediate flush path", () => {
+    const out: { chunkLens?: number[] }[] = [];
+    const c = new StreamCoalescer({
+      flushMs: 1000,
+      onFlush: (ch) => out.push({ chunkLens: ch.chunkLens }),
+    });
+
+    c.push({
+      sessionId: "s",
+      messageId: "m",
+      kind: "assistant",
+      text: "done",
+      chunkLens: [4],
+      done: true,
+    });
+
+    expect(out).toEqual([{ chunkLens: [4] }]);
+    c.dispose();
+  });
+
   it("refuses merge across keys", () => {
     expect(
       mergeStreamChunks(

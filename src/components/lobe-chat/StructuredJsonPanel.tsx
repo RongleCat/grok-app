@@ -155,7 +155,7 @@ export function StructuredJsonPanel({
   return (
     <div
       className={cn(
-        "struct-json",
+        "struct-json chat-md-enter",
         `struct-json--${tone}`,
         streaming && "struct-json--live",
         className,

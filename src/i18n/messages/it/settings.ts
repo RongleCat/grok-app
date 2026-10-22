@@ -278,6 +278,8 @@ export const itSettings = {
   "settings.themeDesc": "Aspetto dell’interfaccia dell’app",
   "settings.welcomeMotion": "Animazione di benvenuto",
   "settings.welcomeMotionDesc": "Nelle nuove chat, riproduci l’animazione d’ingresso che solleva il marchio e mostra «Cosa facciamo oggi?». Se disattivata, i contenuti restano visibili.",
+  "settings.outputMotion": "Animazione dell’output del modello",
+  "settings.outputMotionDesc": "Il testo e i blocchi compaiono in dissolvenza mentre il modello risponde. Se disattivata, la conversazione resta statica; «Riduci movimento» del sistema ha sempre la precedenza.",
   "settings.themeSystem": "Sistema",
   "settings.themeLight": "Chiaro",
   "settings.themeDark": "Scuro",

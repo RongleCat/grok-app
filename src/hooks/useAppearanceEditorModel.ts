@@ -127,6 +127,12 @@ import {
   WELCOME_MOTION_CHANGE_EVENT,
 } from "@/lib/welcomeMotionPref";
 import {
+  applyOutputMotionToDocument,
+  loadOutputMotionPref,
+  OUTPUT_MOTION_CHANGE_EVENT,
+  saveOutputMotionPref,
+} from "@/lib/outputMotionPref";
+import {
   loadGoalOrchUiEnabled,
   saveGoalOrchUiEnabled,
   GOAL_ORCH_UI_CHANGE_EVENT,
@@ -307,6 +313,9 @@ export function useAppearanceEditorModel(opts: {
   const [welcomeMotionEnabled, setWelcomeMotionEnabled] = useState(() =>
     loadWelcomeMotionPref(),
   );
+  const [outputMotionEnabled, setOutputMotionEnabled] = useState(() =>
+    loadOutputMotionPref(),
+  );
   const [goalOrchUiEnabled, setGoalOrchUiEnabled] = useState(() =>
     loadGoalOrchUiEnabled(),
   );
@@ -336,6 +345,14 @@ export function useAppearanceEditorModel(opts: {
     () => loadWelcomeMotionPref(),
     setWelcomeMotionEnabled,
   );
+  useBooleanEvent(
+    OUTPUT_MOTION_CHANGE_EVENT,
+    () => loadOutputMotionPref(),
+    setOutputMotionEnabled,
+  );
+  useEffect(() => {
+    applyOutputMotionToDocument(outputMotionEnabled);
+  }, [outputMotionEnabled]);
   useBooleanEvent(
     GOAL_ORCH_UI_CHANGE_EVENT,
     () => loadGoalOrchUiEnabled(),
@@ -585,6 +602,11 @@ export function useAppearanceEditorModel(opts: {
     welcomeMotionEnabled,
     onWelcomeMotionEnabled: (v: boolean) => {
       saveWelcomeMotionPref(v);
+      notifyAppearanceChanged();
+    },
+    outputMotionEnabled,
+    onOutputMotionEnabled: (v: boolean) => {
+      saveOutputMotionPref(v);
       notifyAppearanceChanged();
     },
     goalOrchUiEnabled,

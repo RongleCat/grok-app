@@ -301,6 +301,8 @@ export const zhSettings = {
   "settings.themeDesc": "跟随系统，或固定浅色 / 深色",
   "settings.welcomeMotion": "欢迎动画",
   "settings.welcomeMotionDesc": "在新对话中播放品牌上移及“今天做什么？”的入场动画；关闭后内容仍会显示。",
+  "settings.outputMotion": "模型输出动效",
+  "settings.outputMotionDesc": "模型流式输出时，文字和内容块会淡入；关闭后输出保持静止。系统中的“减弱动态效果”始终优先。",
   "settings.themeSystem": "跟随系统",
   "settings.themeLight": "浅色",
   "settings.themeDark": "深色",
