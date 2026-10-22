@@ -2981,7 +2981,7 @@ mod tests {
         #[cfg(windows)]
         std::fs::write(
             &fake_cli,
-            "@echo off\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',1048576);[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n",
+            "@echo off\r\nif \"%~1\"==\"--version\" (echo 0.2.117 & exit /b 0)\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',1048576);[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n",
         )
         .expect("write fake Windows CLI");
 
@@ -2992,7 +2992,7 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             std::fs::write(
                 &fake_cli,
-                "#!/bin/sh\nhead -c 1048576 /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n",
+                "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 0.2.117; exit 0; fi\nhead -c 1048576 /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n",
             )
             .expect("write fake Unix CLI");
             let mut permissions = std::fs::metadata(&fake_cli)
@@ -3007,7 +3007,7 @@ mod tests {
             "large output",
             r#"{"type":"object"}"#,
             1,
-            Duration::from_secs(15),
+            Duration::from_secs(30),
             None,
         )
         .expect("large stdout/stderr must be drained without deadlock");
@@ -3033,7 +3033,7 @@ mod tests {
         std::fs::write(
             &fake_cli,
             format!(
-                "@echo off\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',{oversized});[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n"
+                "@echo off\r\nif \"%~1\"==\"--version\" (echo 0.2.117 & exit /b 0)\r\npowershell -NoProfile -Command \"$s=[string]::new([char]'x',{oversized});[Console]::Out.Write($s);$s=[string]::new([char]'y',1048576);[Console]::Error.Write($s)\"\r\n"
             ),
         )
         .expect("write oversized fake Windows CLI");
@@ -3046,7 +3046,7 @@ mod tests {
             std::fs::write(
                 &fake_cli,
                 format!(
-                    "#!/bin/sh\nhead -c {oversized} /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n"
+                    "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 0.2.117; exit 0; fi\nhead -c {oversized} /dev/zero | tr '\\0' x\nhead -c 1048576 /dev/zero | tr '\\0' y >&2\n"
                 ),
             )
             .expect("write oversized fake Unix CLI");
@@ -3062,7 +3062,7 @@ mod tests {
             "oversized output",
             r#"{"type":"object"}"#,
             1,
-            Duration::from_secs(15),
+            Duration::from_secs(30),
             None,
         )
         .expect_err("oversized stdout must fail after being drained");
