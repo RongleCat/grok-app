@@ -28,6 +28,22 @@ describe("normalizePath", () => {
 
   it("collapses duplicate slashes", () => {
     expect(normalizePath("/tmp//foo///bar")).toBe("/tmp/foo/bar");
+    expect(normalizePath("///tmp/foo")).toBe("/tmp/foo");
+  });
+
+  it("keeps a Windows network path pointed at that share", () => {
+    expect(normalizePath("\\\\server\\share\\a.ts")).toBe("//server/share/a.ts");
+    expect(normalizePath("//server/share//a")).toBe("//server/share/a");
+    expect(normalizePath("\\\\?\\C:\\Users\\a\\a.ts")).toBe(
+      "//?/C:/Users/a/a.ts",
+    );
+    expect(normalizePath("\\\\server\\share\\a.ts\\")).toBe(
+      "//server/share/a.ts",
+    );
+    expect(pathBaseName("\\\\server\\share\\a.ts")).toBe("a.ts");
+    expect(
+      resolveSessionChangePath({ path: "\\\\server\\share\\a.ts" }),
+    ).toBe("//server/share/a.ts");
   });
 
   it("trims whitespace", () => {

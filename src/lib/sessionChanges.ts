@@ -43,8 +43,13 @@ export type SessionChangeEvent = ToolEventPayload & {
 export function normalizePath(path: string): string {
   let p = (path || "").trim().replace(/\\/g, "/");
   if (!p) return "";
-  // Collapse // (but keep leading // for UNC? we treat as local paths)
+  // A leading pair is UNC or a device path (`//server/share`, `//?/C:/…`).
+  // `///tmp` is a local path with an extra slash, so it still collapses.
+  const keepLeadingUnc = /^\/\/[^/]/.test(p);
   p = p.replace(/\/{2,}/g, "/");
+  if (keepLeadingUnc && p.startsWith("/") && !p.startsWith("//")) {
+    p = `/${p}`;
+  }
   // Windows drive: restore "C:/" style after collapse
   if (/^[a-zA-Z]:\//.test(p) === false && /^[a-zA-Z]:/.test(p)) {
     p = p[0]! + ":" + (p.slice(2).startsWith("/") ? p.slice(2) : "/" + p.slice(2));
