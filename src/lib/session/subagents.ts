@@ -140,6 +140,34 @@ export function applySubagentEvent(
 }
 
 /**
+ * Keep at most `max` runs. Finished rows leave first, oldest first, so a live
+ * run stays on screen while the Tasks list is full. Live rows are dropped only
+ * after every finished row is gone, still oldest first. Under the cap the same
+ * array is returned.
+ */
+export function trimSubagentRuns(
+  runs: readonly SubagentRun[],
+  max: number,
+): readonly SubagentRun[] {
+  const cap = Math.max(0, Math.trunc(max));
+  if (runs.length <= cap) return runs;
+  let overflow = runs.length - cap;
+  const keep = runs.map((run) => {
+    if (overflow > 0 && run.finished) {
+      overflow -= 1;
+      return false;
+    }
+    return true;
+  });
+  for (let i = 0; i < keep.length && overflow > 0; i += 1) {
+    if (!keep[i]) continue;
+    keep[i] = false;
+    overflow -= 1;
+  }
+  return runs.filter((_, i) => keep[i]);
+}
+
+/**
  * Coarse panel status. Anything other than a recognised terminal status stays
  * `finished` — a cancelled run is not a failure, and an outcome the CLI never
  * reported must not be invented.

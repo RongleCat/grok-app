@@ -13,6 +13,7 @@
 
 import {
   applySubagentEvent,
+  trimSubagentRuns,
   type SubagentEventPayload,
   type SubagentRun,
 } from "./session/subagents";
@@ -26,12 +27,12 @@ const EMPTY: readonly SubagentRun[] = [];
 /** Sessions kept at once; the least recently touched is evicted first. */
 export const SUBAGENT_STORE_MAX_SESSIONS = 32;
 
-/** Runs kept per session; oldest are dropped first. */
+/** Runs kept per session. Finished runs are dropped before a live one. */
 export const SUBAGENT_STORE_MAX_RUNS = 100;
 
 class SubagentStore {
   /** Insertion order doubles as LRU order (`touch` re-inserts the key). */
-  private readonly bySession = new Map<string, SubagentRun[]>();
+  private readonly bySession = new Map<string, readonly SubagentRun[]>();
   private readonly listeners = new Set<Listener>();
   private rev = 0;
 
@@ -61,12 +62,7 @@ class SubagentStore {
     // Re-insert so the most recently active session is last (newest) in the
     // eviction order; Map keeps insertion order.
     this.bySession.delete(sid);
-    this.bySession.set(
-      sid,
-      next.length > SUBAGENT_STORE_MAX_RUNS
-        ? next.slice(next.length - SUBAGENT_STORE_MAX_RUNS)
-        : next,
-    );
+    this.bySession.set(sid, trimSubagentRuns(next, SUBAGENT_STORE_MAX_RUNS));
     while (this.bySession.size > SUBAGENT_STORE_MAX_SESSIONS) {
       const oldest = this.bySession.keys().next().value;
       if (oldest === undefined) break;
