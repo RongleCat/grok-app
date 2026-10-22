@@ -15,6 +15,22 @@ def _write_png(path: Path, side: int, color: tuple[int, int, int, int]) -> None:
     Image.new("RGBA", (side, side), color).save(path, "PNG")
 
 
+def _icns_types(data: bytes) -> set[bytes]:
+    import struct
+
+    assert data[:4] == b"icns"
+    types: set[bytes] = set()
+    off = 8
+    while off + 8 <= len(data):
+        typ = data[off : off + 4]
+        length = struct.unpack(">I", data[off + 4 : off + 8])[0]
+        if length < 8:
+            break
+        types.add(typ)
+        off += length
+    return types
+
+
 class PackAppiconsetTest(unittest.TestCase):
     def test_require_exact_size_rejects_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -109,10 +125,24 @@ class PackAppiconsetTest(unittest.TestCase):
                 _write_png(src / name, side, colors[side])
             dest = Path(tmp) / "icon.icns"
             pack.write_icns_no_resize(src, dest)
+            types = _icns_types(dest.read_bytes())
+            self.assertTrue(
+                {b"ic07", b"ic08", b"ic09", b"ic10", b"ic11", b"ic12", b"ic13", b"ic14"}
+                <= types
+            )
+            # Legacy slots decode as stripes in System Settings (#1364).
+            self.assertFalse(types & {b"icp4", b"icp5", b"icp6"})
+            checks = {
+                (16, 16, 2): "32-mac.png",
+                (32, 32, 2): "64-mac.png",
+                (128, 128, 1): "128-mac.png",
+                (256, 256, 1): "256-mac.png",
+                (512, 512, 1): "512-mac.png",
+                (512, 512, 2): "1024-mac.png",
+            }
             with dest.open("rb") as fp:
                 icns = IcnsImagePlugin.IcnsFile(fp)
-                for side, name in names.items():
-                    key = (512, 512, 2) if side == 1024 else (side, side)
+                for key, name in checks.items():
                     got = icns.getimage(key).convert("RGBA")
                     with Image.open(src / name) as ref:
                         self.assertEqual(got.size, ref.size)

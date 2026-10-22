@@ -129,8 +129,9 @@ function normalizeLocale(raw: string): Locale | null {
  * {@link Locale}. Pure — no `navigator` access. Unknown or empty tags → `en`.
  *
  * Rules:
- * - Chinese + Traditional script/region (`Hant`, `TW`, `HK`, `MO`) → `zh-TW`
- * - Other Chinese (`zh`, `zh-CN`, `zh-Hans`, `zh-SG`, …) → `zh`
+ * - Chinese + Simplified script (`Hans`) → `zh`, even when the region is `HK` / `MO` / `TW`
+ * - Other Traditional Chinese (`Hant`, or region `TW` / `HK` / `MO` with no script) → `zh-TW`
+ * - Other Chinese (`zh`, `zh-CN`, `zh-SG`, …) → `zh`
  * - Any Portuguese (`pt`, `pt-PT`, `pt-BR`) → `pt-BR`
  * - Tagalog (`tl`) shares the Filipino catalog
  * - Otherwise the primary subtag when it names a shipped catalog
@@ -150,7 +151,9 @@ export function resolveLocaleFromSystem(
   const primary = parts[0] ?? bare;
 
   if (primary === "zh") {
-    // Script subtag or region for Traditional Chinese.
+    // Script wins over region. A Hong Kong Mac whose preferred language is
+    // 简体中文 reports `zh-Hans-HK`; that must stay Simplified (#1363).
+    if (parts.includes("hans")) return "zh";
     if (
       parts.includes("hant") ||
       parts.includes("tw") ||

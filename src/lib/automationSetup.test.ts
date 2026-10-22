@@ -55,6 +55,17 @@ describe("automationSetup", () => {
     expect(input?.nextRunAt).toBeTruthy();
   });
 
+  it("keeps a json example that is not an automation", () => {
+    const sample = JSON.stringify({ screen: "home", items: [1, 2] }, null, 2);
+    const text = `原样如下：\n\n\`\`\`json\n${sample}\n\`\`\`\n\n以上是示例。`;
+    const { cleanText, input } = extractAutomationPayload(text);
+    expect(input).toBeNull();
+    expect(cleanText).toContain("```json");
+    expect(cleanText).toContain('"screen"');
+    expect(cleanText).toContain("原样如下：");
+    expect(cleanText).toContain("以上是示例。");
+  });
+
   it("accepts json fence fallback", () => {
     const text = `确认一下\n\`\`\`json\n{"title":"t","prompt":"p","frequency":"once","time":"20:30","enabled":true}\n\`\`\``;
     const { input, cleanText } = extractAutomationPayload(text);

@@ -13,6 +13,24 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Small icons in macOS System Settings no longer show colored stripes.
+- Follow System stays Simplified Chinese when that is the preferred language.
+- A trusted workspace no longer blocks sandboxed chats from starting.
+- Chats open again on macOS 12. Markdown no longer uses a pattern Monterey rejects.
+- JSON code blocks in a reply stay visible.
+- Composer markdown no longer stalls on a crafted link reference.
+- A chat connects when leader mode is on but no leader is running.
+
+**中文 · 修复**
+- macOS 系统设置里的小图标不再出现彩色横纹。
+- 跟随系统时，首选简体中文就会显示简体。
+- 信任过工作区之后，沙箱对话可以正常启动。
+- macOS 12 上的对话可以重新打开。Markdown 不再使用旧系统会拒绝的正则。
+- 回复里的 JSON 代码块会照常显示。
+- 输入框里的 Markdown 不再会因一段特制链接引用而卡住。
+- 开了 leader、但本机没有 leader 时，对话也能连上。
+
 ## [0.2.42] - 2026-10-19
 
 > **Highlight:** The desktop pet can dictate, send, and stop a chat.

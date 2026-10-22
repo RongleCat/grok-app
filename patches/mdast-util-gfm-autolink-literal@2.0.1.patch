@@ -1,0 +1,14 @@
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -132,7 +132,10 @@
+     tree,
+     [
+       [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+-      [/(?<=^|\s|\p{P}|\p{S})([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/gu, findEmail]
++      // No lookbehind. macOS 12 WKWebView throws
++      // "Invalid regular expression: invalid group specifier name" (#1347).
++      // findEmail() still rejects a bad previous character.
++      [/([-\.\w+]+)@([-\w]+(?:\.[-\w]+)+)/gu, findEmail]
+     ],
+     {ignore: ['link', 'linkReference']}
+   )

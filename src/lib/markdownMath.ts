@@ -4,6 +4,8 @@
  */
 
 import type { Options } from "react-markdown";
+// Email autolink is patched in patches/mdast-util-gfm-autolink-literal@2.0.1.patch.
+// Upstream's lookbehind throws on macOS 12 WKWebView (#1347).
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";

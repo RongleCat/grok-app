@@ -211,9 +211,18 @@ export function resolveAutomationUpsertTarget(
   return { kind: "create" };
 }
 
+function fenceJsonBody(body: string): string {
+  // Model sometimes wraps JSON in an extra code fence or adds trailing prose.
+  return body
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
 /**
  * Strip automation fences from assistant text and parse the last valid config.
- * Prefer ```grok-automation; also accept ```json as fallback.
+ * Prefer ```grok-automation. A ```json fence is removed only when it is itself
+ * an automation config (title + prompt). Other JSON examples stay visible (#1359).
  */
 export function extractAutomationPayload(text: string): ExtractedAutomation {
   if (!text) {
@@ -231,15 +240,9 @@ export function extractAutomationPayload(text: string): ExtractedAutomation {
   let existingId: string | null = null;
   let action: AutomationFenceAction = "upsert";
   FENCE_RE.lastIndex = 0;
-  const matches = [...text.matchAll(FENCE_RE)];
-
-  for (const m of matches) {
-    const body = (m[1] || "").trim();
-    // Model sometimes wraps JSON in an extra code fence or adds trailing prose
-    const jsonBody = body
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
+  let cleanText = text.replace(FENCE_RE, (full, body: string) => {
+    const jsonBody = fenceJsonBody(body || "");
+    const isGrok = /^```[ \t]*grok-automation\b/i.test(full);
     const parsed = parseAutomationConfigJson(jsonBody);
     if (parsed) {
       input = parsed;
@@ -254,10 +257,10 @@ export function extractAutomationPayload(text: string): ExtractedAutomation {
         action = "upsert";
       }
     }
-  }
-
-  FENCE_RE.lastIndex = 0;
-  let cleanText = text.replace(FENCE_RE, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+    if (isGrok || parsed) return "";
+    return full;
+  });
+  cleanText = cleanText.replace(/\n{3,}/g, "\n\n").trimEnd();
   if (!cleanText.trim() && input) {
     cleanText = "";
   }
@@ -265,10 +268,11 @@ export function extractAutomationPayload(text: string): ExtractedAutomation {
   return { cleanText, input, rawJson, existingId, action };
 }
 
-/** True if text still contains an automation fence. */
+/** True when the text contains a fence this module would hide or apply. */
 export function hasAutomationFence(text: string): boolean {
-  FENCE_RE.lastIndex = 0;
-  return FENCE_RE.test(text);
+  if (!text) return false;
+  if (/```[ \t]*grok-automation\b/i.test(text)) return true;
+  return extractAutomationPayload(text).input != null;
 }
 
 /**
