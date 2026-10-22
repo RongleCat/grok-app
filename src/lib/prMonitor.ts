@@ -3,7 +3,7 @@
  * pushed.
  *
  * The host owns the watches, the poll, the reading of a change and the
- * follow-up turn (`src-tauri/src/pr_monitor.rs`). It pushes the rows
+ * follow-up turn (`src-tauri/src/pr_monitor/mod.rs`). It pushes the rows
  * (`pr-monitor://state`) and each wake's outcome (`pr-monitor://wake`), so
  * everything here is pure rendering logic that can be tested on its own.
  */
@@ -60,6 +60,8 @@ export type PrMonitorWatchInfo = {
 export type PrMonitorStateEvent = {
   sessionId: string;
   watches: PrMonitorWatchInfo[];
+  /** Host-wide counter, so an older push cannot overwrite a newer read. */
+  revision?: number;
 };
 
 /** queued = waiting for an idle chat, delivered = the chat took the turn,

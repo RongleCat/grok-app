@@ -843,7 +843,12 @@ export function WorkbenchComposerColumn(p: WorkbenchComposerColumnProps) {
                     prLastChange={prMonitor.lastChange}
                     prWatchError={prMonitor.watchError}
                     onTogglePrWatch={prMonitor.toggleWatch}
-                    onPrListVisible={prMonitor.refresh}
+                    onPrMenuOpen={() => {
+                      // Opening the menu is when watch state becomes visible:
+                      // re-read it, so an agent mount the push missed shows up.
+                      prMonitor.refresh();
+                      prMonitor.refreshWatches();
+                    }}
                     onOpenPrHub={openPrHubForNumber}
                     onSwitch={(wt) => {
                       void switchToWorktree(wt);

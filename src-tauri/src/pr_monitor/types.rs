@@ -355,11 +355,16 @@ pub struct PrWatchInfo {
 }
 
 /// Every watch one session holds (pushed after any change to them).
+///
+/// `revision` is a host-wide counter that grows with every push. A read answers
+/// with the counter as of that answer, so a client can drop a push that was
+/// emitted before a read it has already applied.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrMonitorState {
     pub session_id: String,
     pub watches: Vec<PrWatchInfo>,
+    pub revision: u64,
 }
 
 /// One wake's outcome, pushed to the UI.

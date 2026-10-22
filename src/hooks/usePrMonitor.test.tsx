@@ -3,13 +3,14 @@
  *
  * usePrMonitor tests.
  *
- * The host owns the watches, so this hook only reads twice (the repository's
- * open PRs, this chat's watches) and then renders what the host pushes. The
- * tests drive it through real pushes from a stubbed transport — the transport is
- * the only thing replaced, never the logic under test.
+ * The host owns the watches, so this hook reads the repository's open PRs once
+ * per menu open and this chat's watch rows on subscribe, on menu open and after
+ * a bell click; everything else is what the host pushes. The tests drive
+ * it through real pushes from a stubbed transport — the transport is the only
+ * thing replaced, never the logic under test.
  */
 import "@/test/jsdomStubs";
-import { renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitPrHubListResult } from "@/lib/gitPrHub";
 import type { PrMonitorStateEvent, PrMonitorWakeEvent } from "@/lib/prMonitor";
@@ -19,6 +20,7 @@ const prMonitorWatch = vi.hoisted(() => vi.fn());
 const prMonitorUnwatch = vi.hoisted(() => vi.fn());
 const onPrMonitorState = vi.hoisted(() => vi.fn());
 const onPrMonitorWake = vi.hoisted(() => vi.fn());
+const isDesktopHost = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock("@/lib/api", () => ({
   gitPrList,
@@ -27,7 +29,7 @@ vi.mock("@/lib/api", () => ({
   prMonitorUnwatch,
   onPrMonitorState,
   onPrMonitorWake,
-  isDesktopHost: () => true,
+  isDesktopHost,
 }));
 
 import { usePrMonitor } from "@/hooks/usePrMonitor";
@@ -104,6 +106,7 @@ function setup(over: Partial<Parameters<typeof usePrMonitor>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  isDesktopHost.mockReturnValue(true);
   pushState = null;
   pushWake = null;
   gitPrList.mockResolvedValue(listResult());
@@ -129,6 +132,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // No globals config, so Testing Library cannot register its own cleanup:
+  // a mounted hook would keep its host listeners and read on later tests.
+  cleanup();
   vi.clearAllMocks();
 });
 
@@ -142,7 +148,7 @@ describe("usePrMonitor", () => {
     expect(gitPrList).toHaveBeenCalledTimes(1);
   });
 
-  it("reads this chat's watches once and then renders the host's pushes", async () => {
+  it("reads this chat's watches on subscribe and then renders the host's pushes", async () => {
     prMonitorState.mockResolvedValue({
       sessionId: SESSION,
       watches: [watchInfo({ pending: true })],
@@ -168,6 +174,162 @@ describe("usePrMonitor", () => {
 
     pushState!({ sessionId: "another-session", watches: [] });
     await Promise.resolve();
+    expect(hook.result.current.watching).toBe(1);
+  });
+
+  it("picks up a watch whose push this webview never heard when the menu opens", async () => {
+    const { hook } = setup();
+    await waitFor(() => expect(hook.result.current.watching).toBe(0));
+
+    // The agent mounted it meanwhile; the push never reached this webview.
+    prMonitorState.mockResolvedValue({
+      sessionId: SESSION,
+      watches: [watchInfo()],
+    });
+    hook.result.current.refreshWatches();
+
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+    expect(prMonitorState).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a push win over a reconcile read that was already running", async () => {
+    let release: ((value: unknown) => void) | null = null;
+    prMonitorState.mockResolvedValue({
+      sessionId: SESSION,
+      watches: [watchInfo()],
+    });
+    const { hook } = setup();
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+
+    // A reconcile read is in flight when the host pushes the newer truth.
+    prMonitorState.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    hook.result.current.refreshWatches();
+    pushState!({ sessionId: SESSION, watches: [] });
+    await waitFor(() => expect(hook.result.current.watching).toBe(0));
+
+    release!({ sessionId: SESSION, watches: [watchInfo()] });
+    await Promise.resolve();
+    expect(hook.result.current.watching).toBe(0);
+  });
+
+  it("stays quiet on window focus and visibility changes", async () => {
+    const { hook } = setup();
+    await waitFor(() => expect(prMonitorState).toHaveBeenCalledTimes(1));
+
+    window.dispatchEvent(new Event("focus"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    await Promise.resolve();
+
+    // No background reconcile: only the push, the menu open, and a bell click
+    // read the rows.
+    expect(prMonitorState).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.watching).toBe(0);
+  });
+
+  it("drops a read of the previous chat when the chat changes", async () => {
+    const resolvers: Array<(value: unknown) => void> = [];
+    const hook = renderHook(
+      ({ sessionId }: { sessionId: string }) =>
+        usePrMonitor({
+          enabled: true,
+          projectPath: PROJECT,
+          sessionId,
+          locale: "en",
+        }),
+      { initialProps: { sessionId: SESSION } },
+    );
+    await waitFor(() => expect(prMonitorState).toHaveBeenCalledTimes(1));
+
+    prMonitorState.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    hook.result.current.refreshWatches(); // starts a read for SESSION
+    hook.rerender({ sessionId: "session-2" }); // starts one for session-2
+    await waitFor(() => expect(resolvers.length).toBe(2));
+
+    resolvers[0]!({ sessionId: SESSION, watches: [watchInfo()] });
+    await Promise.resolve();
+    // The old chat's answer must not land in the new chat.
+    expect(hook.result.current.watching).toBe(0);
+  });
+
+  it("clears the previous chat's rows when the chat changes", async () => {
+    isDesktopHost.mockReturnValue(false); // a mirror never reads, so only the clear can fix it
+    const hook = renderHook(
+      ({ sessionId }: { sessionId: string }) =>
+        usePrMonitor({
+          enabled: true,
+          projectPath: PROJECT,
+          sessionId,
+          locale: "en",
+        }),
+      { initialProps: { sessionId: SESSION } },
+    );
+    await waitFor(() => expect(pushState).toBeTypeOf("function"));
+    pushState!({ sessionId: SESSION, watches: [watchInfo()] });
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+
+    hook.rerender({ sessionId: "session-2" });
+    await waitFor(() => expect(hook.result.current.watching).toBe(0));
+  });
+
+  it("ignores a push that is older than a read already applied", async () => {
+    prMonitorState.mockResolvedValue({
+      sessionId: SESSION,
+      watches: [watchInfo()],
+      revision: 5,
+    });
+    const { hook } = setup();
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+
+    pushState!({ sessionId: SESSION, watches: [], revision: 4 });
+    await Promise.resolve();
+    expect(hook.result.current.watching).toBe(1);
+  });
+
+  it("reads the rows once more after a bell click", async () => {
+    const { hook } = setup();
+    await waitFor(() => expect(prMonitorState).toHaveBeenCalledTimes(1));
+
+    hook.result.current.toggleWatch(1316);
+    await waitFor(() => expect(prMonitorWatch).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(prMonitorState).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps push-only rows on a mirror client instead of clearing them", async () => {
+    isDesktopHost.mockReturnValue(false);
+    const { hook } = setup();
+    await waitFor(() => expect(pushState).toBeTypeOf("function"));
+
+    pushState!({ sessionId: SESSION, watches: [watchInfo()] });
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+
+    hook.result.current.refreshWatches();
+    await Promise.resolve();
+    expect(hook.result.current.watching).toBe(1);
+    expect(prMonitorState).not.toHaveBeenCalled();
+  });
+
+  it("keeps the rows when a reconcile read fails", async () => {
+    prMonitorState.mockResolvedValue({
+      sessionId: SESSION,
+      watches: [watchInfo()],
+    });
+    const { hook } = setup();
+    await waitFor(() => expect(hook.result.current.watching).toBe(1));
+
+    prMonitorState.mockRejectedValue(new Error("host is wedged"));
+    hook.result.current.refreshWatches();
+    await Promise.resolve();
+
     expect(hook.result.current.watching).toBe(1);
   });
 

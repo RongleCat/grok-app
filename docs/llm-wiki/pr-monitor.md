@@ -27,8 +27,20 @@ turn **into that session**; the client renders what the host pushes.
   as it is. The app never invents a PR.
 - The repository's PRs are read once each time the branch menu opens, including
   after a failed read, and a project change during that read starts the new
-  project's read when the old one finishes. Watches are the host's business and
-  are pushed, so the client never polls for them.
+  project's read when the old one finishes.
+- Watches are pushed by the host; nothing polls them on a timer and no window
+  event triggers a read. The reconcile reads of `pr_monitor_state` happen at
+  three moments: when this chat subscribes, when the branch menu opens, and once
+  after a bell click. A push is not replayed, so without them an agent's mount
+  while the webview could not hear it (window hidden or recreated) would leave
+  the chip and the bells stale until the chat was reopened.
+- Rows are per chat: switching chats clears them first, so a mirror client
+  (which never reads them locally) cannot show the previous chat's rows.
+- Every push and every read carries a host revision, and a lower revision never
+  overwrites the rows on screen — a push emitted before a read the client
+  already applied cannot roll it back.
+- The host publishes the row on mount both before and after the seed poll: the
+  poll waits on `gh`, and the watch already exists.
 - Watching is per session: another chat's watches are neither shown nor
   stoppable here, and the same PR can be watched by two chats (each gets its own
   host poll and its own follow-up).
@@ -104,7 +116,7 @@ later poll that only clears that error is pushed too.
 
 ## Host side
 
-`src-tauri/src/pr_monitor.rs` owns the watches:
+`src-tauri/src/pr_monitor/mod.rs` owns the watches:
 
 - in-memory registry keyed by **session id**, each holding its PR watches;
   commands `pr_monitor_watch` / `pr_monitor_unwatch` / `pr_monitor_state`;

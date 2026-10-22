@@ -77,7 +77,7 @@ function renderMenu(
 ) {
   const onTogglePrWatch = vi.fn();
   const onOpenPrHub = vi.fn();
-  const onPrListVisible = vi.fn();
+  const onPrMenuOpen = vi.fn();
   render(
     <ComposerWorktreeMenu
       variant="context"
@@ -91,11 +91,11 @@ function renderMenu(
       onGc={vi.fn()}
       onTogglePrWatch={onTogglePrWatch}
       onOpenPrHub={onOpenPrHub}
-      onPrListVisible={onPrListVisible}
+      onPrMenuOpen={onPrMenuOpen}
       {...extra}
     />,
   );
-  return { onTogglePrWatch, onOpenPrHub, onPrListVisible };
+  return { onTogglePrWatch, onOpenPrHub, onPrMenuOpen };
 }
 
 async function open() {
@@ -215,24 +215,24 @@ describe("ComposerWorktreeMenu PR section", () => {
   });
 
   it("reads the repository's PRs once per open", async () => {
-    const { onPrListVisible } = renderMenu({ prRows: ROWS, prWatchingCount: 1 });
+    const { onPrMenuOpen } = renderMenu({ prRows: ROWS, prWatchingCount: 1 });
     await open();
-    await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onPrMenuOpen).toHaveBeenCalledTimes(1));
   });
 
   it("reads again when the menu opens after a failed list", async () => {
-    const { onPrListVisible } = renderMenu({
+    const { onPrMenuOpen } = renderMenu({
       prRows: [],
       prLoading: false,
       prAvailable: false,
     });
     const user = await open();
-    await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onPrMenuOpen).toHaveBeenCalledTimes(1));
     expect(screen.queryByText("Pull request")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Switch git worktree/ }));
     await user.click(screen.getByRole("button", { name: /Switch git worktree/ }));
-    await waitFor(() => expect(onPrListVisible).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onPrMenuOpen).toHaveBeenCalledTimes(2));
     expect(screen.queryByText("Pull request")).toBeNull();
   });
 
