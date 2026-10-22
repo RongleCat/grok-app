@@ -27,6 +27,23 @@ export function pathTokenText(input: unknown): string {
   return typeof input === "string" ? input : "";
 }
 
+/**
+ * Backslash UNC (`\\server\share\a.png`) or a Win32 device path
+ * (`\\?\C:\…`, `\\.\C:\…`).
+ * Forward-slash `//host/…` stays a protocol-relative URL, dotted host or not.
+ */
+function isUncOrDevicePath(input: string): boolean {
+  const raw = pathTokenText(input).trim();
+  if (!raw) return false;
+  const folded = raw.replace(/\\/g, "/");
+  if (folded.startsWith("//?/") || folded.startsWith("//./")) {
+    return folded.length > "//?/".length;
+  }
+  if (!raw.startsWith("\\\\")) return false;
+  const parts = folded.replace(/^\/+/, "").split("/").filter(Boolean);
+  return parts.length >= 2;
+}
+
 /** Windows drive or UNC — backslash is a separator, not shell escape. */
 export function isWindowsStylePath(s: string): boolean {
   const t = pathTokenText(s).trim();
@@ -93,6 +110,9 @@ export function unescapeShellPath(input: string): string {
  * is treated as local so agent-home / custom roots keep working.
  */
 export function isRealLocalAbsolutePath(s: string): boolean {
+  // Classify before `\` → `/`. A folded UNC is `//server/…`, which is also
+  // how protocol-relative URLs are written.
+  if (isUncOrDevicePath(s)) return true;
   const t = unescapeShellPath(s).replace(/\\/g, "/");
   if (!t) return false;
   if (t.includes("://")) return false;
@@ -150,6 +170,9 @@ export function isSiteRootAbsolutePath(s: string): boolean {
 export function normalizeLocalPathToken(input: string): string {
   let t = pathTokenText(input).trim().replace(/^<|>$/g, "");
   if (!t) return "";
+  // Keep `\\server\share\…`. Folding it to `//server/…` makes the next
+  // check treat a dotted share as a protocol-relative URL.
+  if (isUncOrDevicePath(t)) return t;
   if (isWindowsStylePath(t)) {
     t = t.replace(/\\/g, "/");
   } else if (t.includes("\\")) {
@@ -184,6 +207,9 @@ export function isLocalMediaOpenable(
   const raw = pathTokenText(token).trim();
   if (!raw) return false;
   if (isSiteRootAbsolutePath(raw)) return false;
+  // Raw token: normalize folds separators, and a folded UNC no longer
+  // looks like a backslash path.
+  if (isRealLocalAbsolutePath(raw)) return true;
   if (pathMap?.[raw] && isRealLocalAbsolutePath(pathMap[raw]!)) return true;
   const norm = normalizeLocalPathToken(raw);
   if (!norm) return false;
@@ -196,10 +222,15 @@ export function isLocalMediaOpenable(
  * keep relative multi-segment as-is for code citations.
  */
 export function displayPathLabel(path: string): string {
-  const t = normalizeLocalPathToken(path) || pathTokenText(path).trim();
-  if (!t) return pathTokenText(path);
-  if (isRealLocalAbsolutePath(t) || t.length > 64) {
-    const parts = t.split("/").filter(Boolean);
+  const raw = pathTokenText(path).trim();
+  const t = normalizeLocalPathToken(path) || raw;
+  if (!t) return raw;
+  if (
+    isRealLocalAbsolutePath(t) ||
+    isRealLocalAbsolutePath(raw) ||
+    t.length > 64
+  ) {
+    const parts = t.split(/[\\/]/).filter(Boolean);
     return parts[parts.length - 1] || t;
   }
   return t;

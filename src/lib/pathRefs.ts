@@ -81,6 +81,14 @@ export function normalizePathToken(s: string): string {
 }
 
 export function looksLikeFilePath(s: string): boolean {
+  const raw = pathTokenText(s).trim();
+  // Before normalize. Folding `\\server\share\a.png` yields `//server/…`,
+  // which the absolute-path branch below rejects as protocol-relative.
+  if (raw && raw.length <= 800 && isRealLocalAbsolutePath(raw)) {
+    if (FILE_EXT_RE.test(raw)) return true;
+    const segs = raw.split(/[\\/]/).filter(Boolean);
+    return segs.length >= 2;
+  }
   const t = normalizePathToken(s);
   if (!t || t.length > 800) return false;
   if (isHttpUrl(t)) return false;
@@ -102,7 +110,7 @@ export function looksLikeFilePath(s: string): boolean {
     // Single-segment abs with ext (`/a.png`) stays a path only when real local
     // (agent-home short roots); slash commands without ext already rejected.
     if (FILE_EXT_RE.test(t)) return true;
-    const segs = t.replace(/^~\/?/, "").split("/").filter(Boolean);
+    const segs = t.replace(/^~\/?/, "").split(/[\\/]/).filter(Boolean);
     return segs.length >= 2;
   }
   // Other absolute-looking tokens without a known FS root: not a file card.

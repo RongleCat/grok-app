@@ -114,6 +114,24 @@ describe("isRealLocalAbsolutePath / isSiteRootAbsolutePath", () => {
     expect(isRealLocalAbsolutePath("/a.png")).toBe(true);
   });
 
+  it("accepts a backslash UNC and a Win32 device path", () => {
+    expect(isRealLocalAbsolutePath("\\\\server\\share\\a.png")).toBe(true);
+    expect(isLocalMediaOpenable("\\\\server\\share\\a.png")).toBe(true);
+    expect(isRealLocalAbsolutePath("\\\\files.corp\\share\\a.png")).toBe(true);
+    expect(isRealLocalAbsolutePath("\\\\?\\C:\\Users\\a\\a.png")).toBe(true);
+    expect(isRealLocalAbsolutePath("\\\\.\\C:\\Users\\a\\a.png")).toBe(true);
+    expect(normalizeLocalPathToken("\\\\server\\share\\a.png")).toBe(
+      "\\\\server\\share\\a.png",
+    );
+    expect(displayPathLabel("\\\\server\\share\\a.png")).toBe("a.png");
+  });
+
+  it("keeps a forward-slash host as a protocol-relative URL", () => {
+    expect(isRealLocalAbsolutePath("//cdn.example.com/a.png")).toBe(false);
+    expect(isLocalMediaOpenable("//cdn.example.com/a.png")).toBe(false);
+    expect(isRealLocalAbsolutePath("//server/share/a.png")).toBe(false);
+  });
+
   it("does not treat site roots as openable local media", () => {
     expect(isLocalMediaOpenable("/images/x.png")).toBe(false);
     expect(

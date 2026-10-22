@@ -57,6 +57,18 @@ describe("fused media query keys never reach the media server", () => {
     resetMediaEndpointForTests();
   });
 
+  it("keeps a Windows UNC path as a local file", () => {
+    expect(normalizeMediaRef("\\\\server\\share\\a.png")).toBe(
+      "\\\\server\\share\\a.png",
+    );
+    expect(normalizeMediaRef("\\\\files.corp\\share\\a.png")).toBe(
+      "\\\\files.corp\\share\\a.png",
+    );
+    expect(normalizeMediaRef("//cdn.example.com/a.png")).toBe(
+      "https://cdn.example.com/a.png",
+    );
+  });
+
   it("normalizeMediaRef rejects t:/… fused paths", () => {
     expect(normalizeMediaRef("t:/Users/me/pic.png")).toBe(null);
     expect(normalizeMediaRef("p:/Users/me/pic.png")).toBe(null);

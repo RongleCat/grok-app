@@ -70,7 +70,7 @@ export function buildAgentPrompt(
 /** Basename without emoji. Shell-unescapes POSIX paths first. */
 export function pathBasename(path: string): string {
   const norm = normalizeLocalPathToken(path) || pathTokenText(path).replace(/\\/g, "/");
-  const parts = norm.split("/").filter(Boolean);
+  const parts = norm.split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] || path;
 }
 

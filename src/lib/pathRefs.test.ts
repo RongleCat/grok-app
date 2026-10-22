@@ -54,6 +54,16 @@ describe("normalizePathToken", () => {
     expect(normalizePathToken("…/videos/1.mp4")).toBe("videos/1.mp4");
   });
 
+  it("treats a Windows network share as a file", () => {
+    const unc = "\\\\server\\share\\a.png";
+    expect(looksLikeFilePath(unc)).toBe(true);
+    expect(normalizePathToken(unc)).toBe(unc);
+    expect(resolveFileToken(unc)).toBe(unc);
+    expect(looksLikeFilePath("\\\\files.corp\\share\\a.png")).toBe(true);
+    expect(looksLikeFilePath("//cdn.example.com/a.png")).toBe(false);
+    expect(looksLikeFilePath("//server/share/a.png")).toBe(false);
+  });
+
   it("never treats fused media query keys (t:/Users/…) as file cards", () => {
     const fused = "t:/Users/me/pic.png";
     expect(normalizePathToken(fused)).toBe(fused); // normalization is lossless

@@ -169,6 +169,7 @@ describe("attachments", () => {
 
   it("basename works", () => {
     expect(pathBasename("/foo/bar/baz.txt")).toBe("baz.txt");
+    expect(pathBasename("\\\\server\\share\\a.png")).toBe("a.png");
   });
 
   it("extracts absolute media paths from assistant prose", () => {
