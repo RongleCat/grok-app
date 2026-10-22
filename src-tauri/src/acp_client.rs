@@ -1009,7 +1009,23 @@ impl AcpClient {
             session_data_mode,
         );
         cmd.arg("agent");
-        cmd.arg(leader_spawn_flag(use_leader));
+        let local_native_spawn = ssh_alias.is_none() && wsl_launch.is_none();
+        let leader_flag = if local_native_spawn && use_leader {
+            let socket = crate::leader::default_leader_socket_path();
+            #[cfg(unix)]
+            let socket_present = {
+                use std::os::unix::fs::FileTypeExt;
+                std::fs::metadata(&socket)
+                    .map(|meta| meta.file_type().is_socket())
+                    .unwrap_or(false)
+            };
+            #[cfg(not(unix))]
+            let socket_present = socket.exists();
+            local_leader_spawn_flag(use_leader, socket_present)
+        } else {
+            leader_spawn_flag(use_leader)
+        };
+        cmd.arg(leader_flag);
         // Agent option: `--agent-profile <PATH>` (before `stdio`). Path only —
         // does not rewrite app agent-home or shared ~/.grok. Skip on SSH — the
         // path is local and would not exist on the host.
@@ -1055,7 +1071,7 @@ impl AcpClient {
         // Local native only: process-group + no-window so Windows tree-kill
         // can reap tool/shell grandchildren. SSH/WSL keep CREATE_NO_WINDOW
         // alone — do not apply local process-group / taskkill semantics.
-        let owns_local_process_tree = ssh_alias.is_none() && wsl_launch.is_none();
+        let owns_local_process_tree = local_native_spawn;
         if owns_local_process_tree {
             cmd.current_dir(&cwd);
         }
@@ -1170,7 +1186,7 @@ impl AcpClient {
             crate::wsl_backend::apply_wslenv(&mut cmd);
         }
         tracing::info!(
-            "acp: spawn home={} ssh={:?} mode={} model={} effort={:?} native_grok_proxy={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
+            "acp: spawn home={} ssh={:?} mode={} model={} effort={:?} native_grok_proxy={} sandbox={:?} max_turns={:?} fork_session={} no_ask_user={} leader_requested={} leader_flag={} subagents={} memory={} compaction_mode={} compaction_detail={} compaction_flags={} agent_profile={:?} agents_json={}",
             grok_home.display(),
             ssh_alias,
             session_data_mode,
@@ -1182,6 +1198,7 @@ impl AcpClient {
             opts.fork_session,
             no_ask_user,
             use_leader,
+            leader_flag,
             subagents_enabled,
             memory_enabled,
             normalize_compaction_mode(&compaction_mode),

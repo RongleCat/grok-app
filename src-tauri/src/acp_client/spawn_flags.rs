@@ -694,6 +694,23 @@ pub fn leader_spawn_flag(use_leader: bool) -> &'static str {
     }
 }
 
+/// Native ACP must not wait on a leader that has no listening socket.
+pub fn local_leader_spawn_flag(use_leader: bool, socket_present: bool) -> &'static str {
+    leader_spawn_flag(use_leader && socket_present)
+}
+
+#[cfg(test)]
+mod local_leader_spawn_tests {
+    use super::local_leader_spawn_flag;
+
+    #[test]
+    fn missing_socket_falls_back_but_present_socket_keeps_leader() {
+        assert_eq!(local_leader_spawn_flag(true, false), "--no-leader");
+        assert_eq!(local_leader_spawn_flag(true, true), "--leader");
+        assert_eq!(local_leader_spawn_flag(false, true), "--no-leader");
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentSpawnSpec {
     pub name: String,
