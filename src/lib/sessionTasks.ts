@@ -1,9 +1,8 @@
 /**
  * Active / recent agent tool tasks for the session Tasks panel (L05).
  *
- * Source of truth: live + journal `tool_step` rows already produced from ACP
- * `session://tool` events (toolCallId, title, kind, status, path, detail).
- * There is no separate ACP "task list" API — do not invent one.
+ * Names and kinds come from `tool_step` rows. Background task status is
+ * overlaid from the linked CLI `updates.jsonl`, which the panel polls.
  */
 
 import type { ChatMessage } from "./session";
@@ -266,6 +265,30 @@ const LONG_RUNNING_KINDS = new Set([
 export function isRunningToolStatus(status: string | null | undefined): boolean {
   const s = (status || "").toLowerCase().trim();
   return RUNNING_STATUSES.has(s);
+}
+
+/** One polled row from `task_board_snapshot`. */
+export interface TaskBoardRow {
+  id: string;
+  status: string;
+}
+
+/**
+ * Replace task status from the CLI log snapshot. Rows the log does not
+ * mention stay as the message stream left them.
+ */
+export function applyTaskBoard(
+  tasks: AgentTask[],
+  rows: readonly TaskBoardRow[],
+): AgentTask[] {
+  if (rows.length === 0) return tasks;
+  const byId = new Map(rows.map((row) => [row.id, row.status]));
+  return tasks.map((task) => {
+    const raw = byId.get(task.id);
+    if (raw == null) return task;
+    const status = normalizeTaskStatus(raw, false);
+    return status === task.status ? task : { ...task, status };
+  });
 }
 
 export function normalizeTaskStatus(

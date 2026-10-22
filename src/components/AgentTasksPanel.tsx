@@ -14,11 +14,13 @@
  */
 
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
+import { useTaskBoard } from "@/hooks/useTaskBoard";
 import type { Locale, MessageKey } from "@/i18n";
 import type { ChatMessage } from "@/lib/session";
 import * as api from "@/lib/api";
 import { pathsEqual } from "@/lib/gitWorktree";
 import {
+  applyTaskBoard,
   buildTaskTree,
   collectSessionTasks,
   countRunningTasks,
@@ -58,6 +60,7 @@ import {
 } from "@/lib/tasksPanelPro";
 import { resolveAgentsRailEmptyState } from "@/lib/agentsRail";
 import { useSubagents } from "@/hooks/useSubagents";
+import { applySubagentLog } from "@/lib/session/subagents";
 import { SubagentSection } from "@/components/AgentTasksPanelSubagents";
 import {
   IconChevronDown,
@@ -612,6 +615,7 @@ export function AgentTasksPanel({
     useState<TasksPanelStatusFilter>("all");
 
   const subagentRuns = useSubagents(currentSessionId);
+  const taskBoard = useTaskBoard(currentSessionId);
 
   const tasks = useMemo(() => {
     const act = buildTurnActivity(messages);
@@ -620,8 +624,8 @@ export function AgentTasksPanel({
     const extraRunning = collectSessionTasks(messages).filter(
       (x) => x.status === "running" && !ids.has(x.id),
     );
-    return [...extraRunning, ...fromTurn];
-  }, [messages]);
+    return applyTaskBoard([...extraRunning, ...fromTurn], taskBoard.tasks);
+  }, [messages, taskBoard]);
 
   const statusCounts = useMemo(
     () => countTasksByStatusFilter(tasks),
@@ -671,6 +675,10 @@ export function AgentTasksPanel({
   const totalBusy = running + otherSessions.length;
   const showStopAll =
     !isRail && !!onStopAllSessions && stoppableSessions.length > 0;
+  const shownSubagents = useMemo(
+    () => applySubagentLog(subagentRuns, taskBoard.subagents),
+    [subagentRuns, taskBoard.subagents],
+  );
   const hasTaskRows = activeTree.length > 0 || recentTree.length > 0;
   // Tree chrome only when nesting data exists — never fake indent without parents.
   const showTreeChrome = shouldShowTaskTreeChrome(tree);
@@ -712,7 +720,7 @@ export function AgentTasksPanel({
     !!emptyState &&
     otherSessions.length === 0 &&
     !hasTaskRows &&
-    subagentRuns.length === 0;
+    shownSubagents.length === 0;
   const showFilterEmptyInBody =
     !!emptyState &&
     emptyState.kind === "filter_empty" &&
@@ -848,7 +856,7 @@ export function AgentTasksPanel({
         </div>
       ) : (
         <div className="agent-tasks__body">
-          <SubagentSection runs={subagentRuns} t={t} locale={locale} />
+          <SubagentSection runs={shownSubagents} t={t} locale={locale} />
           {otherSessions.length > 0 ? (
             <div className="agent-tasks__section">
               <h3 className="agent-tasks__section-title">

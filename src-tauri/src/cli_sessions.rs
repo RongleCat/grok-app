@@ -1859,6 +1859,288 @@ fn linked_reconcile_allowed(meta: &SessionMeta) -> bool {
     !(meta.fork_agent_session && meta.fork_rewind_prompt_index.is_some())
 }
 
+struct TaskStatusAcc {
+    handed_off: bool,
+    finished: bool,
+    status: String,
+}
+
+fn is_terminal_task_status(status: &str) -> bool {
+    matches!(
+        status.trim().to_ascii_lowercase().as_str(),
+        "completed"
+            | "complete"
+            | "done"
+            | "success"
+            | "failed"
+            | "error"
+            | "cancelled"
+            | "canceled"
+    )
+}
+
+fn is_handoff_completed_status(status: &str) -> bool {
+    matches!(
+        status.trim().to_ascii_lowercase().as_str(),
+        "completed" | "complete" | "done" | "success"
+    )
+}
+
+fn task_terminal_status(update: &Value) -> String {
+    let raw = update
+        .pointer("/task_snapshot/status")
+        .or_else(|| update.get("status"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    match raw.as_str() {
+        "failed" | "error" => "failed".into(),
+        "cancelled" | "canceled" | "killed" => "cancelled".into(),
+        _ => "completed".into(),
+    }
+}
+
+fn json_str(update: &Value, key: &str) -> String {
+    update
+        .get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn task_tool_id(update: &Value) -> String {
+    let snapshot = update
+        .pointer("/task_snapshot/task_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if !snapshot.is_empty() {
+        return snapshot;
+    }
+    for key in ["tool_call_id", "toolCallId", "task_id", "taskId"] {
+        let id = json_str(update, key);
+        if !id.is_empty() {
+            return id;
+        }
+    }
+    String::new()
+}
+
+/// `task_backgrounded` carries the tool call id and a different `task_id`.
+/// `task_completed` only repeats `task_id`. The panel keys rows by tool call id.
+fn remember_task_alias(aliases: &mut HashMap<String, String>, update: &Value) {
+    let tool = {
+        let a = json_str(update, "tool_call_id");
+        if !a.is_empty() {
+            a
+        } else {
+            json_str(update, "toolCallId")
+        }
+    };
+    let task = {
+        let a = json_str(update, "task_id");
+        if !a.is_empty() {
+            a
+        } else {
+            json_str(update, "taskId")
+        }
+    };
+    if !tool.is_empty() && !task.is_empty() && tool != task {
+        aliases.insert(task, tool);
+    }
+}
+
+fn canonical_task_id(aliases: &HashMap<String, String>, id: &str) -> String {
+    aliases.get(id).cloned().unwrap_or_else(|| id.to_string())
+}
+
+fn touch_task<'a>(
+    rows: &'a mut HashMap<String, TaskStatusAcc>,
+    order: &mut Vec<String>,
+    id: &str,
+) -> Option<&'a mut TaskStatusAcc> {
+    if id.is_empty() {
+        return None;
+    }
+    if !rows.contains_key(id) {
+        order.push(id.to_string());
+        rows.insert(
+            id.to_string(),
+            TaskStatusAcc {
+                handed_off: false,
+                finished: false,
+                status: "running".into(),
+            },
+        );
+    }
+    rows.get_mut(id)
+}
+
+/// Latest task status per tool id from a CLI `updates.jsonl` body.
+/// File order is the CLI's record. A handoff `completed` stays `running`
+/// until `task_completed`. Stdout after a real finish does not reopen the row.
+pub struct CliUpdateSnapshot {
+    pub tasks: Vec<(String, String)>,
+    pub subagents: Vec<(String, String)>,
+}
+
+pub fn task_statuses_from_updates(raw: &str) -> CliUpdateSnapshot {
+    let mut rows: HashMap<String, TaskStatusAcc> = HashMap::new();
+    let mut order = Vec::new();
+    let mut aliases: HashMap<String, String> = HashMap::new();
+    let mut sub_rows: HashMap<String, TaskStatusAcc> = HashMap::new();
+    let mut sub_order = Vec::new();
+    for line in raw.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let Some(up) = v.pointer("/params/update").or_else(|| v.get("update")) else {
+            continue;
+        };
+        let kind = up
+            .get("sessionUpdate")
+            .and_then(|x| x.as_str())
+            .unwrap_or("");
+        match kind {
+            "task_backgrounded" => {
+                remember_task_alias(&mut aliases, up);
+                let id = canonical_task_id(&aliases, &task_tool_id(up));
+                if let Some(row) = touch_task(&mut rows, &mut order, &id) {
+                    row.handed_off = true;
+                    if !row.finished {
+                        row.status = "running".into();
+                    }
+                }
+            }
+            "task_completed" => {
+                remember_task_alias(&mut aliases, up);
+                let id = canonical_task_id(&aliases, &task_tool_id(up));
+                let status = task_terminal_status(up);
+                if let Some(row) = touch_task(&mut rows, &mut order, &id) {
+                    row.finished = true;
+                    row.handed_off = false;
+                    row.status = status;
+                }
+            }
+            "subagent_spawned" | "subagent_progress" | "subagent_finished" => {
+                let id = up
+                    .get("subagent_id")
+                    .or_else(|| up.get("subagentId"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                let Some(row) = touch_task(&mut sub_rows, &mut sub_order, &id) else {
+                    continue;
+                };
+                if kind == "subagent_finished" {
+                    row.finished = true;
+                    row.status = task_terminal_status(up);
+                } else if !row.finished {
+                    row.status = "running".into();
+                }
+                let tool_id = task_tool_id(up);
+                if kind == "subagent_finished" && !tool_id.is_empty() {
+                    if let Some(task) = touch_task(&mut rows, &mut order, &tool_id) {
+                        task.finished = true;
+                        task.handed_off = false;
+                        task.status = row.status.clone();
+                    }
+                }
+            }
+            "tool_call" | "tool_call_update" => {
+                let id = up
+                    .get("toolCallId")
+                    .or_else(|| up.get("tool_call_id"))
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                // Ordinary tools stay on the message stream. Only update a row
+                // that a background task event already opened.
+                let Some(row) = rows.get_mut(&id) else {
+                    continue;
+                };
+                let raw_status = up
+                    .get("status")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("in_progress")
+                    .trim()
+                    .to_string();
+                let title = up.get("title").and_then(|x| x.as_str()).unwrap_or("");
+                if row.finished && !is_terminal_task_status(&raw_status) {
+                    continue;
+                }
+                let handoff = row.handed_off || title.trim_start().starts_with("[bg]");
+                if handoff {
+                    row.handed_off = true;
+                }
+                if handoff && !row.finished && is_handoff_completed_status(&raw_status) {
+                    row.status = "running".into();
+                } else if raw_status.is_empty() {
+                    row.status = "in_progress".into();
+                } else {
+                    row.status = raw_status;
+                }
+            }
+            _ => {}
+        }
+    }
+    let tasks = order
+        .into_iter()
+        .filter_map(|id| rows.get(&id).map(|row| (id, row.status.clone())))
+        .collect();
+    let subagents = sub_order
+        .into_iter()
+        .filter_map(|id| sub_rows.get(&id).map(|row| (id, row.status.clone())))
+        .collect();
+    CliUpdateSnapshot { tasks, subagents }
+}
+
+/// Read the linked CLI `updates.jsonl` for one App session.
+/// Missing dir or file is normal for a chat that never attached.
+pub fn task_statuses_for_app_session(app_session_id: &str) -> CliUpdateSnapshot {
+    let meta = store::load_sessions_index()
+        .into_iter()
+        .find(|s| s.id == app_session_id);
+    let Some(meta) = meta else {
+        return CliUpdateSnapshot {
+            tasks: Vec::new(),
+            subagents: Vec::new(),
+        };
+    };
+    let Some(agent_id) = meta.agent_session_id.as_deref().filter(|s| !s.is_empty()) else {
+        return CliUpdateSnapshot {
+            tasks: Vec::new(),
+            subagents: Vec::new(),
+        };
+    };
+    let mode = store::load_settings().session_data_mode;
+    let cwd_hint = meta.project_id.as_deref().and_then(|pid| {
+        store::load_projects()
+            .into_iter()
+            .find(|p| p.id == pid)
+            .map(|p| p.path)
+    });
+    let Some(dir) = crate::paths::find_agent_session_dir(agent_id, cwd_hint.as_deref(), &mode)
+    else {
+        return CliUpdateSnapshot {
+            tasks: Vec::new(),
+            subagents: Vec::new(),
+        };
+    };
+    let raw = fs::read_to_string(dir.join("updates.jsonl")).unwrap_or_default();
+    task_statuses_from_updates(&raw)
+}
+
 /// Best-effort reconcile when opening an App session that is linked to an agent.
 /// Never fails the load path — missing agent dir is normal for brand-new chats.
 pub fn try_reconcile_linked_session(app_session_id: &str) -> u32 {
@@ -2233,6 +2515,52 @@ mod tests {
     use std::io::Write;
 
     use crate::paths::percent_encode_path_component;
+
+    #[test]
+    fn updates_jsonl_is_the_task_status_source() {
+        let raw = r#"
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call","toolCallId":"call-bg","status":"in_progress","title":"sleep 1"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"task_backgrounded","tool_call_id":"call-bg"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call_update","toolCallId":"call-bg","status":"completed","title":"[bg] sleep 1"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call_update","toolCallId":"call-bg","status":"in_progress","title":"[bg] sleep 1"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"task_completed","task_snapshot":{"task_id":"call-bg","status":"completed"}}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call_update","toolCallId":"call-bg","status":"in_progress"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call","toolCallId":"call-read","title":"read_file"}}}
+{"method":"session/update","params":{"update":{"sessionUpdate":"tool_call","toolCallId":"call-fail","status":"failed"}}}
+{"method":"_x.ai/session/update","params":{"update":{"sessionUpdate":"subagent_spawned","subagent_id":"sub-1","description":"Sleep for 1 minute"}}}
+{"method":"_x.ai/session/update","params":{"update":{"sessionUpdate":"subagent_finished","subagent_id":"sub-1","status":"completed","will_wake":true}}}
+"#;
+        let snap = task_statuses_from_updates(raw);
+        let bg = snap
+            .tasks
+            .iter()
+            .find(|(id, _)| id == "call-bg")
+            .map(|(_, s)| s.as_str());
+        assert_eq!(bg, Some("completed"));
+        assert!(snap.tasks.iter().all(|(id, _)| id == "call-bg"));
+        assert_eq!(snap.subagents, vec![("sub-1".into(), "completed".into())]);
+    }
+
+    #[test]
+    fn updates_jsonl_keeps_a_handed_off_shell_running() {
+        let raw = r#"
+{"params":{"update":{"sessionUpdate":"task_backgrounded","tool_call_id":"call-bg"}}}
+{"params":{"update":{"sessionUpdate":"tool_call_update","toolCallId":"call-bg","status":"completed","title":"[bg] sleep 1"}}}
+"#;
+        let snap = task_statuses_from_updates(raw);
+        assert_eq!(snap.tasks, vec![("call-bg".into(), "running".into())]);
+        assert!(snap.subagents.is_empty());
+    }
+
+    #[test]
+    fn task_completed_uses_the_tool_call_id_when_task_id_differs() {
+        let raw = r#"
+{"params":{"update":{"sessionUpdate":"task_backgrounded","tool_call_id":"call-61a4","task_id":"01a16151","description":"Sleep 60 seconds in the background"}}}
+{"params":{"update":{"sessionUpdate":"task_completed","task_snapshot":{"task_id":"01a16151","completed":true,"exit_code":0}}}}
+"#;
+        let snap = task_statuses_from_updates(raw);
+        assert_eq!(snap.tasks, vec![("call-61a4".into(), "completed".into())]);
+    }
 
     #[test]
     fn percent_decode_roundtrip_path() {

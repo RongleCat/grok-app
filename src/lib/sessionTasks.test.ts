@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "./session";
 import {
+  applyTaskBoard,
   assignInferredParentIds,
   buildTaskTree,
   collectSessionTasks,
@@ -63,6 +64,38 @@ describe("normalizeTaskStatus / isRunningToolStatus", () => {
     expect(normalizeTaskStatus("error")).toBe("failed");
     expect(normalizeTaskStatus("cancelled")).toBe("cancelled");
     expect(normalizeTaskStatus("canceled")).toBe("cancelled");
+  });
+
+  it("a polled board row replaces the message status and leaves unknown rows", () => {
+    const tasks = [
+      taskFromToolMessage(
+        tool({
+          id: "tool-bg",
+          toolCallId: "bg",
+          content: "sleep 1",
+          toolKind: "run_terminal_command",
+          toolStatus: "completed",
+          streaming: false,
+        }),
+      )!,
+      taskFromToolMessage(
+        tool({
+          id: "tool-other",
+          toolCallId: "other",
+          content: "read",
+          toolKind: "read_file",
+          toolStatus: "running",
+          streaming: true,
+        }),
+      )!,
+    ];
+    const running = applyTaskBoard(tasks, [{ id: "bg", status: "running" }]);
+    expect(running.find((t) => t.id === "bg")?.status).toBe("running");
+    expect(running.find((t) => t.id === "other")?.status).toBe("running");
+    const done = applyTaskBoard(running, [{ id: "bg", status: "completed" }]);
+    expect(done.find((t) => t.id === "bg")?.status).toBe("completed");
+    expect(done.find((t) => t.id === "other")?.status).toBe("running");
+    expect(applyTaskBoard(tasks, [])).toBe(tasks);
   });
 });
 
