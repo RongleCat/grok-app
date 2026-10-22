@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySubagentEvent,
+  applySubagentLog,
   formatSubagentCount,
   formatSubagentDuration,
   formatSubagentTokens,
@@ -10,6 +11,27 @@ import {
   type SubagentEventPayload,
   type SubagentRun,
 } from "./subagents";
+
+describe("applySubagentLog", () => {
+  it("marks a still-running row finished when the CLI log says so", () => {
+    const running: SubagentRun = {
+      subagentId: "sub-1",
+      finished: false,
+      subagentType: "general-purpose",
+      description: "Sleep for 1 minute",
+      status: null,
+      output: null,
+    };
+    const next = applySubagentLog(
+      [running],
+      [{ id: "sub-1", status: "completed" }],
+    );
+    expect(next).toHaveLength(1);
+    expect(next[0]?.finished).toBe(true);
+    expect(next[0]?.status).toBe("completed");
+    expect(subagentDisplayStatus(next[0]!)).toBe("completed");
+  });
+});
 
 describe("applySubagentEvent", () => {
   it("merges spawned → progress → finished into a single terminal row", () => {

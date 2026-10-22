@@ -1,9 +1,8 @@
 /**
  * Active / recent agent tool tasks for the session Tasks panel (L05).
  *
- * Source of truth: live + journal `tool_step` rows already produced from ACP
- * `session://tool` events (toolCallId, title, kind, status, path, detail).
- * There is no separate ACP "task list" API — do not invent one.
+ * Names and kinds come from `tool_step` rows. Background task status is
+ * overlaid from the linked CLI `updates.jsonl`, which the panel polls.
  */
 
 import type { ChatMessage } from "./session";
@@ -268,13 +267,37 @@ export function isRunningToolStatus(status: string | null | undefined): boolean 
   return RUNNING_STATUSES.has(s);
 }
 
+/** One polled row from `task_board_snapshot`. */
+export interface TaskBoardRow {
+  id: string;
+  status: string;
+}
+
+/**
+ * Replace task status from the CLI log snapshot. Rows the log does not
+ * mention stay as the message stream left them.
+ */
+export function applyTaskBoard(
+  tasks: AgentTask[],
+  rows: readonly TaskBoardRow[],
+): AgentTask[] {
+  if (rows.length === 0) return tasks;
+  const byId = new Map(rows.map((row) => [row.id, row.status]));
+  return tasks.map((task) => {
+    const raw = byId.get(task.id);
+    if (raw == null) return task;
+    const status = normalizeTaskStatus(raw, false);
+    return status === task.status ? task : { ...task, status };
+  });
+}
+
 export function normalizeTaskStatus(
   status: string | null | undefined,
   streaming?: boolean,
 ): AgentTaskStatus {
+  if (streaming) return "running";
   const s = (status || "").toLowerCase().trim();
-  // A reported terminal status is the outcome. A stuck `streaming` flag must
-  // not keep a finished tool on "running" in the Tasks panel.
+  if (!s || RUNNING_STATUSES.has(s)) return "running";
   if (FAILED_STATUSES.has(s)) return "failed";
   if (CANCELLED_STATUSES.has(s)) return "cancelled";
   if (
@@ -285,7 +308,6 @@ export function normalizeTaskStatus(
   ) {
     return "completed";
   }
-  if (streaming || !s || RUNNING_STATUSES.has(s)) return "running";
   // Unknown terminal-ish labels → treat as completed for display.
   return "completed";
 }
@@ -599,8 +621,12 @@ export function collectSessionTasks(
   for (let i = from; i < messages.length; i++) {
     const task = taskFromToolMessage(messages[i]!);
     if (!task) continue;
-    // Last row for this id in the current turn wins. A later completed /
-    // failed row must replace the stale running snapshot of the same tool.
+    if (task.status === "running") {
+      byId.set(task.id, task);
+      continue;
+    }
+    const prev = byId.get(task.id);
+    if (prev?.status === "running") continue;
     byId.set(task.id, task);
   }
 

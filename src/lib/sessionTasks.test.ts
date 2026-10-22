@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "./session";
 import {
+  applyTaskBoard,
   assignInferredParentIds,
   buildTaskTree,
   collectSessionTasks,
@@ -65,21 +66,36 @@ describe("normalizeTaskStatus / isRunningToolStatus", () => {
     expect(normalizeTaskStatus("canceled")).toBe("cancelled");
   });
 
-  it("a terminal toolStatus wins when the streaming flag was left on", () => {
-    expect(normalizeTaskStatus("completed", true)).toBe("completed");
-    expect(normalizeTaskStatus("failed", true)).toBe("failed");
-    expect(normalizeTaskStatus("cancelled", true)).toBe("cancelled");
-    const task = taskFromToolMessage(
-      tool({
-        id: "tool-bg",
-        toolCallId: "bg",
-        content: "sleep 1",
-        toolKind: "run_terminal_command",
-        toolStatus: "completed",
-        streaming: true,
-      }),
-    );
-    expect(task?.status).toBe("completed");
+  it("a polled board row replaces the message status and leaves unknown rows", () => {
+    const tasks = [
+      taskFromToolMessage(
+        tool({
+          id: "tool-bg",
+          toolCallId: "bg",
+          content: "sleep 1",
+          toolKind: "run_terminal_command",
+          toolStatus: "completed",
+          streaming: false,
+        }),
+      )!,
+      taskFromToolMessage(
+        tool({
+          id: "tool-other",
+          toolCallId: "other",
+          content: "read",
+          toolKind: "read_file",
+          toolStatus: "running",
+          streaming: true,
+        }),
+      )!,
+    ];
+    const running = applyTaskBoard(tasks, [{ id: "bg", status: "running" }]);
+    expect(running.find((t) => t.id === "bg")?.status).toBe("running");
+    expect(running.find((t) => t.id === "other")?.status).toBe("running");
+    const done = applyTaskBoard(running, [{ id: "bg", status: "completed" }]);
+    expect(done.find((t) => t.id === "bg")?.status).toBe("completed");
+    expect(done.find((t) => t.id === "other")?.status).toBe("running");
+    expect(applyTaskBoard(tasks, [])).toBe(tasks);
   });
 });
 
@@ -220,33 +236,6 @@ describe("collectSessionTasks", () => {
     ];
     const tasks = collectSessionTasks(msgs);
     expect(tasks.map((t) => t.id)).toEqual(["bg", "r"]);
-  });
-
-  it("replaces a stale running row when the same tool later completes", () => {
-    const msgs: ChatMessage[] = [
-      { id: "u1", role: "user", content: "now" },
-      tool({
-        id: "tool-bg-live",
-        toolCallId: "bg",
-        content: "sleep 1",
-        toolKind: "run_terminal_command",
-        toolStatus: "running",
-        streaming: true,
-        createdAt: "2026-01-02T00:00:01.000Z",
-      }),
-      tool({
-        id: "tool-bg-done",
-        toolCallId: "bg",
-        content: "sleep 1",
-        toolKind: "run_terminal_command",
-        toolStatus: "completed",
-        streaming: false,
-        createdAt: "2026-01-02T00:00:02.000Z",
-      }),
-    ];
-    const tasks = collectSessionTasks(msgs);
-    expect(tasks.filter((t) => t.id === "bg")).toHaveLength(1);
-    expect(tasks.find((t) => t.id === "bg")?.status).toBe("completed");
   });
 
   it("respects recentLimit", () => {

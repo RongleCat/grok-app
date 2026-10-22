@@ -14,6 +14,7 @@ use crate::session_manager::{SessionManager, SessionSnapshot, StopReport};
 use crate::store::{self, AppSettings, Project, SessionMeta};
 
 include!("session_p1.rs");
+include!("task_board.rs");
 include!("session_p2.rs");
 include!("workspace.rs");
 include!("automation.rs");

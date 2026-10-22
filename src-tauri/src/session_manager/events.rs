@@ -744,28 +744,25 @@ impl SessionManager {
                         already_terminal,
                     );
                 }
-                let panel_sync = self.panel_status_for_tool(&app_sid, &tool_call_id, &status);
-                if let crate::turn_complete::ToolPanelSync::Show(panel_status) = panel_sync {
-                    let _ = app.emit(
-                        "session://tool",
-                        serde_json::json!({
-                            "sessionId": app_sid,
-                            "toolCallId": tool_call_id,
-                            "title": live_title,
-                            "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
-                            "status": panel_status,
-                            "path": path_out,
-                            "detail": detail,
-                            // Call argument (target file / command / query) for primary labels.
-                            "input": input2,
-                            // What the tool actually produced (stdout / file text) — expand body.
-                            "output": output,
-                            // Optional content snippets for the session Changes / diff panel.
-                            "before": before_snip,
-                            "after": after_snip,
-                        }),
-                    );
-                }
+                let _ = app.emit(
+                    "session://tool",
+                    serde_json::json!({
+                        "sessionId": app_sid,
+                        "toolCallId": tool_call_id,
+                        "title": live_title,
+                        "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
+                        "status": if status.is_empty() { "in_progress" } else { &status },
+                        "path": path_out,
+                        "detail": detail,
+                        // Call argument (target file / command / query) for primary labels.
+                        "input": input2,
+                        // What the tool actually produced (stdout / file text) — expand body.
+                        "output": output,
+                        // Optional content snippets for the session Changes / diff panel.
+                        "before": before_snip,
+                        "after": after_snip,
+                    }),
+                );
 
                 // Persist completed/failed tool steps so reload still shows work trail.
                 let st = if status.is_empty() {
@@ -824,13 +821,10 @@ impl SessionManager {
                     });
                 }
             }
-            AcpEvent::ToolOpenReleased {
-                tool_call_id,
-                ui_status,
-            } => {
+            AcpEvent::ToolOpenReleased { tool_call_id } => {
                 let mut pending_emits = Vec::new();
                 let mut pending_persists = Vec::new();
-                let (empty_run, app_sid) = {
+                let empty_run = {
                     let mut guard = self.inner.lock();
                     if let Some(s) = guard.as_mut() {
                         if Self::is_session_load_replay(s) {
@@ -839,33 +833,20 @@ impl SessionManager {
                         Self::release_tool_open_on_session(s, &tool_call_id);
                         // Progress without re-arming a false open tool.
                         Self::touch_stream_progress_locked(s);
-                        let empty = Self::try_finish_deferred_prompt_complete(
+                        Self::try_finish_deferred_prompt_complete(
                             s,
                             Some(&mut pending_emits),
                             Some(&mut pending_persists),
                         )
-                        .flatten();
-                        (empty, s.app_session_id.clone())
+                        .flatten()
                     } else {
-                        (None, String::new())
+                        None
                     }
                 };
                 Self::emit_stream_payloads(app, pending_emits);
                 Self::commit_session_persists(Some(app), pending_persists);
                 Self::emit_empty_run_if_any(app, empty_run);
                 Self::emit_state(app, &self.snapshot());
-                if let Some(panel_status) =
-                    self.sync_bg_tool_release(&app_sid, &tool_call_id, &ui_status)
-                {
-                    let _ = app.emit(
-                        "session://tool",
-                        serde_json::json!({
-                            "sessionId": app_sid,
-                            "toolCallId": tool_call_id,
-                            "status": panel_status,
-                        }),
-                    );
-                }
             }
             AcpEvent::Plan {
                 entries,

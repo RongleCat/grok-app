@@ -144,6 +144,52 @@ export function applySubagentEvent(
  * `finished` — a cancelled run is not a failure, and an outcome the CLI never
  * reported must not be invented.
  */
+function isTerminalSubagentStatus(status: string): boolean {
+  const s = status.toLowerCase();
+  return (
+    s === "completed" ||
+    s === "complete" ||
+    s === "success" ||
+    s === "failed" ||
+    s === "error" ||
+    s === "cancelled" ||
+    s === "canceled" ||
+    s === "killed"
+  );
+}
+
+/**
+ * Overlay CLI-log subagent rows onto the in-memory runs. A finish that
+ * arrived only in `updates.jsonl` marks the row finished.
+ */
+export function applySubagentLog(
+  runs: readonly SubagentRun[],
+  rows: readonly { id: string; status: string }[],
+): SubagentRun[] {
+  if (rows.length === 0) return runs as SubagentRun[];
+  const byId = new Map(rows.map((row) => [row.id, row.status]));
+  const seen = new Set<string>();
+  const next = runs.map((run) => {
+    const raw = byId.get(run.subagentId);
+    if (raw == null) return run;
+    seen.add(run.subagentId);
+    if (!isTerminalSubagentStatus(raw)) return run;
+    return { ...run, finished: true, status: raw };
+  });
+  for (const row of rows) {
+    if (seen.has(row.id)) continue;
+    next.push({
+      subagentId: row.id,
+      finished: isTerminalSubagentStatus(row.status),
+      subagentType: null,
+      description: null,
+      status: row.status,
+      output: null,
+    });
+  }
+  return next;
+}
+
 export function subagentDisplayStatus(
   run: SubagentRun,
 ): SubagentDisplayStatus {

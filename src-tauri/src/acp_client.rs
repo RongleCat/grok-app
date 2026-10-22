@@ -40,15 +40,11 @@ pub enum AcpEvent {
     },
     /// Background task handed off / finished (`task_backgrounded` / `task_completed`).
     ///
-    /// Releases open-tool accounting so a handed-off shell does not pin the
-    /// turn. `ui_status` is what the Tasks panel should show now: `running`
-    /// while the process is still going, or a terminal status once it exits.
-    /// CLI may still stream `tool_call_update(in_progress)` after a
-    /// completed(`[bg]`) tool; those must not keep the turn open, and must
-    /// not paint a finished task as running again.
+    /// Only affects Host open-tool accounting — does **not** rewrite journal tool
+    /// rows. CLI may still stream `tool_call_update(in_progress)` after a
+    /// completed(`[bg]`) tool; those must not keep the turn open.
     ToolOpenReleased {
         tool_call_id: String,
-        ui_status: String,
     },
     /// Live plan entries notification (sessionUpdate plan) and/or exit_plan_mode gate.
     Plan {
@@ -3968,36 +3964,33 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
                 raw: update.clone(),
             });
         }
-        // Background shell: release open-tool accounting, and tell the Tasks
-        // panel the real status. Handoff is still running. Completion is terminal.
+        // Background shell: release open-tool accounting without journal churn.
         "task_backgrounded" => {
-            let tool_call_id = background_task_tool_id(update);
-            push_tasks_panel_status(
-                &mut out,
-                tool_call_id,
-                "running".to_string(),
-                update.clone(),
-            );
+            let tool_call_id = update
+                .get("tool_call_id")
+                .or_else(|| update.get("toolCallId"))
+                .or_else(|| update.get("task_id"))
+                .or_else(|| update.get("taskId"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if !tool_call_id.is_empty() {
+                out.push(AcpEvent::ToolOpenReleased { tool_call_id });
+            }
         }
         "task_completed" => {
-            let tool_call_id = background_task_tool_id(update);
-            let status = background_task_terminal_status(update);
-            if let Some(subagent_id) = subagent_id_from_task_update(update) {
-                out.push(AcpEvent::Subagent(SubagentUpdate {
-                    phase: SubagentPhase::Finished,
-                    subagent_id,
-                    subagent_type: None,
-                    description: None,
-                    status: Some(status.clone()),
-                    duration_ms: None,
-                    turn_count: None,
-                    tool_call_count: None,
-                    tokens_used: None,
-                    context_window_tokens: None,
-                    output: None,
-                }));
+            let tool_call_id = update
+                .pointer("/task_snapshot/task_id")
+                .or_else(|| update.pointer("/taskSnapshot/taskId"))
+                .or_else(|| update.get("tool_call_id"))
+                .or_else(|| update.get("toolCallId"))
+                .or_else(|| update.get("task_id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if !tool_call_id.is_empty() {
+                out.push(AcpEvent::ToolOpenReleased { tool_call_id });
             }
-            push_tasks_panel_status(&mut out, tool_call_id, status, update.clone());
         }
         // Subagent lifecycle. CLI 1.0.x reports these on the xAI
         // extension notification channel with a *stable* subagent id, so the
@@ -4005,15 +3998,6 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
         "subagent_spawned" | "subagent_progress" | "subagent_finished" => {
             if let Some(ev) = parse_subagent_update(kind, update) {
                 out.push(ev);
-            }
-            // A finish linked to the spawn tool must close that Tasks-panel
-            // row. The telemetry section alone leaves the tool on `running`.
-            if kind == "subagent_finished" {
-                let tool_call_id = background_task_tool_id(update);
-                if !tool_call_id.is_empty() {
-                    let status = background_task_terminal_status(update);
-                    push_tasks_panel_status(&mut out, tool_call_id, status, update.clone());
-                }
             }
         }
         "retry_state" => {
@@ -4176,91 +4160,6 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
     }
 
     out
-}
-
-fn json_str<'a>(update: &'a Value, pointers: &[&str]) -> Option<&'a str> {
-    pointers
-        .iter()
-        .find_map(|p| {
-            if let Some(rest) = p.strip_prefix('/') {
-                update.pointer(p).or_else(|| update.get(rest))
-            } else {
-                update.get(*p)
-            }
-        })
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-}
-
-/// Tool id for `task_backgrounded` / `task_completed` / a linked subagent finish.
-fn background_task_tool_id(update: &Value) -> String {
-    json_str(
-        update,
-        &[
-            "/task_snapshot/task_id",
-            "/taskSnapshot/taskId",
-            "tool_call_id",
-            "toolCallId",
-            "task_id",
-            "taskId",
-        ],
-    )
-    .unwrap_or("")
-    .to_string()
-}
-
-/// Terminal Tasks-panel status. An empty outcome on a completion event is
-/// `completed` — the event itself is the finish. Failures stay failures.
-fn background_task_terminal_status(update: &Value) -> String {
-    let raw = json_str(
-        update,
-        &["/task_snapshot/status", "/taskSnapshot/status", "status"],
-    )
-    .unwrap_or("")
-    .to_ascii_lowercase();
-    match raw.as_str() {
-        "failed" | "error" => "failed".to_string(),
-        "cancelled" | "canceled" | "killed" => "cancelled".to_string(),
-        _ => "completed".to_string(),
-    }
-}
-
-fn subagent_id_from_task_update(update: &Value) -> Option<String> {
-    json_str(
-        update,
-        &[
-            "/task_snapshot/subagent_id",
-            "/task_snapshot/subagentId",
-            "/taskSnapshot/subagentId",
-            "subagent_id",
-            "subagentId",
-        ],
-    )
-    .map(str::to_string)
-}
-
-/// Accounting release plus a tool row the Tasks panel can apply immediately.
-fn push_tasks_panel_status(
-    out: &mut Vec<AcpEvent>,
-    tool_call_id: String,
-    status: String,
-    raw: Value,
-) {
-    if tool_call_id.is_empty() {
-        return;
-    }
-    out.push(AcpEvent::ToolOpenReleased {
-        tool_call_id: tool_call_id.clone(),
-        ui_status: status.clone(),
-    });
-    out.push(AcpEvent::ToolCall {
-        tool_call_id,
-        title: String::new(),
-        kind: String::new(),
-        status,
-        raw,
-    });
 }
 
 /// Decode one `subagent_spawned` / `subagent_progress` / `subagent_finished`
@@ -4564,12 +4463,11 @@ mod session_update_decode_tests {
                 "task_id": "call-f1b6b6f2-5e0f-413e-bafa-42a7ba048a01-10",
             }
         }));
-        assert!(bg.iter().any(|ev| matches!(
-            ev,
-            AcpEvent::ToolOpenReleased { tool_call_id, ui_status }
+        assert!(matches!(
+            &bg[..],
+            [AcpEvent::ToolOpenReleased { tool_call_id }]
                 if tool_call_id == "call-f1b6b6f2-5e0f-413e-bafa-42a7ba048a01-10"
-                    && ui_status == "running"
-        )));
+        ));
 
         let done = decode_session_update(&json!({
             "update": {
@@ -4581,118 +4479,10 @@ mod session_update_decode_tests {
                 "will_wake": false
             }
         }));
-        assert!(done.iter().any(|ev| matches!(
-            ev,
-            AcpEvent::ToolOpenReleased { tool_call_id, ui_status }
-                if tool_call_id == "call-bg-1" && ui_status == "completed"
-        )));
-    }
-
-    /// The Tasks panel reads tool status. `task_completed` must carry a
-    /// terminal status — releasing open-tool accounting alone leaves the row
-    /// on `running` after the process has exited.
-    #[test]
-    fn task_completed_publishes_a_terminal_status_for_the_tasks_panel() {
-        let done = decode_session_update(&json!({
-            "update": {
-                "sessionUpdate": "task_completed",
-                "task_snapshot": {
-                    "task_id": "call-bg-1",
-                    "command": "sleep 1",
-                    "status": "completed"
-                },
-                "will_wake": false
-            }
-        }));
-        let published = done.iter().any(|ev| {
-            matches!(
-                ev,
-                AcpEvent::ToolCall { tool_call_id, status, .. }
-                    if tool_call_id == "call-bg-1" && status == "completed"
-            )
-        });
-        assert!(
-            published,
-            "task_completed must publish a terminal tool status, got {done:?}"
-        );
-    }
-
-    /// A backgrounded shell is still running. The panel must not treat the
-    /// handoff as done.
-    #[test]
-    fn task_backgrounded_publishes_running_for_the_tasks_panel() {
-        let bg = decode_session_update(&json!({
-            "update": {
-                "sessionUpdate": "task_backgrounded",
-                "tool_call_id": "call-bg-1",
-                "task_id": "call-bg-1"
-            }
-        }));
-        let running = bg.iter().any(|ev| {
-            matches!(
-                ev,
-                AcpEvent::ToolCall { tool_call_id, status, .. }
-                    if tool_call_id == "call-bg-1" && status == "running"
-            )
-        });
-        assert!(
-            running,
-            "task_backgrounded must keep the tasks panel on running, got {bg:?}"
-        );
-    }
-
-    /// Background subagents often finish via `task_completed` only. The
-    /// subagent section stays `running` unless that frame closes the run.
-    #[test]
-    fn task_completed_with_subagent_id_finishes_that_run() {
-        let done = decode_session_update(&json!({
-            "update": {
-                "sessionUpdate": "task_completed",
-                "task_snapshot": {
-                    "task_id": "call-sa-1",
-                    "subagent_id": "01a0SA-aaaa",
-                    "status": "failed"
-                }
-            }
-        }));
-        let finished = done.iter().any(|ev| {
-            matches!(
-                ev,
-                AcpEvent::Subagent(sub)
-                    if sub.phase == SubagentPhase::Finished
-                        && sub.subagent_id == "01a0SA-aaaa"
-                        && sub.status.as_deref() == Some("failed")
-            )
-        });
-        assert!(
-            finished,
-            "task_completed must finish the named subagent, got {done:?}"
-        );
-    }
-
-    /// `subagent_finished` closes the Tasks-panel tool row when the CLI links
-    /// it to the spawn tool. The telemetry row alone leaves that tool `running`.
-    #[test]
-    fn subagent_finished_closes_the_linked_tool_row() {
-        let done = decode_session_update(&json!({
-            "update": {
-                "sessionUpdate": "subagent_finished",
-                "subagent_id": "01a0SA-aaaa",
-                "status": "completed",
-                "tool_call_id": "call-spawn-1"
-            }
-        }));
-        let closed = done.iter().any(|ev| {
-            matches!(
-                ev,
-                AcpEvent::ToolCall { tool_call_id, status, .. }
-                    if tool_call_id == "call-spawn-1" && status == "completed"
-            )
-        });
-        assert!(
-            closed,
-            "subagent_finished must close the linked tool, got {done:?}"
-        );
+        assert!(matches!(
+            &done[..],
+            [AcpEvent::ToolOpenReleased { tool_call_id }] if tool_call_id == "call-bg-1"
+        ));
     }
 
     #[test]

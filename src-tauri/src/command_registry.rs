@@ -19,6 +19,7 @@ pub fn app_invoke_handler(
     tauri::generate_handler![
         // ── Sessions, turns, permissions & local session API ──
         commands::session_get_state,
+        commands::task_board_snapshot,
         commands::session_connect,
         commands::session_prewarm,
         commands::session_send,
