@@ -21,6 +21,7 @@ See `docs/llm-wiki/release.md`.
 - JSON code blocks in a reply stay visible.
 - Composer markdown no longer stalls on a crafted link reference.
 - A chat connects when leader mode is on but no leader is running.
+- A task due in under a minute no longer says 0 min.
 
 **中文 · 修复**
 - macOS 系统设置里的小图标不再出现彩色横纹。
@@ -30,6 +31,7 @@ See `docs/llm-wiki/release.md`.
 - 回复里的 JSON 代码块会照常显示。
 - 输入框里的 Markdown 不再会因一段特制链接引用而卡住。
 - 开了 leader、但本机没有 leader 时，对话也能连上。
+- 不到一分钟就要运行的任务，不再显示成 0 分钟后。
 
 ## [0.2.42] - 2026-10-19
 

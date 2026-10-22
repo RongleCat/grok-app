@@ -2,9 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   computeNextRunAt,
   isDue,
+  formatNextRunRelative,
   formatScheduleSummary,
   parseScheduledUserContent,
 } from "./automations";
+
+const NEXT_LABELS = {
+  overdue: "overdue",
+  inHours: "in {n} h",
+  inDays: "in {n} d",
+  inMinutes: "in {n} min",
+  unknown: "unknown",
+};
 
 describe("automations schedule helpers", () => {
   it("computes next daily run after now", () => {
@@ -49,6 +58,16 @@ describe("automations schedule helpers", () => {
         nextRunAt: past,
       }),
     ).toBe(true);
+  });
+
+  it("does not say a future run is 0 minutes away", () => {
+    const now = new Date("2026-07-22T08:00:00");
+    const soon = new Date(now.getTime() + 20_000).toISOString();
+    expect(formatNextRunRelative(soon, now, NEXT_LABELS)).toBe("in 1 min");
+    const minute = new Date(now.getTime() + 50 * 60_000).toISOString();
+    expect(formatNextRunRelative(minute, now, NEXT_LABELS)).toBe("in 50 min");
+    const past = new Date(now.getTime() - 1_000).toISOString();
+    expect(formatNextRunRelative(past, now, NEXT_LABELS)).toBe("overdue");
   });
 
   it("formats schedule summary", () => {

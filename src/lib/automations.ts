@@ -159,7 +159,11 @@ export function formatNextRunRelative(
   const diff = t - now.getTime();
   if (diff <= 0) return labels.overdue;
   const mins = Math.round(diff / 60_000);
-  if (mins < 60) return labels.inMinutes.replace("{n}", String(mins));
+  // Under ~30s rounds to 0. The run is still ahead, so the subtitle stays
+  // "in 1 min" instead of "in 0 min".
+  if (mins < 60) {
+    return labels.inMinutes.replace("{n}", String(mins < 1 ? 1 : mins));
+  }
   const hours = Math.round(mins / 60);
   if (hours < 48) return labels.inHours.replace("{n}", String(hours));
   const days = Math.round(hours / 24);
