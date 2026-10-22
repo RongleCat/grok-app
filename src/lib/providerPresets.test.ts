@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   AI98PRO_MODELS,
   AMUX_MODELS,
+  ATLASCLOUD_EFFORTS,
+  ATLASCLOUD_MODELS,
   DEEPSEEK_EFFORTS,
   DEEPSEEK_MODELS,
   GROK_CHANNEL_EFFORTS,
@@ -224,6 +226,46 @@ describe("providerPresets", () => {
       })?.id,
     ).toBe("requesty");
     expect(resolveProviderBrandId({ providerId: "requesty" })).toBe(null);
+  });
+
+  it("ships Atlas Cloud with chat_completions, vision models, and high/xhigh efforts", () => {
+    const p = findProviderPreset("atlascloud");
+    expect(p).toBeDefined();
+    expect(findProviderPreset("AtlasCloud")?.id).toBe("atlascloud");
+    expect(p!.name).toBe("Atlas Cloud");
+    expect(p!.suggestedId).toBe("atlascloud");
+    expect(p!.baseUrl).toBe("https://api.atlascloud.ai/v1");
+    expect(p!.apiBackend).toBe("chat_completions");
+    expect(p!.supportsVision).toBe(true);
+    expect(p!.brandId).toBeUndefined();
+    expect(ATLASCLOUD_MODELS.map((m) => m.id)).toEqual([
+      "deepseek-ai/deepseek-v4-flash",
+      "moonshotai/kimi-k3",
+      "zai-org/glm-5.3-flash",
+    ]);
+    expect(p!.models).toEqual(ATLASCLOUD_MODELS);
+    expect(p!.efforts.map((e) => e.id)).toEqual(["high", "xhigh"]);
+    expect(p!.efforts.find((e) => e.isDefault)?.id).toBe("high");
+    expect(ATLASCLOUD_MODELS.every((m) => m.efforts === ATLASCLOUD_EFFORTS)).toBe(
+      true,
+    );
+    expect(p!.apiKeyUrl).toBe("https://console.atlascloud.ai/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        providerId: "atlascloud-----123",
+      }),
+    ).toBe("https://console.atlascloud.ai/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        baseUrl: "https://api.atlascloud.ai/v1",
+      }),
+    ).toBe("https://console.atlascloud.ai/api-keys");
+    expect(
+      resolveMatchedProviderPreset({
+        providerId: "atlascloud-----999",
+      })?.id,
+    ).toBe("atlascloud");
+    expect(resolveProviderBrandId({ providerId: "atlascloud" })).toBe(null);
   });
 
   it("resolves get-api-key URLs by id or base host", () => {

@@ -235,6 +235,42 @@ export const REQUESTY_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * Atlas Cloud OpenAI-compatible gateway. `reasoning_effort` accepts high/xhigh
+ * across all models (lower tiers are rejected by some upstreams). Ids are
+ * `vendor/model` slugs from GET /v1/models. See https://www.atlascloud.ai/docs
+ */
+export const ATLASCLOUD_EFFORTS: ProviderEffortEntry[] = [
+  { id: "high", name: "high", isDefault: true },
+  { id: "xhigh", name: "xhigh" },
+];
+
+export const ATLASCLOUD_MODELS: ProviderModelEntry[] = [
+  {
+    id: "deepseek-ai/deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: false,
+    efforts: ATLASCLOUD_EFFORTS,
+  },
+  {
+    id: "moonshotai/kimi-k3",
+    name: "Kimi K3",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+    supportsVideo: true,
+    efforts: ATLASCLOUD_EFFORTS,
+  },
+  {
+    id: "zai-org/glm-5.3-flash",
+    name: "GLM-5.3 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+    supportsVideo: true,
+    efforts: ATLASCLOUD_EFFORTS,
+  },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -385,6 +421,24 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
   },
+  /**
+   * Atlas Cloud OpenAI-compatible gateway (chat_completions). Model ids are
+   * `vendor/model` slugs; only high/xhigh reasoning efforts are universal.
+   * No brand logo yet.
+   */
+  {
+    id: "atlascloud",
+    name: "Atlas Cloud",
+    suggestedId: "atlascloud",
+    baseUrl: "https://api.atlascloud.ai/v1",
+    apiBackend: "chat_completions",
+    models: ATLASCLOUD_MODELS,
+    efforts: ATLASCLOUD_EFFORTS.map((e) => ({ ...e })),
+    blurbKey: "prov.preset.atlascloud.blurb",
+    apiKeyUrl: "https://console.atlascloud.ai/api-keys",
+    supportsVision: true,
+    contextWindow: 1_048_576,
+  },
   {
     id: "amux",
     name: "Amux",
@@ -531,6 +585,10 @@ function matchPreset(opts: {
     if (pid === "requesty" || pid.startsWith("requesty-")) {
       const rq = PROVIDER_PRESETS.find((p) => p.id === "requesty");
       if (rq) return rq;
+    }
+    if (pid === "atlascloud" || pid.startsWith("atlascloud-")) {
+      const ac = PROVIDER_PRESETS.find((p) => p.id === "atlascloud");
+      if (ac) return ac;
     }
     if (
       pid === "zhipu" ||
