@@ -36,3 +36,27 @@ export function claimReleasableBy(
   if (!owner || !current) return true;
   return current.id === owner.id;
 }
+
+/**
+ * Move `owner`'s claim from `fromKey` to `toKey`.
+ * A late `sessionCreate` must not do this after a takeover replaced the claim:
+ * that would drop the newer draft and park the typed text on an empty chat.
+ * Refuses, and mutates nothing, when `owner` no longer holds `fromKey` or
+ * `toKey` is already taken.
+ */
+export function rebindConnectClaim(
+  claims: Set<string>,
+  owners: Map<string, ConnectClaim>,
+  fromKey: string,
+  toKey: string,
+  owner: ConnectClaim,
+): boolean {
+  const current = owners.get(fromKey);
+  if (!claims.has(fromKey) || !current || current.id !== owner.id) return false;
+  if (fromKey !== toKey && claims.has(toKey)) return false;
+  claims.delete(fromKey);
+  owners.delete(fromKey);
+  claims.add(toKey);
+  owners.set(toKey, owner);
+  return true;
+}
