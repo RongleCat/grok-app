@@ -59,8 +59,10 @@ export function queryRangeBeforeCaret(
   // 独占结尾的锚点保证 query 一直延伸到光标；`[^\s￼]*` 使其在空白或原子
   // 节点处终止。左起首个合法匹配必然是唯一匹配：两个合法 trigger 之间不可能
   // 既无空白又都满足边界条件。
+  // 全角 ＠ / ／ 与半角等宽，折叠后文档位置仍指向原来的那个字符。
+  const folded = before.replace(/\uFF20/g, "@").replace(/\uFF0F/g, "/");
   const escaped = trigger === "@" ? "@" : "\\/";
-  const m = new RegExp(`(^|\\s)${escaped}([^\\s\\uFFFC]*)$`, "u").exec(before);
+  const m = new RegExp(`(^|\\s)${escaped}([^\\s\\uFFFC]*)$`, "u").exec(folded);
   if (!m) return null;
 
   const start = m.index + m[1]!.length;

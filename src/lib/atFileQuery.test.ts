@@ -25,6 +25,12 @@ describe("detectAtQuery", () => {
   it("allows @ after newline", () => {
     expect(detectAtQuery("line1\n@src")).toEqual({ start: 6, query: "src" });
   });
+
+  it("treats a fullwidth ＠ from an IME as the same trigger", () => {
+    expect(detectAtQuery("＠src")).toEqual({ start: 0, query: "src" });
+    expect(detectAtQuery("see ＠packa")).toEqual({ start: 4, query: "packa" });
+    expect(detectAtQuery("user＠host")).toBeNull();
+  });
 });
 
 describe("detectAtQueryOnStored", () => {
@@ -38,6 +44,16 @@ describe("detectAtQueryOnStored", () => {
 
   it("uses the caret prefix, not a later @ in the rest of the draft", () => {
     expect(detectAtQueryOnStored("hello ")).toBeNull();
+  });
+
+  it("keeps stored indexes on the fullwidth ＠ still in the draft", () => {
+    const stored = "see ＠packa";
+    const range = detectAtQueryOnStored(stored);
+    expect(range).toEqual({ start: 4, query: "packa", end: 10 });
+    expect(stored.slice(range!.start, range!.end)).toBe("＠packa");
+    expect(removeAtTokenFromDraft(stored, range!.start, range!.end)).toBe(
+      "see ",
+    );
   });
 });
 

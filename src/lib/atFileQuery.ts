@@ -23,7 +23,11 @@ export type AtQuery = {
  * Query is the non-whitespace rest after `@`.
  */
 export function detectAtQuery(textBeforeCursor: string): AtQuery | null {
+  // Fullwidth ＠ (U+FF20) is what a Chinese IME emits for @. It is one
+  // code unit, so indexes still line up with the stored draft, which keeps
+  // that character and has already dropped zero-width caret pads.
   const text = textBeforeCursor
+    .replace(/\uFF20/g, "@")
     .replace(/[\u200B-\u200D\uFEFF\u2060]/g, "")
     .replace(/[\s\u00a0]+$/u, "");
   const m = /(^|[\s])@([^\s@]*)$/u.exec(text);

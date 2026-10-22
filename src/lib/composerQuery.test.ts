@@ -208,6 +208,25 @@ describe("queryRangeBeforeCaret", () => {
     ).toBeNull();
   });
 
+  it("全角 ＠ 与半角 @ 打开同一段文件查询", () => {
+    editor = makeEditor("看 ＠atF");
+    expect(
+      queryRangeBeforeCaret(editor.state.doc, firstTextblock(editor.state.doc).end, "@"),
+    ).toEqual({ from: 3, to: 7, query: "atF" });
+    editor.destroy();
+    editor = makeEditor("user＠host");
+    expect(
+      queryRangeBeforeCaret(editor.state.doc, firstTextblock(editor.state.doc).end, "@"),
+    ).toBeNull();
+  });
+
+  it("全角 ／ 与半角 / 打开同一段斜杠查询", () => {
+    editor = makeEditor("run ／rev");
+    expect(
+      queryRangeBeforeCaret(editor.state.doc, firstTextblock(editor.state.doc).end, "/"),
+    ).toEqual({ from: 5, to: 9, query: "rev" });
+  });
+
   it("光标不在文本块内时返回 null", () => {
     // Arrange —— 空文档的光标 0 落在 doc 上，不是文本块
     editor = makeEditor("");
