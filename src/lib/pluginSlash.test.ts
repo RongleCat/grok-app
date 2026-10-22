@@ -27,6 +27,9 @@ describe("inferPluginNameFromPath", () => {
     expect(
       inferPluginNameFromPath("D:\\\\work\\\\.grok\\\\plugins\\\\pdf\\\\skills\\\\a\\\\SKILL.md"),
     ).toBe("pdf");
+    expect(
+      inferPluginNameFromPath("/Users/İ/.grok/plugins/foo/skills/bar/SKILL.md"),
+    ).toBe("foo");
   });
 
   it("ignores user / bundled / project skill paths", () => {

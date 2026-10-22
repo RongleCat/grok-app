@@ -1,5 +1,7 @@
 /** Pure helpers for the sidebar / command-palette search. */
 
+import { caseInsensitiveSpans } from "./caseFoldIndex";
+
 export type SearchableSession = {
   id: string;
   title: string;
@@ -592,12 +594,17 @@ export function matchMessageContent(
     if (m.role !== "user" && m.role !== "assistant") continue;
     const content = m.content ?? "";
     if (!content) continue;
-    const lower = content.toLowerCase();
-    const idx = lower.indexOf(q);
-    if (idx < 0) continue;
+    const span = caseInsensitiveSpans(content, q)[0];
+    if (!span) continue;
     matchCount += 1;
     if (snippet === undefined) {
-      snippet = makeContentSnippet(content, idx, q.length, radius, maxLen);
+      snippet = makeContentSnippet(
+        content,
+        span.start,
+        span.end - span.start,
+        radius,
+        maxLen,
+      );
     }
   }
 

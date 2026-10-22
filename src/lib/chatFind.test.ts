@@ -81,6 +81,19 @@ describe("findChatMatches", () => {
     expect(hits[0]?.end - hits[0]!.start).toBe("README".length);
   });
 
+  it("keeps the highlight on the original letters after a dotted capital I", () => {
+    const text = "İstanbul";
+    const hits = findChatMatches("stan", [
+      { id: "a", role: "user", content: text },
+    ]);
+    expect(hits).toHaveLength(1);
+    expect(text.slice(hits[0]!.start, hits[0]!.end)).toBe("stan");
+    const letter = findChatMatches("b", [
+      { id: "b", role: "assistant", content: "AİB" },
+    ]);
+    expect("AİB".slice(letter[0]!.start, letter[0]!.end)).toBe("B");
+  });
+
   it("does not match roles outside chat findables", () => {
     const hits = findChatMatches("x", [
       { id: "sys", role: "system", content: "xxx" },
@@ -153,6 +166,12 @@ describe("splitHighlightParts", () => {
       0, 1,
     ]);
     expect(parts.map((p) => p.text).join("")).toBe("Foo doctor FOO");
+  });
+
+  it("marks stan inside İstanbul, not the shifted letters", () => {
+    const parts = splitHighlightParts("İstanbul", "stan");
+    expect(parts.filter((p) => p.match).map((p) => p.text)).toEqual(["stan"]);
+    expect(parts.map((p) => p.text).join("")).toBe("İstanbul");
   });
 });
 
