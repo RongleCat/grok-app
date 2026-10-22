@@ -4,6 +4,8 @@
  * or display strings for dynamic skills.
  */
 
+import { caseInsensitiveSpans } from "./caseFoldIndex";
+
 export type SlashKind = "mode" | "skill" | "action" | "prompt" | "plugin";
 
 export type SlashItem = {
@@ -89,9 +91,9 @@ export function inferPluginNameFromPath(
   const p = path.replace(/\\/g, "/").replace(/\/+/g, "/");
   const markers = ["/installed-plugins/", "/plugins/"] as const;
   for (const marker of markers) {
-    const idx = p.toLowerCase().indexOf(marker);
-    if (idx < 0) continue;
-    const rest = p.slice(idx + marker.length);
+    const hit = caseInsensitiveSpans(p, marker)[0];
+    if (!hit) continue;
+    const rest = p.slice(hit.end);
     const name = rest.split("/")[0]?.trim() ?? "";
     if (!name || name.toLowerCase() === "skills") continue;
     return name;

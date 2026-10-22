@@ -146,6 +146,15 @@ describe("matchMessageContent", () => {
   it("returns null when nothing matches", () => {
     expect(matchMessageContent("zzzz", messages)).toBeNull();
   });
+
+  it("snippets the original word after a dotted capital I", () => {
+    const dots = "İ".repeat(60);
+    const hit = matchMessageContent("stan", [
+      { role: "user", content: `${dots} stanbul` },
+    ]);
+    expect(hit).not.toBeNull();
+    expect(hit!.snippet).toContain("stan");
+  });
 });
 
 describe("mergeSessionSearchHits", () => {

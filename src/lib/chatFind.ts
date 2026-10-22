@@ -3,6 +3,8 @@
  * Case-insensitive match over user + assistant message text (and tool titles).
  */
 
+import { caseInsensitiveSpans } from "./caseFoldIndex";
+
 export type ChatFindMessage = {
   id: string;
   role: "user" | "assistant" | "tool" | string;
@@ -61,30 +63,22 @@ export function findChatMatches(
 ): ChatFindMatch[] {
   const q = query.trim();
   if (!q) return [];
-  const qLower = q.toLowerCase();
   const out: ChatFindMatch[] = [];
 
   for (const m of messages) {
     if (!isChatFindableMessage(m)) continue;
     const text = searchableTextForMessage(m);
     if (!text) continue;
-    const lower = text.toLowerCase();
-    let from = 0;
-    let occurrence = 0;
-    while (from < lower.length) {
-      const at = lower.indexOf(qLower, from);
-      if (at < 0) break;
+    const spans = caseInsensitiveSpans(text, q);
+    for (let occurrence = 0; occurrence < spans.length; occurrence++) {
+      const span = spans[occurrence]!;
       out.push({
         index: out.length,
         messageId: m.id,
         occurrence,
-        start: at,
-        end: at + q.length,
+        start: span.start,
+        end: span.end,
       });
-      occurrence += 1;
-      // Advance by query length so overlapping runs (e.g. "aa" in "aaa")
-      // still produce stable non-overlapping hits like browsers.
-      from = at + q.length;
     }
   }
 
@@ -150,27 +144,24 @@ export function splitHighlightParts(text: string, query: string): HighlightPart[
   if (!q || !text) {
     return text ? [{ text, match: false }] : [];
   }
-  const qLower = q.toLowerCase();
-  const lower = text.toLowerCase();
+  const spans = caseInsensitiveSpans(text, q);
+  if (spans.length === 0) return [{ text, match: false }];
   const parts: HighlightPart[] = [];
   let from = 0;
-  let occurrence = 0;
-  while (from < text.length) {
-    const at = lower.indexOf(qLower, from);
-    if (at < 0) {
-      parts.push({ text: text.slice(from), match: false });
-      break;
-    }
-    if (at > from) {
-      parts.push({ text: text.slice(from, at), match: false });
+  for (let occurrence = 0; occurrence < spans.length; occurrence++) {
+    const span = spans[occurrence]!;
+    if (span.start > from) {
+      parts.push({ text: text.slice(from, span.start), match: false });
     }
     parts.push({
-      text: text.slice(at, at + q.length),
+      text: text.slice(span.start, span.end),
       match: true,
       occurrence,
     });
-    occurrence += 1;
-    from = at + q.length;
+    from = span.end;
+  }
+  if (from < text.length) {
+    parts.push({ text: text.slice(from), match: false });
   }
   return parts;
 }

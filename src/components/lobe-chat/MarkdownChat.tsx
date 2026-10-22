@@ -26,6 +26,7 @@ import { VideoUi, videoUiLabels } from "@/components/VideoUi";
 import { FilePathCard } from "@/components/FilePathCard";
 import type { ResourceOpenTarget } from "@/components/resource-viewer/types";
 import { HighlightedText } from "@/components/HighlightedText";
+import { caseInsensitiveSpans } from "@/lib/caseFoldIndex";
 import {
   isImagePath,
   isMediaPath,
@@ -79,16 +80,8 @@ function highlightChildren(
     const text = String(children);
     const base = counter.n;
     // Count matches in this leaf so subsequent leaves get correct indices.
-    const lower = text.toLowerCase();
-    const qLower = q.toLowerCase();
-    let from = 0;
-    let local = 0;
-    while (from < lower.length) {
-      const at = lower.indexOf(qLower, from);
-      if (at < 0) break;
-      local += 1;
-      from = at + q.length;
-    }
+    // Same spans as the highlight, so a dotted capital I does not shift them.
+    const local = caseInsensitiveSpans(text, q).length;
     const activeLocal =
       activeOccurrence != null &&
       activeOccurrence >= base &&
