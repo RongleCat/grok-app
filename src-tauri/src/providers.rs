@@ -1663,6 +1663,27 @@ pub fn custom_provider_id_for_catalog_model(catalog_id: &str) -> Option<String> 
     None
 }
 
+/// Provider that uniquely lists `model`, for scheduling legacy rows.
+///
+/// Unlike [`custom_provider_id_for_catalog_model`], ambiguous matches return
+/// `None`: a guessed route would silently send the model to the wrong relay.
+pub fn custom_provider_id_for_model_unique(model: &str) -> Option<String> {
+    let model = model.trim();
+    if model.is_empty() || is_official_catalog_model(model) {
+        return None;
+    }
+    let list = list_custom_providers().ok()?;
+    let mut hits = list
+        .providers
+        .iter()
+        .filter(|p| p.id != model && (p.model == model || p.models.iter().any(|m| m.id == model)));
+    let first = hits.next()?;
+    if hits.next().is_some() {
+        return None;
+    }
+    Some(first.id.clone())
+}
+
 /// Model flag for `grok agent --model` and ACP `session/set_model`.
 ///
 /// Grok Build behavior:

@@ -337,6 +337,7 @@ pub fn app_invoke_handler(
         commands::automations_list,
         commands::automation_create,
         commands::automation_update,
+        commands::automation_rebind_reuse_session,
         commands::automation_set_enabled,
         commands::automation_mark_run,
         commands::automation_delete,

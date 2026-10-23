@@ -5,6 +5,8 @@
 
 export type AutomationFrequency = "daily" | "weekly" | "weekdays" | "once";
 export type AutomationNotify = "all" | "failures" | "none";
+/** Fresh chat per run, or send into a chosen existing chat. */
+export type AutomationSessionMode = "new" | "reuse";
 
 export interface Automation {
   id: string;
@@ -13,7 +15,12 @@ export interface Automation {
   enabled: boolean;
   projectId: string | null;
   modelId: string | null;
+  /** `official` or a custom provider id; null on legacy rows. */
+  providerId?: string | null;
   effort: string | null;
+  /** Persisted rows may carry legacy strings; callers normalize before use. */
+  sessionMode?: AutomationSessionMode | string;
+  sessionId?: string | null;
   frequency: AutomationFrequency | string;
   /** Local wall-clock `HH:MM` (24h). */
   time: string;
@@ -32,7 +39,10 @@ export interface AutomationInput {
   enabled?: boolean;
   projectId?: string | null;
   modelId?: string | null;
+  providerId?: string | null;
   effort?: string | null;
+  sessionMode?: string;
+  sessionId?: string | null;
   frequency?: string;
   time?: string;
   weekdays?: number[];
@@ -41,6 +51,75 @@ export interface AutomationInput {
 }
 
 const LS_KEY = "grok-app.automations";
+
+/** Normalize persisted values; a missing chat id falls back to a fresh run. */
+export function normalizeAutomationSessionMode(
+  mode: string | null | undefined,
+  sessionId: string | null | undefined,
+): AutomationSessionMode {
+  return mode?.trim().toLowerCase() === "reuse" && sessionId?.trim()
+    ? "reuse"
+    : "new";
+}
+
+/** Chat to send into, or `null` for a fresh chat. */
+export function automationReuseSessionId(
+  auto: Pick<Automation, "sessionMode" | "sessionId">,
+): string | null {
+  const id = auto.sessionId?.trim() ?? "";
+  return normalizeAutomationSessionMode(auto.sessionMode, id) === "reuse"
+    ? id
+    : null;
+}
+
+/** Non-archived chats offered as reuse targets, newest first. */
+export function automationSessionOptions(
+  sessions: readonly {
+    id: string;
+    title: string;
+    projectId: string | null;
+    updatedAt?: string;
+    archived?: boolean;
+  }[],
+): {
+  id: string;
+  title: string;
+  projectId: string | null;
+  updatedAt: string;
+}[] {
+  return sessions
+    .filter((s) => !s.archived)
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      projectId: s.projectId,
+      updatedAt: s.updatedAt ?? "",
+    }))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+/** Stable short suffix that tells duplicate chat titles apart. */
+export function shortSessionId(id: string): string {
+  const trimmed = id.trim();
+  return trimmed.length <= 8 ? trimmed : trimmed.slice(-6);
+}
+
+/**
+ * Find the chat a reuse schedule points at. A stale sidebar snapshot falls
+ * back to the host list; a host query failure propagates so the run aborts
+ * instead of creating and rebinding a duplicate chat.
+ */
+export async function resolveAutomationReuseRow<T extends { id: string }>(
+  reuseId: string | null,
+  sessions: readonly T[],
+  loadFromHost?: () => Promise<readonly T[]>,
+): Promise<T | null> {
+  if (!reuseId) return null;
+  const local = sessions.find((s) => s.id === reuseId) ?? null;
+  if (local || !loadFromHost) return local;
+  const hostRows = await loadFromHost();
+  return hostRows.find((s) => s.id === reuseId) ?? null;
+}
 
 /** Browser / fallback store when Tauri is unavailable. */
 export function loadAutomationsLocal(): Automation[] {

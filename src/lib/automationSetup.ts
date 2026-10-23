@@ -149,6 +149,10 @@ export function parseAutomationConfigJson(
       o.modelId === null || o.modelId === undefined
         ? null
         : String(o.modelId),
+    providerId:
+      o.providerId === null || o.providerId === undefined
+        ? null
+        : String(o.providerId),
     effort:
       o.effort === null || o.effort === undefined ? null : String(o.effort),
     nextRunAt: nextRunAt ?? null,

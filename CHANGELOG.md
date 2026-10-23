@@ -13,7 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Scheduled tasks can run in a chat you choose instead of opening a new one every time. The chosen chat keeps its own model and reasoning.
+
+**中文 · 新增**
+- 定时任务可以选择在指定会话中执行，不必每次新建。所选会话保留自己的模型与推理强度。
+
 ### Fixed
+- Scheduled tasks can run on a chosen model from the official catalog or a custom provider. They no longer fall back to your current default model.
 - Small icons in macOS System Settings no longer show colored stripes.
 - Follow System stays Simplified Chinese when that is the preferred language.
 - A trusted workspace no longer blocks sandboxed chats from starting.
@@ -23,6 +30,7 @@ See `docs/llm-wiki/release.md`.
 - A chat connects when leader mode is on but no leader is running.
 
 **中文 · 修复**
+- 定时任务可以使用指定的官方或自定义提供商模型，不再回退到当前默认模型。
 - macOS 系统设置里的小图标不再出现彩色横纹。
 - 跟随系统时，首选简体中文就会显示简体。
 - 信任过工作区之后，沙箱对话可以正常启动。
