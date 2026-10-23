@@ -10,7 +10,7 @@
 | 侧栏 logo 下 **新建会话** | 无项目归属的草稿会话 → 首次发送落入「默认工作区」 |
 | 侧栏 **已安排** | 主栏打开任务列表（`#/automations`） |
 | 列表 **创建 → 用 AI 创建** | 切到无项目会话；composer 预填**自然语言**引导（不展示字段 schema） |
-| 列表 **创建 → 手动创建** | 右侧表单：标题 / 指令 / 项目 / 模型 / 推理 / 频率 / 时间 / 通知 |
+| 列表 **创建 → 手动创建** | 右侧表单：标题 / 指令 / 项目 / 运行于（新建或已有会话）/ 模型 / 推理 / 频率 / 时间 / 通知。复用已有会话时模型与推理跟随该会话，项目由会话决定 |
 | Composer「+」→ 创建自动化 | 跳转已安排页 |
 
 ## 对话创建协议（静默）
@@ -42,13 +42,14 @@
 
 - 文件：`paths::automations_file()`（macOS 常见：`~/Library/Application Support/com.grokapp.grok-app/automations.json`）
 - 浏览器兜底：`localStorage["grok-app.automations"]`
-- 字段：`title` `prompt` `enabled` `projectId` `modelId` `effort` `frequency` `time` `weekdays` `notify` `lastRunAt` `nextRunAt`
+- 字段：`title` `prompt` `enabled` `projectId` `modelId` `effort` `sessionMode` `sessionId` `frequency` `time` `weekdays` `notify` `lastRunAt` `nextRunAt`
+- **执行会话**：`sessionMode` = `new`（每次新建，默认）| `reuse`（发送到 `sessionId` 指定的已有会话）。`reuse` 会话被删除时，Host 回退为新建一次并写回新的 `sessionId`，后续继续复用。
 
 ## 执行
 
 1. **Host 调度**（`automation_runner`）：**进程存活**期间每 30s 检查 `enabled` 且 `nextRunAt` 到期的任务。**不依赖主窗口可见**（托盘-only / `--start-in-tray` 均可）。
 2. 任一会话 mid-turn（streaming / permission / connecting / open tools）时不抢跑；空闲后下一 tick 补跑。
-3. 触发：Host `session_create(scheduled)` → `connect` → `send_message`；成功 `mark_run`；`once` 后 `enabled=false`。
+3. 触发：Host `session_create(scheduled)` → `connect` → `send_message`；成功 `mark_run`；`once` 后 `enabled=false`。`sessionMode=reuse` 时复用指定会话（不新建、不覆盖其模型/推理）；`Run now` 同样先打开该会话再发送。复用会话 connect 失败时**不会**删除该会话；配置会话已删除时新建一次并写回新 `sessionId`（Host 与 Run now 都会写回，且仅在任务仍指向原缺失会话时生效）。
 4. **connect 失败**：删除空壳 session；发 `automation://error`。
 5. UI 监听 `automation://ran` / `automation://error` 做 toast，并写入**本地运行历史** ring；**不再**用 WebView `setInterval` 双触发。
 6. 手动「立即执行」仍走前端 `runAutomation`（同样记录 ok / error / skipped）。
@@ -124,6 +125,7 @@
 - [x] 侧栏新建会话不依赖当前项目，会话出现在「默认工作区」
 - [x] 已安排列表 / 筛选 / 搜索 / 启停 / 删除
 - [x] 手动表单创建与编辑
+- [x] **执行会话可选**：每次新建 / 复用指定会话；被复用会话删除后自动回退并写回新会话
 - [x] AI 创建入口：自然语言 seed，不暴露 JSON schema
 - [x] 助手 fence 自动 `automation_create`，气泡不展示配置块
 - [x] 应用打开时到期可触发（不阻塞主对话架构）

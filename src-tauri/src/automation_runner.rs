@@ -344,25 +344,41 @@ pub async fn fire_due_once(app: &AppHandle, mgr: &Arc<SessionManager>) -> FireDu
     }
 }
 
+/// Chat this automation reuses, when configured. `None` means a fresh chat.
+pub fn automation_reuse_session_id(auto: &Automation) -> Option<String> {
+    let reuse = auto.session_mode.trim().eq_ignore_ascii_case("reuse");
+    if !reuse {
+        return None;
+    }
+    auto.session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn validate_project(project: &store::Project) -> Result<(), String> {
+    if !project.trusted {
+        return Err(format!("project not trusted: {}", project.name));
+    }
+    if !project.path_ok && !project.is_ssh_remote() {
+        return Err(format!("project path missing: {}", project.name));
+    }
+    Ok(())
+}
+
 async fn run_one(
     app: &AppHandle,
     mgr: &Arc<SessionManager>,
     auto: &Automation,
 ) -> Result<String, String> {
-    let projects = store::load_projects();
-    let proj = auto
-        .project_id
-        .as_ref()
-        .and_then(|pid| projects.iter().find(|p| &p.id == pid));
-
-    if let Some(p) = proj {
-        if !p.trusted {
-            return Err(format!("project not trusted: {}", p.name));
-        }
-        if !p.path_ok && !p.is_ssh_remote() {
-            return Err(format!("project path missing: {}", p.name));
-        }
-    }
+    let reuse_id = automation_reuse_session_id(auto);
+    let reuse_requested = reuse_id.is_some();
+    let existing = reuse_id.as_deref().and_then(|sid| {
+        store::load_sessions_index()
+            .into_iter()
+            .find(|s| s.id == sid)
+    });
 
     let title = if auto.title.trim().is_empty() {
         "Scheduled".into()
@@ -370,20 +386,58 @@ async fn run_one(
         auto.title.clone()
     };
 
-    let meta = store::create_session(auto.project_id.clone(), Some(title.clone()), true)
-        .map_err(|e| format!("create session: {e}"))?;
+    let projects = store::load_projects();
+
+    // Validate the target project before creating a chat. Reused chats are
+    // validated after we load their row; never delete a chat we did not create.
+    if existing.is_none() {
+        let project = auto
+            .project_id
+            .as_ref()
+            .and_then(|pid| projects.iter().find(|p| &p.id == pid));
+        if let Some(p) = project {
+            validate_project(p)?;
+        }
+    }
+
+    let (mut meta, created_new) = match existing {
+        Some(meta) => (meta, false),
+        None => (
+            store::create_session(auto.project_id.clone(), Some(title), true)
+                .map_err(|e| format!("create session: {e}"))?,
+            true,
+        ),
+    };
     let session_id = meta.id.clone();
 
-    // Optional session prefs (model / effort) before connect.
-    if auto.model_id.is_some() || auto.effort.is_some() {
-        let mut m = meta.clone();
+    // The reused chat keeps its project; the automation's project only seeds a
+    // fresh chat (including the fallback when the configured chat is gone).
+    let proj = meta
+        .project_id
+        .as_ref()
+        .and_then(|pid| projects.iter().find(|p| &p.id == pid));
+
+    if !created_new {
+        if let Some(p) = proj {
+            validate_project(p)?;
+        }
+    }
+
+    // A reused chat keeps its own model and reasoning. A fresh chat (including
+    // the fallback for a deleted reuse target) gets the automation's prefs.
+    if (!reuse_requested || created_new) && (auto.model_id.is_some() || auto.effort.is_some()) {
         if let Some(ref mid) = auto.model_id {
-            m.model_id = Some(mid.clone());
+            meta.model_id = Some(mid.clone());
         }
         if let Some(ref ef) = auto.effort {
-            m.effort = Some(ef.clone());
+            meta.effort = Some(ef.clone());
         }
-        let _ = store::update_session_meta(&m);
+        if let Err(e) = store::update_session_meta(&meta) {
+            if created_new {
+                let _ = store::delete_session(&session_id);
+            }
+            return Err(format!("session prefs write failed: {e}"));
+        }
     }
 
     let project_path = proj.map(|p| p.path.clone());
@@ -397,8 +451,10 @@ async fn run_one(
         )
         .await
         .map_err(|e| {
-            // Drop empty shell so sidebar stays clean.
-            let _ = store::delete_session(&session_id);
+            // Drop an empty shell; never delete the chat this task reused.
+            if created_new {
+                let _ = store::delete_session(&session_id);
+            }
             format!("connect failed: {e}")
         })?;
 
@@ -408,7 +464,9 @@ async fn run_one(
             .as_ref()
             .map(|e| format!("{}: {}", e.code.as_str(), e.message))
             .unwrap_or_else(|| format!("state={:?}", snap.state));
-        let _ = store::delete_session(&session_id);
+        if created_new {
+            let _ = store::delete_session(&session_id);
+        }
         return Err(format!("connect not ready: {detail}"));
     }
 
@@ -416,6 +474,13 @@ async fn run_one(
     mgr.send_message(app.clone(), prompt, None, None, Some(session_id.clone()))
         .await
         .map_err(|e| format!("send failed: {e}"))?;
+
+    // The configured chat was deleted: remember the replacement only after the
+    // prompt landed, so a failed send leaves the schedule on the old target.
+    if reuse_requested && created_new {
+        let _ =
+            store::set_automation_session_id_if_reuse(&auto.id, reuse_id.as_deref(), &session_id);
+    }
 
     let last_run = Utc::now();
     let next = if auto.frequency.eq_ignore_ascii_case("once") {
@@ -538,6 +603,8 @@ mod tests {
             project_id: None,
             model_id: None,
             effort: None,
+            session_mode: "new".into(),
+            session_id: None,
             frequency: freq.into(),
             time: time.into(),
             weekdays,
@@ -605,6 +672,17 @@ mod tests {
         assert!(wants_fire_due_schedules_from(&argv, Some("true")));
         assert!(!wants_fire_due_schedules_from(&argv, Some("0")));
         assert!(!wants_fire_due_schedules_from(&argv, None));
+    }
+
+    #[test]
+    fn reuse_session_id_requires_reuse_mode_and_id() {
+        let mut a = sample("daily", "09:00", vec![]);
+        assert_eq!(automation_reuse_session_id(&a), None);
+        a.session_mode = "reuse".into();
+        a.session_id = Some(" chat-1 ".into());
+        assert_eq!(automation_reuse_session_id(&a), Some("chat-1".to_string()));
+        a.session_id = Some("   ".into());
+        assert_eq!(automation_reuse_session_id(&a), None);
     }
 
     #[test]

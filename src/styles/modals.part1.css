@@ -148,6 +148,13 @@
   min-width: 140px;
 }
 
+.auto-field__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
 .auto-panel__foot {
   display: flex;
   justify-content: flex-end;

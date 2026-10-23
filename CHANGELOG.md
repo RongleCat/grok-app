@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Scheduled tasks can run in a chat you choose instead of opening a new one every time. The chosen chat keeps its own model and reasoning.
+
+**中文 · 新增**
+- 定时任务可以选择在指定会话中执行，不必每次新建。所选会话保留自己的模型与推理强度。
+
 ### Fixed
 - Small icons in macOS System Settings no longer show colored stripes.
 - Follow System stays Simplified Chinese when that is the preferred language.

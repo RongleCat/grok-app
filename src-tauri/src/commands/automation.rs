@@ -20,6 +20,22 @@ pub async fn automation_update(
     store::update_automation(&id, input)
 }
 
+/// Rebind a reused schedule to the chat a run created after its target was
+/// deleted. No-op (`None`) when the schedule no longer points at the missing
+/// chat, so a concurrent user edit wins.
+#[tauri::command]
+pub async fn automation_rebind_reuse_session(
+    id: String,
+    expected_session_id: Option<String>,
+    session_id: String,
+) -> Result<Option<store::Automation>, String> {
+    store::set_automation_session_id_if_reuse(
+        &id,
+        expected_session_id.as_deref(),
+        &session_id,
+    )
+}
+
 #[tauri::command]
 pub async fn automation_set_enabled(
     id: String,

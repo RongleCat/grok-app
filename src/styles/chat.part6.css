@@ -495,6 +495,30 @@
   z-index: 13000;
 }
 
+/* Searchable picker only: a compositor-friendly reveal. Plain menus stay
+   instant so keyboard/pointer selection is never delayed. */
+.c-select__menu.is-searchable {
+  animation: c-select-menu-in 120ms ease-out;
+  transform-origin: top center;
+}
+
+@keyframes c-select-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-select__menu.is-searchable {
+    animation: none;
+  }
+}
+
 /* In settings forms — full width trigger */
 .field .c-select {
   width: 100%;
@@ -509,9 +533,44 @@
   white-space: nowrap;
 }
 
+.c-select__option.is-active {
+  background: var(--bg-hover);
+}
+
 .c-select__option.is-disabled {
   opacity: 0.4;
   pointer-events: none;
+}
+
+/* Type-to-filter row inside a searchable Select menu. */
+.c-select__search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px;
+  background: inherit;
+}
+
+.c-select__search input {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.c-select__search input:focus {
+  border-color: var(--border-focus);
+}
+
+.c-select__empty {
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .empty-center {

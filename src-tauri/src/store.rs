@@ -2950,6 +2950,11 @@ pub struct Automation {
     pub project_id: Option<String>,
     pub model_id: Option<String>,
     pub effort: Option<String>,
+    /// `new` (fresh chat per run) | `reuse` (send into `session_id`).
+    #[serde(default = "default_session_mode")]
+    pub session_mode: String,
+    /// Chat targeted when `session_mode == "reuse"`.
+    pub session_id: Option<String>,
     /// `daily` | `weekly` | `weekdays` | `once`
     #[serde(default = "default_frequency")]
     pub frequency: String,
@@ -2974,6 +2979,9 @@ fn default_true() -> bool {
 fn default_frequency() -> String {
     "daily".into()
 }
+fn default_session_mode() -> String {
+    "new".into()
+}
 fn default_time() -> String {
     "09:00".into()
 }
@@ -2990,6 +2998,8 @@ pub struct AutomationInput {
     pub project_id: Option<String>,
     pub model_id: Option<String>,
     pub effort: Option<String>,
+    pub session_mode: Option<String>,
+    pub session_id: Option<String>,
     pub frequency: Option<String>,
     pub time: Option<String>,
     pub weekdays: Option<Vec<u8>>,
@@ -3009,6 +3019,26 @@ pub fn save_automations(list: &[Automation]) -> Result<(), String> {
     write_json(&automations_file(), &list)
 }
 
+/// Normalize the run-target pair. `reuse` only makes sense with a chat id;
+/// anything else falls back to a fresh chat per run.
+pub fn normalize_automation_session_target(
+    mode: Option<&str>,
+    session_id: Option<&str>,
+) -> (String, Option<String>) {
+    let sid = session_id
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let reuse = mode
+        .map(str::trim)
+        .is_some_and(|m| m.eq_ignore_ascii_case("reuse"));
+    if reuse && sid.is_some() {
+        ("reuse".into(), sid)
+    } else {
+        ("new".into(), None)
+    }
+}
+
 pub fn create_automation(input: AutomationInput) -> Result<Automation, String> {
     let title = input.title.trim().to_string();
     if title.is_empty() {
@@ -3019,6 +3049,10 @@ pub fn create_automation(input: AutomationInput) -> Result<Automation, String> {
         return Err("prompt empty".into());
     }
     let now = Utc::now();
+    let (session_mode, session_id) = normalize_automation_session_target(
+        input.session_mode.as_deref(),
+        input.session_id.as_deref(),
+    );
     let auto = Automation {
         id: Uuid::new_v4().to_string(),
         title,
@@ -3027,6 +3061,8 @@ pub fn create_automation(input: AutomationInput) -> Result<Automation, String> {
         project_id: input.project_id,
         model_id: input.model_id,
         effort: input.effort,
+        session_mode,
+        session_id,
         frequency: input
             .frequency
             .unwrap_or_else(default_frequency)
@@ -3072,6 +3108,16 @@ pub fn update_automation(id: &str, input: AutomationInput) -> Result<Automation,
     auto.project_id = input.project_id;
     auto.model_id = input.model_id;
     auto.effort = input.effort;
+    if input.session_mode.is_some() || input.session_id.is_some() {
+        let mode = input
+            .session_mode
+            .as_deref()
+            .unwrap_or(auto.session_mode.as_str());
+        let sid = input.session_id.as_deref().or(auto.session_id.as_deref());
+        let (next_mode, next_sid) = normalize_automation_session_target(Some(mode), sid);
+        auto.session_mode = next_mode;
+        auto.session_id = next_sid;
+    }
     if let Some(f) = input.frequency {
         auto.frequency = f.trim().to_string();
     }
@@ -3091,6 +3137,37 @@ pub fn update_automation(id: &str, input: AutomationInput) -> Result<Automation,
     let clone = auto.clone();
     save_automations(&list)?;
     Ok(clone)
+}
+
+/// Persist the chat a reused automation actually ran in, but only while the
+/// task still points at the missing chat. A user editing the schedule to a
+/// different chat (or to "new") during the run wins.
+pub fn set_automation_session_id_if_reuse(
+    id: &str,
+    expected_session_id: Option<&str>,
+    session_id: &str,
+) -> Result<Option<Automation>, String> {
+    let _ = ensure_app_dirs();
+    let path = automations_file();
+    // The lock covers the whole read-compare-write transaction so a
+    // concurrent `automation_update` cannot be overwritten by this writeback.
+    crate::store_lock::with_exclusive_lock(&path, || {
+        let mut list: Vec<Automation> = read_json(&path);
+        let Some(auto) = list.iter_mut().find(|a| a.id == id) else {
+            return Err("automation not found".to_string());
+        };
+        let current = auto.session_id.as_deref().map(str::trim).unwrap_or("");
+        let expected = expected_session_id.map(str::trim).unwrap_or("");
+        if !auto.session_mode.eq_ignore_ascii_case("reuse") || current != expected {
+            return Ok(None);
+        }
+        auto.session_id = Some(session_id.trim().to_string());
+        auto.updated_at = Utc::now();
+        let clone = auto.clone();
+        let serialized = serde_json::to_string_pretty(&list).map_err(|e| e.to_string())?;
+        crate::store_lock::write_bytes_replace(&path, serialized.as_bytes())?;
+        Ok(Some(clone))
+    })
 }
 
 pub fn set_automation_enabled(id: &str, enabled: bool) -> Result<Automation, String> {
@@ -3616,6 +3693,89 @@ mod tests {
     struct TempAppHome {
         path: PathBuf,
         previous: Option<OsString>,
+    }
+
+    #[test]
+    fn automation_session_target_defaults_to_new_chat() {
+        assert_eq!(
+            normalize_automation_session_target(None, None),
+            ("new".into(), None)
+        );
+        assert_eq!(
+            normalize_automation_session_target(Some("reuse"), Some("  ")),
+            ("new".into(), None)
+        );
+        assert_eq!(
+            normalize_automation_session_target(Some("reuse"), Some(" chat-1 ")),
+            ("reuse".into(), Some("chat-1".into()))
+        );
+        assert_eq!(
+            normalize_automation_session_target(Some("new"), Some("chat-1")),
+            ("new".into(), None)
+        );
+    }
+
+    #[test]
+    fn automation_deserializes_without_session_target() {
+        let now = Utc::now();
+        let raw = serde_json::json!({
+            "id": "a1",
+            "title": "Daily",
+            "prompt": "p",
+            "enabled": true,
+            "projectId": null,
+            "modelId": null,
+            "effort": null,
+            "frequency": "daily",
+            "time": "09:00",
+            "weekdays": [],
+            "notify": "all",
+            "createdAt": now,
+            "updatedAt": now,
+            "lastRunAt": null,
+            "nextRunAt": null
+        });
+        let auto: Automation = serde_json::from_value(raw).expect("legacy automation");
+        assert_eq!(auto.session_mode, "new");
+        assert!(auto.session_id.is_none());
+    }
+
+    #[test]
+    fn reuse_session_writeback_only_when_target_unchanged() {
+        with_temp_app_home("automation-reuse-writeback", |_| {
+            let input = |mode: &str, sid: &str| AutomationInput {
+                title: "Daily".into(),
+                prompt: "p".into(),
+                enabled: Some(true),
+                project_id: None,
+                model_id: None,
+                effort: None,
+                session_mode: Some(mode.into()),
+                session_id: Some(sid.into()),
+                frequency: Some("daily".into()),
+                time: Some("09:00".into()),
+                weekdays: Some(vec![]),
+                notify: Some("all".into()),
+                next_run_at: None,
+            };
+            let auto = create_automation(input("reuse", "old")).expect("create");
+
+            let updated = set_automation_session_id_if_reuse(&auto.id, Some("old"), "new")
+                .expect("writeback");
+            assert_eq!(updated.and_then(|a| a.session_id).as_deref(), Some("new"));
+
+            // User switches to "new chat each run" after the fallback fires.
+            update_automation(&auto.id, input("new", "new")).expect("update");
+            let unchanged = set_automation_session_id_if_reuse(&auto.id, Some("new"), "other")
+                .expect("writeback");
+            assert!(unchanged.is_none());
+            let row = load_automations()
+                .into_iter()
+                .find(|a| a.id == auto.id)
+                .unwrap();
+            assert_eq!(row.session_mode, "new");
+            assert!(row.session_id.is_none());
+        });
     }
 
     impl Drop for TempAppHome {
