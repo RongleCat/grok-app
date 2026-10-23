@@ -1,0 +1,289 @@
+/* Background tasks: a column on the right of the open chat only. */
+.main__chat-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  --chat-fleet-gutter: 0px;
+}
+
+.main:has(> .chat-fleet-pane) {
+  /* Grows with the chat column, and keeps at least half of that column for the transcript. */
+  --chat-fleet-gutter: min(520px, max(360px, 46%));
+}
+
+.main:has(> .chat-fleet-pane) > .main__chat-column {
+  margin-right: var(--chat-fleet-gutter);
+}
+
+.chat-fleet-pane {
+  position: absolute;
+  top: var(--titlebar-height, 40px);
+  right: 0;
+  bottom: 0;
+  width: var(--chat-fleet-gutter);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--bg-main);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.chat-fleet-pane__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.chat-fleet-pane__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.chat-fleet-pane__title .agent-tasks__dot {
+  display: block;
+  flex-shrink: 0;
+}
+
+.chat-fleet-pane__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.chat-fleet__count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-fleet__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-fleet__row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-fleet__copy {
+  min-width: 0;
+}
+
+.chat-fleet__kind {
+  margin-right: 6px;
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-fleet__stats .chat-fleet__kind {
+  margin-right: 0;
+}
+
+.chat-fleet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 8px 4px;
+}
+
+.chat-fleet__text-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chat-fleet__text-btn:hover {
+  color: var(--text-primary);
+}
+
+.chat-fleet__section,
+.chat-fleet__note,
+.chat-fleet__bill,
+.chat-fleet__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__section-toggle {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+}
+
+.chat-fleet__phases {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 6px 18px;
+}
+
+.chat-fleet__phase-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chat-fleet__phase-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+.chat-fleet__phase.is-current .chat-fleet__phase-title {
+  color: var(--text-primary);
+}
+
+.chat-fleet__phase.is-settled .chat-fleet__phase-title {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.chat-fleet__phase-row.is-settled .chat-fleet__agent-label,
+.chat-fleet__phase-row.is-settled .chat-fleet__cell {
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__phase-row.is-running .chat-fleet__cell--time {
+  color: var(--text-primary);
+}
+
+.chat-fleet__phase-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__phase-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-fleet__phase-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.75rem 4.5rem 3.75rem;
+  column-gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.chat-fleet__phase-row--head {
+  padding-top: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.chat-fleet__agent-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-fleet__agent-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.chat-fleet__cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-fleet__phase-row > :nth-child(n + 3) {
+  text-align: right;
+}
+
+.chat-fleet__cell--num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chat-fleet__transcript {
+  max-height: 180px;
+  overflow: auto;
+  padding: 0 8px 6px;
+}
+
+.chat-fleet__pre {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.app-shell--phone .main:has(> .chat-fleet-pane) {
+  --chat-fleet-gutter: 0px;
+}
+
+.app-shell--phone .chat-fleet-pane {
+  left: 0;
+  width: auto;
+  z-index: 30;
+}

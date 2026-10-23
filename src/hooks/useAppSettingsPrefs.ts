@@ -16,6 +16,7 @@ import {
   type ComposerEditorId,
 } from "@/lib/composerEditorPref";
 import { setComposerEditorKind } from "@/components/composer/editorPref";
+import { setDirectorSettingEnabled } from "@/lib/directorSetting";
 
 export function useAppSettingsPrefs() {
   const [sessionDataMode, setSessionDataMode] = useState(
@@ -136,6 +137,7 @@ export function useAppSettingsPrefs() {
     setAutoWakeEnabled(p.autoWakeEnabled);
     setWorkflowsEnabled(p.workflowsEnabled);
     setPlanEnabled(p.planEnabled);
+    setDirectorSettingEnabled(p.directorEnabled);
     setTodoGateEnabled(p.todoGateEnabled);
     setTodoGateMaxFiresPerPrompt(p.todoGateMaxFiresPerPrompt);
     setDisableWebSearch(p.disableWebSearch);

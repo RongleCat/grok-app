@@ -67,6 +67,11 @@ export interface MessageToolSegment {
   isError?: boolean;
   /** ISO time when the tool row was created (history duration). */
   createdAt?: string;
+  /**
+   * Spawn / workflow / background-shell fields the host copied off `rawInput`.
+   * Absent keys stay absent — the fleet drawer must not invent a model or a phase.
+   */
+  fleetHint?: FleetToolHint;
 }
 
 /** Ordered assistant turn pieces — thinking, tools, and body as they arrived. */
@@ -129,6 +134,8 @@ export interface ChatMessage {
    * children). Optional — Tasks panel may infer when missing.
    */
   toolParentId?: string;
+  /** See {@link MessageToolSegment.fleetHint}. */
+  fleetHint?: FleetToolHint;
 }
 
 export interface ToolEventPayload {
@@ -147,6 +154,27 @@ export interface ToolEventPayload {
   meta?: import("../toolPresentation").ToolPresentationMeta | null;
   /** Parent tool call id when the wire event includes nesting. */
   parentId?: string | null;
+  /** Optional spawn / workflow / background-shell fields from `rawInput`. */
+  fleetHint?: FleetToolHint | null;
+}
+
+/**
+ * Fields copied from a tool's `rawInput` when the wire actually has them.
+ * Every property is optional. A missing model is not a model name.
+ */
+export interface FleetToolHint {
+  model?: string;
+  background?: boolean;
+  blockUntilMs?: number;
+  prompt?: string;
+  argsLine?: string;
+  sourceName?: string;
+  agentBudget?: number;
+  phaseIndex?: number;
+  phaseTotal?: number;
+  agentCount?: number;
+  tokens?: number;
+  isolation?: string;
 }
 
 export interface TurnMarkerPayload {

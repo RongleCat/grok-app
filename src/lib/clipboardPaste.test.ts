@@ -1,15 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clipboardLooksLikeMedia,
   clipboardLooksLikeOsFiles,
   clipboardPlainText,
+  clipboardTextIsFileList,
   collectFilesFromDataTransfer,
   fileKey,
   fileNativePath,
   isFileUrlOnlyText,
   isNotReadableBlobError,
   readClipboardMediaFiles,
+  readClipboardPlainText,
 } from "./clipboardPaste";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function fakeFile(
   name: string,
@@ -209,6 +215,46 @@ describe("clipboardPlainText / isFileUrlOnlyText", () => {
   it("detects file url only", () => {
     expect(isFileUrlOnlyText("file:///tmp/x.png")).toBe(true);
     expect(isFileUrlOnlyText("hello\nfile:///tmp/x.png")).toBe(false);
+  });
+});
+
+describe("readClipboardPlainText", () => {
+  it("keeps web clipboard text and does not ask the host", async () => {
+    const readText = vi.fn(async () => "from web");
+    const readHost = vi.fn(async () => "from host");
+    vi.stubGlobal("navigator", { clipboard: { readText } });
+    expect(await readClipboardPlainText(readHost)).toBe("from web");
+    expect(readHost).not.toHaveBeenCalled();
+  });
+
+  it("reads the host clipboard when the web clipboard is empty", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { readText: async () => "" },
+    });
+    expect(await readClipboardPlainText(async () => "pasted line")).toBe(
+      "pasted line",
+    );
+  });
+
+  it("reads the host clipboard when the web clipboard refuses", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        readText: async () => {
+          throw new Error("NotAllowedError");
+        },
+      },
+    });
+    expect(await readClipboardPlainText(async () => "still here")).toBe(
+      "still here",
+    );
+  });
+});
+
+describe("clipboardTextIsFileList", () => {
+  it("recognizes an OS file copy and leaves ordinary text alone", () => {
+    expect(clipboardTextIsFileList("copy\nfile:///tmp/note.txt")).toBe(true);
+    expect(clipboardTextIsFileList("hello")).toBe(false);
+    expect(clipboardTextIsFileList("/tmp/note.txt")).toBe(false);
   });
 });
 

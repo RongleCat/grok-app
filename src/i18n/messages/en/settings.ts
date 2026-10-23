@@ -243,6 +243,8 @@ export const enSettings = {
   "settings.autoWakeDesc": "When on, Grok Build may inject a synthetic turn after background work completes (bash / monitor / task / loop) so the agent can react without a new user prompt. Default off. Independent mode writes agent-home `auto_wake_enabled` + `[features].auto_wake`. Shared mode does not rewrite `~/.grok` — the next agent spawn injects a `GROK_CONFIG` overlay instead. Soft-respawns after change; older CLIs that ignore the overlay / key soft-fail.",
   "settings.planEnabled": "Allow plan mode",
   "settings.planEnabledDesc": "When off, spawn with --no-plan so the agent cannot enter plan mode. Soft-respawns after change.",
+  "settings.directorMode": "Director mode",
+  "settings.directorModeDesc": "When on, Grok is asked to put large work in a background workflow or background subagents and to keep this chat to decisions and status. An open chat picks this up on the next message. A newly started agent receives the same rule. Off by default.",
   "settings.composerEditor": "Composer editor",
   "settings.composerEditorDesc": "Which editor the message input uses. The Markdown editor adds inline file references, lists, and code-block language bars; the built-in editor matches upstream Grok Build.",
   "settings.composerEditor.legacy": "Built-in (default)",

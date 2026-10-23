@@ -119,6 +119,29 @@ pub async fn clipboard_paste_image() -> Result<Option<PathEntry>, String> {
         .map_err(|e| format!("clipboard task: {e}"))?
 }
 
+/// Plain text from the OS clipboard.
+/// The WebView clipboard API often returns empty on Linux even when Ctrl+V
+/// can paste, so the composer menu reads the same store the paste event uses.
+/// Empty when the clipboard has no text. Never errors on a missing format.
+#[tauri::command]
+pub async fn clipboard_read_text() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(clipboard_read_text_sync)
+        .await
+        .map_err(|e| format!("clipboard task: {e}"))?
+}
+
+fn clipboard_read_text_sync() -> Result<String, String> {
+    let mut cb = match arboard::Clipboard::new() {
+        Ok(cb) => cb,
+        Err(e) => return Err(format!("clipboard open: {e}")),
+    };
+    match cb.get_text() {
+        Ok(text) => Ok(text),
+        Err(arboard::Error::ContentNotAvailable) => Ok(String::new()),
+        Err(e) => Err(format!("clipboard text: {e}")),
+    }
+}
+
 /// Absolute paths from the OS clipboard file list (Explorer / Finder copy).
 /// Empty when the clipboard has no files (screenshots, text). Never errors
 /// on a missing format — paste of images must keep working.

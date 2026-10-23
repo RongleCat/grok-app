@@ -220,6 +220,8 @@ export const koSettings = {
   "settings.autoWakeDesc": "켜면 Grok Build가 백그라운드 작업(bash / 모니터 / 작업 / 루프)이 끝난 뒤 합성 턴을 주입해 새 사용자 프롬프트 없이 에이전트가 반응할 수 있습니다. 기본값은 꺼짐입니다. 독립 모드는 agent-home `auto_wake_enabled` + `[features].auto_wake`를 씁니다. 공유 모드는 `~/.grok`를 다시 쓰지 않습니다 — 다음 에이전트 생성이 대신 `GROK_CONFIG` 오버레이를 주입합니다. 변경 후 소프트 재시작되며, 오버레이 / 키를 무시하는 이전 CLI는 소프트 실패합니다.",
   "settings.planEnabled": "계획 모드 허용",
   "settings.planEnabledDesc": "끄면 --no-plan으로 생성해 에이전트가 계획 모드에 들어갈 수 없습니다. 변경 후 소프트 재시작됩니다.",
+  "settings.directorMode": "디렉터 모드",
+  "settings.directorModeDesc": "켜면 Grok에게 큰 작업은 백그라운드 워크플로 또는 백그라운드 하위 에이전트로 넘기고, 이 채팅은 결정과 상태만 남기라고 요청합니다. 열린 채팅은 다음 메시지부터 적용됩니다. 새로 시작한 에이전트도 같은 규칙을 받습니다. 기본값은 꺼짐입니다.",
   "settings.composerEditor": "입력창 편집기",
   "settings.composerEditorDesc": "메시지 입력창이 사용하는 편집기입니다. Markdown 편집기는 인라인 파일 참조, 목록, 코드 블록 언어 표시줄을 지원합니다. 기본 제공 편집기는 업스트림 Grok Build와 동일합니다.",
   "settings.composerEditor.legacy": "기본 제공(기본값)",

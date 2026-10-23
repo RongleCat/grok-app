@@ -327,6 +327,10 @@ pub struct SessionMeta {
     /// Missing on older rows → follow the global route until the user picks one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_id: Option<String>,
+    /// Director mode. The next `session/new` sends ACP `_meta.rules`.
+    /// Does not rewrite `~/.grok` and does not respawn the live agent.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub director_mode: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -565,6 +569,12 @@ pub struct AppSettings {
     /// top-level `--no-plan` so plan mode is disabled for that process.
     #[serde(default = "default_plan_enabled")]
     pub plan_enabled: bool,
+    /// App-wide director nudge. When true, the next `session/new` sends
+    /// `DIRECTOR_RULE` as ACP `_meta.rules`, and the composer prefixes the
+    /// same paragraph on the next send. Default false. Does not rewrite
+    /// `~/.grok` and does not soft-respawn.
+    #[serde(default)]
+    pub director_enabled: bool,
     /// Allow Grok Build subagent spawning (`Agent` / task tools). Default **true**
     /// (CLI default). When false, spawn forces `--no-subagents` + `GROK_SUBAGENTS=0`
     /// and independent mode writes `[subagents] enabled = false`.
@@ -937,6 +947,7 @@ impl Default for AppSettings {
             official_effort_xhigh_rows_migrated: true,
             workflows_default_migrated: true,
             plan_enabled: default_plan_enabled(),
+            director_enabled: false,
             subagents_enabled: true,
             subagent_worktree_snapshot_enabled: false,
             auto_wake_enabled: false,
@@ -2074,6 +2085,7 @@ pub fn create_session(
         workspace_root_snapshot: None,
         workspace_capability: None,
         provider_id: None,
+        director_mode: false,
     };
     update_sessions_index({
         let meta = meta.clone();
@@ -2347,6 +2359,15 @@ pub fn sanitize_system_prompt_override(raw: Option<String>) -> Option<String> {
             }
         }
     }
+}
+
+/// Record director mode on the session index. Does not touch `~/.grok`.
+pub fn set_session_director_mode(id: &str, director_mode: bool) -> Result<SessionMeta, String> {
+    update_session_row(id, move |s| {
+        s.director_mode = director_mode;
+        s.updated_at = Utc::now();
+        Ok(s.clone())
+    })
 }
 
 /// Set or clear per-session extra rules (`grok --rules` on next spawn).
@@ -4443,6 +4464,7 @@ mod tests {
             workspace_root_snapshot: None,
             workspace_capability: None,
             provider_id: None,
+            director_mode: false,
         }
     }
 
@@ -4962,6 +4984,7 @@ mod tests {
                 workspace_root_snapshot: None,
                 workspace_capability: None,
                 provider_id: None,
+                director_mode: false,
             },
         );
         write_json(&sessions_index_file(), &sessions).expect("seed sessions");

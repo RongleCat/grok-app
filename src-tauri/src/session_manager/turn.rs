@@ -139,6 +139,9 @@ impl SessionManager {
             s.fsm.begin_stream().map_err(|e| e.to_string())?;
             s.prompt_in_flight = true;
             s.sent_prompt_this_visit = true;
+            // This send owns the turn. A late workflow `turn_completed` must
+            // not finish it. The follow-up arm is a process-lifetime slot.
+            crate::workflow_followup::disarm(&s.app_session_id);
             Self::touch_stream_progress_locked(s);
             let turn_id = Uuid::new_v4().to_string();
             s.active_turn_id = Some(turn_id.clone());

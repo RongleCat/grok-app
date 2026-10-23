@@ -90,12 +90,14 @@ import { SettingsTabStrip, UiCheck } from "./shared";
 import { resolveLocale } from "@/i18n";
 import type { MessageKey } from "@/i18n";
 import * as api from "@/lib/api";
+import { useDirectorSettingEnabled, setDirectorSettingEnabled } from "@/lib/directorSetting";
 import {
   buildOpenTargetSelectOptions,
   resolveOpenEditorEmptyState,
 } from "@/lib/openEditorHonesty";
 
 export function GeneralSection() {
+  const directorEnabled = useDirectorSettingEnabled();
   const s = useSettingsModel();
   const {
     title,
@@ -1448,6 +1450,30 @@ export function GeneralSection() {
                   />
                 </div>
               ) : null}
+              <div
+                className={"settings-row" + rowHighlight("settings-anchor-directorEnabled")}
+                id="settings-anchor-directorEnabled"
+              >
+                <div className="settings-row__text">
+                  <div className="settings-row__label">
+                    {t("settings.directorMode")}
+                  </div>
+                  <div className="settings-row__desc">
+                    {t("settings.directorModeDesc")}
+                  </div>
+                </div>
+                <UiCheck
+                  checked={directorEnabled}
+                  onChange={() => {
+                    const next = !directorEnabled;
+                    setDirectorSettingEnabled(next);
+                    void api.settingsGet().then((cur) =>
+                      api.settingsSet({ ...cur, directorEnabled: next }),
+                    );
+                  }}
+                  ariaLabel={t("settings.directorMode")}
+                />
+              </div>
               {onTodoGateEnabled ? (
                 (() => {
                   const todoGateView = describeTodoGateSettings({

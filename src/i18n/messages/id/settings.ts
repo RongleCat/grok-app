@@ -220,6 +220,8 @@ export const idSettings = {
   "settings.autoWakeDesc": "Jika aktif, Grok Build dapat menyuntikkan giliran sintetis setelah pekerjaan latar selesai (bash / monitor / tugas / loop) agar agen dapat bereaksi tanpa prompt pengguna baru. Bawaan mati. Mode mandiri menulis `auto_wake_enabled` agent-home + `[features].auto_wake`. Mode bersama tidak menulis ulang `~/.grok` — spawn agen berikutnya menyuntikkan overlay `GROK_CONFIG` sebagai gantinya. Respawn lunak setelah perubahan; CLI lama yang mengabaikan overlay / kunci gagal lunak.",
   "settings.planEnabled": "Izinkan mode rencana",
   "settings.planEnabledDesc": "Jika mati, spawn dengan --no-plan agar agen tidak dapat masuk mode rencana. Respawn lunak setelah perubahan.",
+  "settings.directorMode": "Mode direktur",
+  "settings.directorModeDesc": "Jika aktif, Grok diminta menaruh pekerjaan besar di alur kerja latar atau subagen latar, dan menjaga obrolan ini pada keputusan dan status. Obrolan yang terbuka menerapkannya pada pesan berikutnya. Agen yang baru dimulai menerima aturan yang sama. Mati secara default.",
   "settings.composerEditor": "Editor kotak pesan",
   "settings.composerEditorDesc": "Editor yang dipakai kotak pesan. Editor Markdown mendukung referensi berkas sebaris, daftar, dan bilah bahasa blok kode; editor bawaan sama dengan Grok Build upstream.",
   "settings.composerEditor.legacy": "Bawaan (default)",

@@ -172,7 +172,7 @@ describe("wallpaper theme contrast CSS", () => {
       /\.composer \.icon-btn:not\(\.icon-btn--primary\):not\(\.icon-btn--danger\)[\s\S]{0,80}\{[^}]*-webkit-appearance:\s*none/s,
     );
     expect(composerChromeCss).toMatch(
-      /\.composer__context-item:hover:not\(:disabled\),\s*\.composer__context-item\.is-open\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
+      /\.composer__context-item:hover:not\(:disabled\),\s*\.composer__context-item\.is-open,\s*\.composer__context-item\.is-active\s*\{[^}]*background:\s*var\(--bg-hover\)/s,
     );
     expect(chipCss).toMatch(
       /\.chip:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--bg-hover\)/s,

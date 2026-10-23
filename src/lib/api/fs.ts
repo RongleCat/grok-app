@@ -69,6 +69,21 @@ export async function clipboardFilePaths() {
   }
 }
 
+/**
+ * Plain text from the OS clipboard.
+ * Empty when the clipboard has no text. The WebView clipboard API is a
+ * separate store and often reports empty on Linux.
+ */
+export async function clipboardReadText() {
+  if (!isTauri()) return "";
+  try {
+    const text = await invoke<string>("clipboard_read_text");
+    return typeof text === "string" ? text : "";
+  } catch {
+    return "";
+  }
+}
+
 export interface PathEntry {
   path: string;
   name: string;

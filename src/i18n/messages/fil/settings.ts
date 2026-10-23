@@ -220,6 +220,8 @@ export const filSettings = {
   "settings.autoWakeDesc": "Kapag naka-on, maaaring mag-inject ang Grok Build ng synthetic na turn pagkatapos matapos ang background na gawain (bash / monitor / task / loop) para makatugon ang agent nang walang bagong prompt ng user. Naka-off bilang default. Nagsusulat ang independent mode ng agent-home `auto_wake_enabled` + `[features].auto_wake`. Hindi nire-rewrite ng shared mode ang `~/.grok` — nag-i-inject ang susunod na spawn ng agent ng `GROK_CONFIG` overlay. Soft-respawn pagkatapos magbago; soft-fail ang mas lumang CLI na hindi pinapansin ang overlay / key.",
   "settings.planEnabled": "Payagan ang plan mode",
   "settings.planEnabledDesc": "Kapag naka-off, mag-spawn na may --no-plan para hindi makapasok ang agent sa plan mode. Soft-respawn pagkatapos magbago.",
+  "settings.directorMode": "Modo ng direktor",
+  "settings.directorModeDesc": "Kapag naka-on, hinihiling sa Grok na ilagay ang malaking gawain sa background workflow o background subagents, at panatilihin ang chat na ito sa mga desisyon at status. Ang bukas na chat ay susunod dito sa susunod na mensahe. Ang bagong agent ay tatanggap ng parehong tuntunin. Naka-off bilang default.",
   "settings.composerEditor": "Editor ng input box",
   "settings.composerEditorDesc": "Alin na editor ang ginagamit ng message box. Sinusuportahan ng Markdown editor ang inline na file references, listahan, at language bars sa code block; ang built-in na editor ay katulad ng upstream Grok Build.",
   "settings.composerEditor.legacy": "Built-in (default)",

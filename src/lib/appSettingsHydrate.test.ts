@@ -43,6 +43,7 @@ describe("parseAppSettingsPrefs", () => {
     expect(p.voiceId).toBe("eve");
     expect(p.subagentsEnabled).toBe(true);
     expect(p.planEnabled).toBe(true);
+    expect(p.directorEnabled).toBe(false);
     expect(p.prefsScope).toBeNull();
   });
 

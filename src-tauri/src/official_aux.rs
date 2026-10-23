@@ -410,6 +410,7 @@ async fn run_official_acp_job_inner(
         sandbox_profile: Some("off".into()),
         json_schema: None,
         plugin_dirs: Vec::new(),
+        director_rules: None,
         extra_rules: Some(
             "You are an isolated official side-job. Complete the task and stop. \
 No repo edits. Prefer built-in tools. Keep the final answer concise and complete."

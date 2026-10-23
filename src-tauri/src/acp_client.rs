@@ -154,6 +154,18 @@ pub enum AcpEvent {
         /// Raw update object for richer client-side parsing (runs list, etc.).
         raw: Value,
     },
+    /// Background fleet snapshot (`task_backgrounded`, `task_completed`,
+    /// `background_tasks`). The body keeps wire fields. Shell `output` is
+    /// clipped to the last non-empty line so a long log does not cross IPC.
+    /// Child token totals are not on these events — the body must not grow one.
+    ///
+    /// `task_backgrounded` / `task_completed` still also emit
+    /// [`AcpEvent::ToolOpenReleased`] so open-tool accounting stays unchanged.
+    FleetUpdate {
+        /// `task_backgrounded` | `task_completed` | `background_tasks`.
+        kind: String,
+        body: Value,
+    },
     /// Goal orchestration progress (CLI 0.2.117+ `sessionUpdate: goal_updated`).
     /// Forwarded as `session://goal` for Reliability “Goal orchestration”.
     /// Soft-fail: older CLIs never emit this — UI shows honest empty state.
@@ -172,6 +184,9 @@ pub enum AcpEvent {
     ProcessExited {
         code: Option<i32>,
     },
+    /// CLI-started turn after a background workflow finishes
+    /// (`promptId` prefix `workflow-completed-`). Not a Host `session/prompt`.
+    WorkflowFollowup(crate::workflow_followup::Wire),
     /// Subagent lifecycle from `_x.ai/session_notification`.
     ///
     /// CLI 1.0.x emits `subagent_spawned` / `subagent_progress` /
@@ -459,6 +474,8 @@ pub struct AcpClient {
     /// Private `GROK_HOME` sealed for this process (#1293). `None` for
     /// `~/.grok`, official-aux, SSH, and TCP. Discarded in `kill`.
     proc_home: std::sync::Mutex<Option<PathBuf>>,
+    /// ACP `session/new` `_meta.rules` when the chat is in director mode.
+    director_rules: Option<String>,
 }
 
 /// Options applied at agent process start (CLI flags).
@@ -483,6 +500,9 @@ pub struct SpawnOptions {
     pub plugin_dirs: Vec<String>,
     /// Per-session extra rules → top-level `grok --rules <TEXT>` (before `agent`).
     pub extra_rules: Option<String>,
+    /// Director paragraph sent as ACP `_meta.rules` on `session/new`.
+    /// Not written to `~/.grok` and not passed as `grok --rules`.
+    pub director_rules: Option<String>,
     /// Per-session max turns override → top-level `grok --max-turns N`.
     /// When set (after normalize), wins over `AppSettings.max_agent_turns`.
     pub max_agent_turns: Option<u32>,
@@ -1244,6 +1264,11 @@ impl AcpClient {
             AgentError::new(AgentErrorCode::AgentCrashed, "no stderr on child")
         })?;
 
+        let director_rules = opts
+            .director_rules
+            .clone()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
         let client = Arc::new(Self {
             child: AsyncMutex::new(Some(child)),
             child_pid,
@@ -1270,6 +1295,7 @@ impl AcpClient {
             ssh_alias: ssh_alias.clone(),
             wsl_active: wsl_launch.is_some(),
             proc_home: std::sync::Mutex::new(proc_home),
+            director_rules,
         });
 
         client.start_read_loop(Box::new(stdout));
@@ -1373,6 +1399,7 @@ impl AcpClient {
             ssh_alias: None,
             wsl_active: false,
             proc_home: std::sync::Mutex::new(None),
+            director_rules: None,
         });
         client.start_read_loop(Box::new(read_half));
         Ok((client, event_rx))
@@ -1747,6 +1774,13 @@ impl AcpClient {
         }
     }
 
+    fn session_load_pending(&self) -> bool {
+        self.pending
+            .lock()
+            .values()
+            .any(|p| p.method == "session/load")
+    }
+
     fn touch_last_update(&self, session_id: Option<&str>, at: Instant) {
         if let Some(sid) = session_id.filter(|s| !s.is_empty()) {
             self.last_update_by_session
@@ -1839,7 +1873,24 @@ impl AcpClient {
         // decoded events so the SessionManager can route them to the right
         // App session when one process hosts several. Missing sid → None
         // (process-scoped fallback).
-        let events = decode_session_update(params);
+        let mut events = decode_session_update(params);
+        // A finished background workflow starts its own turn. Prepend the
+        // open so the stream/tool events in this same notification are not
+        // dropped as load replay. Append the end so usage on `turn_completed`
+        // still sees the turn open. Suppress while `session/load` is pending:
+        // those copies are history, and the id stays suppressed after the
+        // RPC result removes the pending entry.
+        if let Some(wire) = crate::workflow_followup::decode_followup(params) {
+            if let Some(place) =
+                crate::workflow_followup::admission(self.session_load_pending(), &wire)
+            {
+                let ev = AcpEvent::WorkflowFollowup(wire);
+                match place {
+                    crate::workflow_followup::Admission::Before => events.insert(0, ev),
+                    crate::workflow_followup::Admission::After => events.push(ev),
+                }
+            }
+        }
         if events.is_empty() {
             let update = params.get("update").unwrap_or(params);
             let kind = update
@@ -2706,10 +2757,7 @@ impl AcpClient {
         let result = self
             .request_timeout(
                 "session/new",
-                json!({
-                    "cwd": cwd,
-                    "mcpServers": mcp_servers
-                }),
+                wire_session_new_params(&cwd, &mcp_servers, self.director_rules.as_deref()),
                 HANDSHAKE_TIMEOUT_SECS,
             )
             .await
@@ -3880,6 +3928,263 @@ fn parse_goal_updated(update: &Value) -> Option<AcpEvent> {
     })
 }
 
+/// `session/new` params. `rules` is ACP `_meta.rules` (per session, not a
+/// `~/.grok` write). Empty rules omit `_meta` so the body stays
+/// `{ cwd, mcpServers }`.
+///
+/// Live check, grok 1.0.46: `session/new` with `_meta.rules` returned a
+/// `sessionId` (no prompt sent).
+pub fn wire_session_new_params(cwd: &str, mcp_servers: &Value, rules: Option<&str>) -> Value {
+    let mut params = json!({
+        "cwd": cwd,
+        "mcpServers": mcp_servers,
+    });
+    if let Some(text) = rules.map(str::trim).filter(|s| !s.is_empty()) {
+        params["_meta"] = json!({ "rules": text });
+    }
+    params
+}
+
+const FLEET_OUTPUT_LINE_MAX: usize = 400;
+
+fn fleet_last_line(raw: &str) -> String {
+    raw.lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("")
+        .chars()
+        .take(FLEET_OUTPUT_LINE_MAX)
+        .collect()
+}
+
+/// Copy a task snapshot. `output` becomes its last non-empty line.
+/// `output_clipped` is set only when that line is shorter than the original.
+fn fleet_clip_snapshot(snap: &Value) -> Value {
+    let Some(obj) = snap.as_object() else {
+        return Value::Null;
+    };
+    let mut out = serde_json::Map::new();
+    for (key, value) in obj {
+        if key == "output" {
+            if let Some(text) = value.as_str() {
+                let line = fleet_last_line(text);
+                let clipped = line.len() < text.trim().len() || text.contains('\n');
+                if !line.is_empty() {
+                    out.insert("output".into(), Value::String(line));
+                }
+                if clipped {
+                    out.insert("output_clipped".into(), Value::Bool(true));
+                }
+            }
+            continue;
+        }
+        out.insert(key.clone(), value.clone());
+    }
+    Value::Object(out)
+}
+
+fn fleet_string_field(update: &Value, snake: &str, camel: &str) -> Option<String> {
+    update
+        .get(snake)
+        .or_else(|| update.get(camel))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+/// Body for [`AcpEvent::FleetUpdate`]. `None` when the update has no task id
+/// and no task list — nothing to show, and nothing invented.
+pub fn fleet_update_body(kind: &str, update: &Value) -> Option<Value> {
+    match kind {
+        "task_backgrounded" => {
+            let task_id = fleet_string_field(update, "task_id", "taskId")
+                .or_else(|| fleet_string_field(update, "tool_call_id", "toolCallId"))?;
+            let mut body = serde_json::Map::new();
+            body.insert("task_id".into(), Value::String(task_id.clone()));
+            if let Some(id) = fleet_string_field(update, "tool_call_id", "toolCallId") {
+                body.insert("tool_call_id".into(), Value::String(id));
+            } else {
+                body.insert("tool_call_id".into(), Value::String(task_id));
+            }
+            for (snake, camel) in [
+                ("command", "command"),
+                ("cwd", "cwd"),
+                ("output_file", "outputFile"),
+                ("description", "description"),
+            ] {
+                if let Some(v) = fleet_string_field(update, snake, camel) {
+                    body.insert(snake.into(), Value::String(v));
+                }
+            }
+            Some(Value::Object(body))
+        }
+        "task_completed" => {
+            let snap = update
+                .get("task_snapshot")
+                .or_else(|| update.get("taskSnapshot"))
+                .cloned()
+                .unwrap_or(Value::Null);
+            let clipped = fleet_clip_snapshot(&snap);
+            let task_id = clipped
+                .get("task_id")
+                .or_else(|| clipped.get("taskId"))
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .or_else(|| fleet_string_field(update, "tool_call_id", "toolCallId"))
+                .or_else(|| fleet_string_field(update, "task_id", "taskId"));
+            if task_id.is_none() && clipped.is_null() {
+                return None;
+            }
+            let mut body = serde_json::Map::new();
+            if let Some(wake) = update
+                .get("will_wake")
+                .or_else(|| update.get("willWake"))
+                .and_then(|v| v.as_bool())
+            {
+                body.insert("will_wake".into(), Value::Bool(wake));
+            }
+            if !clipped.is_null() {
+                body.insert("task_snapshot".into(), clipped);
+            }
+            Some(Value::Object(body))
+        }
+        "background_tasks" => {
+            let tasks = update
+                .get("tasks")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let tasks: Vec<Value> = tasks.into_iter().take(64).collect();
+            Some(json!({ "tasks": tasks }))
+        }
+        _ => None,
+    }
+}
+
+fn fleet_raw_input(raw: &Value) -> Option<&serde_json::Map<String, Value>> {
+    raw.get("rawInput")
+        .or_else(|| raw.pointer("/toolCall/rawInput"))
+        .and_then(|v| v.as_object())
+}
+
+fn fleet_owned_string(value: &Value) -> Option<String> {
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+}
+
+fn fleet_owned_number(value: &Value) -> Option<Value> {
+    if let Some(n) = value.as_i64() {
+        return Some(json!(n));
+    }
+    if let Some(n) = value.as_u64() {
+        return Some(json!(n));
+    }
+    if let Some(n) = value.as_f64() {
+        if n.is_finite() {
+            return Some(json!(n));
+        }
+    }
+    None
+}
+
+fn fleet_pick_number(obj: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<Value> {
+    for key in keys {
+        if let Some(value) = obj.get(*key) {
+            if let Some(num) = fleet_owned_number(value) {
+                return Some(num);
+            }
+        }
+    }
+    None
+}
+
+/// Copy spawn / workflow / background-shell fields that `rawInput` actually has.
+/// Missing keys stay missing. A model the caller did not set is not invented.
+pub fn fleet_tool_hint(raw: &Value) -> Option<Value> {
+    let obj = fleet_raw_input(raw)?;
+    let mut out = serde_json::Map::new();
+    if let Some(model) = obj.get("model").and_then(fleet_owned_string) {
+        out.insert("model".into(), Value::String(model));
+    }
+    let background = obj.get("background").and_then(|v| v.as_bool()) == Some(true)
+        || obj.get("run_in_background").and_then(|v| v.as_bool()) == Some(true)
+        || obj.get("runInBackground").and_then(|v| v.as_bool()) == Some(true);
+    if background {
+        out.insert("background".into(), Value::Bool(true));
+    }
+    if let Some(n) = fleet_pick_number(obj, &["block_until_ms", "blockUntilMs"]) {
+        out.insert("blockUntilMs".into(), n);
+    }
+    if let Some(prompt) = obj.get("prompt").and_then(fleet_owned_string) {
+        let capped: String = prompt.chars().take(2000).collect();
+        if !capped.is_empty() {
+            out.insert("prompt".into(), Value::String(capped));
+        }
+    }
+    if let Some(args) = obj.get("args") {
+        if let Ok(text) = serde_json::to_string(args) {
+            let one: String = text
+                .chars()
+                .filter(|c| *c != '\n' && *c != '\r')
+                .take(400)
+                .collect();
+            if !one.is_empty() && one != "null" && one != "{}" {
+                out.insert("argsLine".into(), Value::String(one));
+            }
+        }
+    }
+    if let Some(name) = obj
+        .get("source")
+        .and_then(|v| v.get("name"))
+        .and_then(fleet_owned_string)
+    {
+        out.insert("sourceName".into(), Value::String(name));
+    }
+    if let Some(n) = fleet_pick_number(obj, &["agent_budget", "agentBudget"]) {
+        out.insert("agentBudget".into(), n);
+    }
+    if let Some(n) = fleet_pick_number(
+        obj,
+        &["phase_index", "phaseIndex", "phase_done", "phaseDone"],
+    ) {
+        out.insert("phaseIndex".into(), n);
+    }
+    if let Some(n) = fleet_pick_number(obj, &["phase_total", "phaseTotal"]) {
+        out.insert("phaseTotal".into(), n);
+    }
+    if let Some(n) = fleet_pick_number(obj, &["agent_count", "agentCount"]) {
+        out.insert("agentCount".into(), n);
+    }
+    if let Some(n) = fleet_pick_number(obj, &["tokens", "total_tokens", "totalTokens"]) {
+        out.insert("tokens".into(), n);
+    }
+    if let Some(isolation) = obj.get("isolation").and_then(fleet_owned_string) {
+        out.insert("isolation".into(), Value::String(isolation));
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(Value::Object(out))
+    }
+}
+
+/// One journal line, `fleet:{json}`, with no embedded newlines.
+pub fn fleet_hint_journal_line(raw: &Value) -> Option<String> {
+    let hint = fleet_tool_hint(raw)?;
+    let line = serde_json::to_string(&hint).ok()?;
+    let one: String = line.chars().filter(|c| *c != '\n' && *c != '\r').collect();
+    if one.is_empty() {
+        None
+    } else {
+        Some(format!("fleet:{one}"))
+    }
+}
+
 /// Pure decode of `session/update` params → host events (no I/O).
 /// Used by the live client and golden fixture tests.
 pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
@@ -3982,31 +4287,41 @@ pub fn decode_session_update(params: &Value) -> Vec<AcpEvent> {
             });
         }
         // Background shell: release open-tool accounting without journal churn.
-        "task_backgrounded" => {
-            let tool_call_id = update
-                .get("tool_call_id")
-                .or_else(|| update.get("toolCallId"))
-                .or_else(|| update.get("task_id"))
-                .or_else(|| update.get("taskId"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+        // The snapshot itself rides FleetUpdate (output clipped to the last line).
+        "task_backgrounded" | "task_completed" => {
+            let tool_call_id = if kind == "task_completed" {
+                update
+                    .pointer("/task_snapshot/task_id")
+                    .or_else(|| update.pointer("/taskSnapshot/taskId"))
+                    .or_else(|| update.get("tool_call_id"))
+                    .or_else(|| update.get("toolCallId"))
+                    .or_else(|| update.get("task_id"))
+            } else {
+                update
+                    .get("tool_call_id")
+                    .or_else(|| update.get("toolCallId"))
+                    .or_else(|| update.get("task_id"))
+                    .or_else(|| update.get("taskId"))
+            }
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
             if !tool_call_id.is_empty() {
                 out.push(AcpEvent::ToolOpenReleased { tool_call_id });
             }
+            if let Some(body) = fleet_update_body(kind, update) {
+                out.push(AcpEvent::FleetUpdate {
+                    kind: kind.to_string(),
+                    body,
+                });
+            }
         }
-        "task_completed" => {
-            let tool_call_id = update
-                .pointer("/task_snapshot/task_id")
-                .or_else(|| update.pointer("/taskSnapshot/taskId"))
-                .or_else(|| update.get("tool_call_id"))
-                .or_else(|| update.get("toolCallId"))
-                .or_else(|| update.get("task_id"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            if !tool_call_id.is_empty() {
-                out.push(AcpEvent::ToolOpenReleased { tool_call_id });
+        "background_tasks" => {
+            if let Some(body) = fleet_update_body(kind, update) {
+                out.push(AcpEvent::FleetUpdate {
+                    kind: kind.to_string(),
+                    body,
+                });
             }
         }
         // Subagent lifecycle. CLI 1.0.x reports these on the xAI
@@ -4481,9 +4796,17 @@ mod session_update_decode_tests {
             }
         }));
         assert!(matches!(
-            &bg[..],
-            [AcpEvent::ToolOpenReleased { tool_call_id }]
+            bg.first(),
+            Some(AcpEvent::ToolOpenReleased { tool_call_id })
                 if tool_call_id == "call-f1b6b6f2-5e0f-413e-bafa-42a7ba048a01-10"
+        ));
+        assert!(matches!(
+            bg.get(1),
+            Some(AcpEvent::FleetUpdate { kind, body })
+                if kind == "task_backgrounded"
+                    && body.get("task_id").and_then(|v| v.as_str())
+                        == Some("call-f1b6b6f2-5e0f-413e-bafa-42a7ba048a01-10")
+                    && body.get("command").is_none()
         ));
 
         let done = decode_session_update(&json!({
@@ -4497,9 +4820,18 @@ mod session_update_decode_tests {
             }
         }));
         assert!(matches!(
-            &done[..],
-            [AcpEvent::ToolOpenReleased { tool_call_id }] if tool_call_id == "call-bg-1"
+            done.first(),
+            Some(AcpEvent::ToolOpenReleased { tool_call_id }) if tool_call_id == "call-bg-1"
         ));
+        match done.get(1) {
+            Some(AcpEvent::FleetUpdate { kind, body }) => {
+                assert_eq!(kind, "task_completed");
+                assert_eq!(body["will_wake"], json!(false));
+                assert_eq!(body["task_snapshot"]["command"], json!("sleep 1"));
+                assert!(body["task_snapshot"].get("output").is_none());
+            }
+            other => panic!("expected FleetUpdate, got {other:?}"),
+        }
     }
 
     #[test]
@@ -6997,5 +7329,51 @@ mod live_handshake_tests {
         eprintln!("OK session={} in {:?}", sid, t0.elapsed());
         client.kill().await;
         assert!(!sid.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod fleet_hint_tests {
+    use super::{fleet_hint_journal_line, fleet_tool_hint};
+    use serde_json::json;
+
+    #[test]
+    fn copies_model_prompt_and_budget_without_inventing_counts() {
+        let raw = json!({
+            "rawInput": {
+                "description": "Audit",
+                "prompt": "Look at the decoder",
+                "model": "grok-4.6-build",
+                "background": true,
+                "agent_budget": 6,
+                "isolation": "worktree"
+            }
+        });
+        let hint = fleet_tool_hint(&raw).unwrap();
+        assert_eq!(hint["model"], "grok-4.6-build");
+        assert_eq!(hint["prompt"], "Look at the decoder");
+        assert_eq!(hint["background"], true);
+        assert_eq!(hint["agentBudget"], 6);
+        assert_eq!(hint["isolation"], "worktree");
+        assert!(hint.get("agentCount").is_none());
+        assert!(hint.get("tokens").is_none());
+        assert!(hint.get("phaseIndex").is_none());
+        let line = fleet_hint_journal_line(&raw).unwrap();
+        assert!(line.starts_with("fleet:{"));
+        assert!(!line.contains('\n'));
+    }
+
+    #[test]
+    fn omits_hint_when_raw_input_has_no_fleet_fields() {
+        let raw = json!({ "rawInput": { "description": "Read file" } });
+        assert!(fleet_tool_hint(&raw).is_none());
+    }
+
+    #[test]
+    fn keeps_block_until_ms_zero() {
+        let raw = json!({ "rawInput": { "block_until_ms": 0 } });
+        let hint = fleet_tool_hint(&raw).unwrap();
+        assert_eq!(hint["blockUntilMs"], 0);
+        assert!(hint.get("background").is_none());
     }
 }

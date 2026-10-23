@@ -220,6 +220,8 @@ export const jaSettings = {
   "settings.autoWakeDesc": "オンのとき、Grok Build はバックグラウンド作業（bash / monitor / task / loop）完了後に合成ターンを注入し、新しいユーザープロンプトなしでエージェントが反応できるようにします。既定はオフ。独立モードはエージェントホームの `auto_wake_enabled` + `[features].auto_wake` を書き込みます。共有モードは `~/.grok` を書き換えません — 次のエージェント起動で `GROK_CONFIG` オーバーレイを注入します。変更後はソフト再起動。オーバーレイ / キーを無視する古い CLI はソフトフェイルします。",
   "settings.planEnabled": "プランモードを許可",
   "settings.planEnabledDesc": "オフのとき --no-plan 付きで起動し、エージェントはプランモードに入れません。変更後はソフト再起動します。",
+  "settings.directorMode": "ディレクターモード",
+  "settings.directorModeDesc": "オンにすると、大きな作業はバックグラウンドのワークフローまたはサブエージェントに任せ、このチャットは判断と状況だけに留めるよう Grok に求めます。開いているチャットは次のメッセージから適用されます。新しく起動したエージェントも同じ規則を受け取ります。既定はオフです。",
   "settings.composerEditor": "入力欄のエディター",
   "settings.composerEditorDesc": "メッセージ入力欄が使うエディターです。Markdown エディターはインラインファイル参照、リスト、コードブロックの言語バーに対応します。内蔵エディターは上流の Grok Build と同じです。",
   "settings.composerEditor.legacy": "内蔵（既定）",

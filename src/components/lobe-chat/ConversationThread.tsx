@@ -917,6 +917,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
               tools={standaloneGroup.tools}
               autoCollapse={toolStepsAutoCollapse}
               locale={locale}
+              sessionId={sessionId}
             />
           </div>
         </div>,
@@ -929,6 +930,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
             tool={toolSeg}
             autoCollapse={toolStepsAutoCollapse}
             locale={locale}
+            sessionId={sessionId}
           />
         </div>
       </div>,
@@ -1354,6 +1356,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
                     key={`${m.id}-${unit.id}`}
                     phase={unit}
                     locale={locale}
+                    sessionId={sessionId}
                     messageStreaming={!!m.streaming}
                     autoCollapse={toolStepsAutoCollapse}
                     historyTimestamps={unit.tools.map((t) => t.createdAt)}
@@ -1380,6 +1383,7 @@ const TranscriptMessageRow = memo(function TranscriptMessageRow({
                       tool={unit.tool}
                       autoCollapse={toolStepsAutoCollapse}
                       locale={locale}
+                      sessionId={sessionId}
                     />
                   </div>
                 );

@@ -31,6 +31,7 @@ mod stream;
 mod turn;
 mod types;
 mod watchdog;
+mod workflow_host;
 
 // Multi-session event routing (P0 shared-process load-replay safety).
 pub(crate) use stream::StreamEmitPayload;

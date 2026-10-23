@@ -32,8 +32,19 @@ impl SessionManager {
         if let AcpEvent::ProcessExited { code } = &ev {
             let exit_code = *code;
             {
-                let mut parked = self.parked.lock();
-                parked.retain(|_, p| p.process_id != process_id);
+                let doomed: Vec<String> = {
+                    let mut parked = self.parked.lock();
+                    let doomed: Vec<String> = parked
+                        .iter()
+                        .filter(|(_, p)| p.process_id == process_id)
+                        .map(|(id, _)| id.clone())
+                        .collect();
+                    parked.retain(|_, p| p.process_id != process_id);
+                    doomed
+                };
+                for id in doomed {
+                    crate::workflow_followup::disarm(&id);
+                }
             }
             // Background mid-turn shells need their own cancel path.
             let bg_ids: Vec<String> = self
@@ -99,6 +110,21 @@ impl SessionManager {
                     prompt_in_flight: false,
                 })
                 .collect();
+            // A parked director chat still owns the ACP process. A workflow
+            // result is the one event allowed to move that chat to background
+            // so the answer is not dropped. Other events stay dropped.
+            let parked_followup = match &ev {
+                AcpEvent::WorkflowFollowup(_) => session_id.and_then(|agent| {
+                    parked_hints
+                        .iter()
+                        .find(|p| {
+                            p.process_id == process_id
+                                && p.agent_session_id.as_deref() == Some(agent)
+                        })
+                        .map(|p| p.app_session_id.clone())
+                }),
+                _ => None,
+            };
             match resolve_turn_event_route(
                 process_id,
                 session_id,
@@ -112,6 +138,16 @@ impl SessionManager {
                     return;
                 }
                 TurnEventRoute::Drop => {
+                    if let Some(sid) = parked_followup {
+                        let delivered =
+                            self.requeue_parked_as_background(&sid) || self.is_live_session(&sid);
+                        if delivered {
+                            if let AcpEvent::WorkflowFollowup(wire) = ev {
+                                self.handle_workflow_followup(app, &sid, wire);
+                            }
+                            return;
+                        }
+                    }
                     if Self::event_carries_turn_output(&ev) {
                         tracing::debug!(
                             "acp event dropped: no apply target process={process_id} agent_sid={session_id:?} ev={}",
@@ -744,25 +780,26 @@ impl SessionManager {
                         already_terminal,
                     );
                 }
-                let _ = app.emit(
-                    "session://tool",
-                    serde_json::json!({
-                        "sessionId": app_sid,
-                        "toolCallId": tool_call_id,
-                        "title": live_title,
-                        "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
-                        "status": if status.is_empty() { "in_progress" } else { &status },
-                        "path": path_out,
-                        "detail": detail,
-                        // Call argument (target file / command / query) for primary labels.
-                        "input": input2,
-                        // What the tool actually produced (stdout / file text) — expand body.
-                        "output": output,
-                        // Optional content snippets for the session Changes / diff panel.
-                        "before": before_snip,
-                        "after": after_snip,
-                    }),
-                );
+                let mut tool_payload = serde_json::json!({
+                    "sessionId": app_sid,
+                    "toolCallId": tool_call_id,
+                    "title": live_title,
+                    "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
+                    "status": if status.is_empty() { "in_progress" } else { &status },
+                    "path": path_out,
+                    "detail": detail,
+                    // Call argument (target file / command / query) for primary labels.
+                    "input": input2,
+                    // What the tool actually produced (stdout / file text) — expand body.
+                    "output": output,
+                    // Optional content snippets for the session Changes / diff panel.
+                    "before": before_snip,
+                    "after": after_snip,
+                });
+                if let Some(hint) = crate::acp_client::fleet_tool_hint(&raw) {
+                    tool_payload["fleetHint"] = hint;
+                }
+                let _ = app.emit("session://tool", tool_payload);
 
                 // Persist completed/failed tool steps so reload still shows work trail.
                 let st = if status.is_empty() {
@@ -799,6 +836,10 @@ impl SessionManager {
                         // Always persist path/url so reload can paint “Browsed …”.
                         content.push('\n');
                         content.push_str(p);
+                    }
+                    if let Some(line) = crate::acp_client::fleet_hint_journal_line(&raw) {
+                        content.push('\n');
+                        content.push_str(&line);
                     }
                     // Real tool output last, behind a sentinel line, so everything
                     // above stays byte-identical to the legacy layout (old rows and
@@ -847,6 +888,23 @@ impl SessionManager {
                 Self::commit_session_persists(Some(app), pending_persists);
                 Self::emit_empty_run_if_any(app, empty_run);
                 Self::emit_state(app, &self.snapshot());
+            }
+            AcpEvent::FleetUpdate { kind, body } => {
+                let app_sid = {
+                    let guard = self.inner.lock();
+                    guard
+                        .as_ref()
+                        .map(|s| s.app_session_id.clone())
+                        .unwrap_or_default()
+                };
+                let _ = app.emit(
+                    "session://fleet",
+                    serde_json::json!({
+                        "sessionId": app_sid,
+                        "kind": kind,
+                        "body": body,
+                    }),
+                );
             }
             AcpEvent::Plan {
                 entries,
@@ -1008,6 +1066,7 @@ impl SessionManager {
                         s.active_turn_id = None;
                         s.stream_message_id_locked = false;
                         s.prompt_in_flight = false;
+                        crate::workflow_followup::disarm(&s.app_session_id);
                     }
                 }
                 Self::emit_stream_payloads(app, pending_emits);
@@ -1114,6 +1173,18 @@ impl SessionManager {
                 };
                 if !app_sid.is_empty() {
                     let _ = app.emit("session://subagent", sub.to_payload(&app_sid));
+                }
+            }
+            AcpEvent::WorkflowFollowup(wire) => {
+                let app_sid = {
+                    let guard = self.inner.lock();
+                    guard
+                        .as_ref()
+                        .map(|s| s.app_session_id.clone())
+                        .unwrap_or_default()
+                };
+                if !app_sid.is_empty() {
+                    self.handle_workflow_followup(app, &app_sid, wire);
                 }
             }
             AcpEvent::RetryState {

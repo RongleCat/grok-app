@@ -75,6 +75,7 @@ fn streaming_session(now: Instant, mut patch: impl FnMut(&mut LiveSession)) -> L
             workspace_root_snapshot: None,
             workspace_capability: None,
             provider_id: None,
+            director_mode: false,
         },
         fsm,
         backend: "grok_agent_stdio".into(),

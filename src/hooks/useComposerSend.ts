@@ -21,6 +21,12 @@ import {
   looksLikeScheduleIntent,
   looksLikeScheduleUpdateIntent,
 } from "@/lib/automationSetup";
+import { wrapDirectorSend } from "@/lib/directorMode";
+import { directorSettingEnabled } from "@/lib/directorSetting";
+import {
+  consumeDirectorIntent,
+  readDirectorSendWrap,
+} from "@/lib/directorStore";
 import {
   addChatRef,
   lookupChatTitle,
@@ -363,6 +369,14 @@ const executeSend = async (opts: {
   if (inAutomationSetup) {
     agentText = wrapAutomationSetupAgentText(agentText);
   }
+  const directorWrap = readDirectorSendWrap(sendTargetId);
+  agentText = wrapDirectorSend({
+    userText: agentText,
+    directorOn: directorSettingEnabled(),
+    intent: directorWrap.intent,
+    childModel: directorWrap.childModel,
+    inheritanceOn: directorWrap.inheritanceOn,
+  });
   const titleSeed =
     serializeForAgent(segments, { pluginSkills }).replace(/\n/g, " ").trim() ||
     quotesForSend[0]?.text.replace(/\n/g, " ").trim() ||
@@ -648,6 +662,9 @@ const executeSend = async (opts: {
       if (!sendEpochCurrent()) return false;
       await api.sessionSend(agentText, journalDisplay, sessionId, att);
     }
+    // The chip applied to this prompt. A connect failure above returns
+    // before this line, so the next send can still use the armed intent.
+    consumeDirectorIntent(sendTargetId);
     // Ghost heal / newer send superseded this await — do not re-dirty UI.
     if (!sendEpochCurrent()) return false;
     // Keep liveMap busy for this session if the user already left the thread.
