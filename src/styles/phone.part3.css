@@ -610,6 +610,73 @@ html[data-theme="light"] .rim-sidebar {
   flex-direction: column;
   min-height: 0;
 }
+.agent-tasks--fleet .agent-tasks__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+}
+.agent-tasks__fleet-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.agent-tasks__kind {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-right: 6px;
+}
+.agent-tasks__name {
+  font-size: 13px;
+}
+.agent-tasks__summary,
+.agent-tasks__meta {
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.78;
+}
+.agent-tasks__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agent-tasks__section-toggle {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 6px 12px;
+}
+.agent-tasks__row.is-focus {
+  outline: 1px solid var(--border-subtle);
+  outline-offset: -1px;
+}
+.agent-tasks__detail {
+  margin: 0 12px 8px;
+  min-height: 0;
+  overflow: auto;
+}
+.agent-tasks__detail-text {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.fleet-chip {
+  width: 100%;
+  justify-content: space-between;
+}
+.fleet-chip__state {
+  margin-left: 8px;
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
 .agent-tasks__head {
   display: flex;
   align-items: center;

@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- Background tasks show a workflow's phases, agents, and token total while it runs.
+
+**中文 · 新增**
+
+- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。
+
 ## [0.2.49] - 2026-10-28
 
 > **Highlight:** Director mode in Settings can send large work to a background workflow.

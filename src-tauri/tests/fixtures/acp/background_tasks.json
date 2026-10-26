@@ -1,0 +1,43 @@
+{
+  "_comment": "CLI 1.0.46 background_tasks list. Kinds seen on this machine: bash and monitor. No workflow, subagent, or loop rows, and no per-child tokens. An empty list is still a FleetUpdate.",
+  "list": {
+    "params": {
+      "update": {
+        "sessionUpdate": "background_tasks",
+        "tasks": [
+          {
+            "task_id": "call-fleet-run-1",
+            "command": "cargo test --lib acp_golden",
+            "description": "ACP golden",
+            "cwd": "/tmp/fleet-fixture",
+            "kind": "bash",
+            "status": "running",
+            "started_at": "2026-10-07T00:00:00Z",
+            "output_file": "/tmp/fleet-fixture/task-1.log"
+          },
+          {
+            "task_id": "call-fleet-mon-1",
+            "command": "tail -f build.log",
+            "display_command": "tail -f build.log",
+            "description": "watch build log",
+            "cwd": "/tmp/fleet-fixture",
+            "kind": "monitor",
+            "status": "failed",
+            "started_at": "2026-10-07T00:00:01Z",
+            "ended_at": "2026-10-07T00:01:00Z",
+            "exit_code": 1,
+            "output_file": "/tmp/fleet-fixture/mon-1.log"
+          }
+        ]
+      }
+    }
+  },
+  "empty": {
+    "params": {
+      "update": {
+        "sessionUpdate": "background_tasks",
+        "tasks": []
+      }
+    }
+  }
+}

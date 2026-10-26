@@ -7,7 +7,7 @@ use crate::{
     cli_worktrees, commands, desktop_notify, git_pr_hub, leader, mirror, os_theme, pet_quick,
     pet_window, pr_monitor, remote_im, serve, session_api, ssh_remote, system_fonts,
     theme_editor_window, tray, updater, voice_host, wallpaper_grok_album,
-    wallpaper_remote_commands, window_min,
+    wallpaper_remote_commands, window_min, workflow_runs,
 };
 
 /// Single invoke handler consumed by `Builder::invoke_handler` in `run()`.
@@ -134,6 +134,7 @@ pub fn app_invoke_handler(
         commands::session_set_scheduled,
         commands::session_messages,
         commands::session_interrupt_context,
+        workflow_runs::workflow_runs_for_session,
         commands::session_media_root,
         commands::session_resolve_relative_media,
         commands::media_server_endpoint,

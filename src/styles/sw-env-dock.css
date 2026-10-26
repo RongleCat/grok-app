@@ -19,7 +19,7 @@
   --env-summary-gutter: 316px;
 }
 
-.main > .main__stage {
+.main__chat-column > .main__stage {
   margin-right: var(--env-summary-gutter);
   transition: margin-right var(--motion-pane) var(--motion-pane-ease);
 }
@@ -73,7 +73,7 @@
     transition: none;
   }
 
-  .main > .main__stage {
+  .main__chat-column > .main__stage {
     transition: none;
   }
 }

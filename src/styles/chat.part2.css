@@ -153,7 +153,8 @@ button.composer__context-item {
 }
 
 .composer__context-item:hover:not(:disabled),
-.composer__context-item.is-open {
+.composer__context-item.is-open,
+.composer__context-item.is-active {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
