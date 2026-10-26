@@ -1,0 +1,21 @@
+{
+  "_comment": "CLI 1.0.46 workflow tool_call. Fields present: source.name, args, agent_budget, and a Workflow: title. No phase index, phase total, or agent-count field. Host keeps the raw update and does not invent phase progress.",
+  "params": {
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call-workflow-1",
+      "kind": "task",
+      "status": "in_progress",
+      "title": "Workflow: deep-research",
+      "rawInput": {
+        "source": { "type": "name", "name": "deep-research" },
+        "args": { "query": "Which fleet fields exist on the wire?" },
+        "agent_budget": 6
+      },
+      "_meta": {
+        "x.ai/tool": { "name": "workflow", "namespace": "grok_build" }
+      }
+    }
+  },
+  "absent": ["phase", "phase_index", "phase_total", "agent_count", "tokens"]
+}

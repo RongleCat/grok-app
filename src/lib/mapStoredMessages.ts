@@ -129,6 +129,7 @@ export function mapStoredMessageToChat(
     toolOutput: toolParsed?.output
       ? maybeCompactToolOutputForMemory(toolParsed.output, false)
       : undefined,
+    fleetHint: toolParsed?.fleetHint,
     streaming: false,
   };
 }

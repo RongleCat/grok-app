@@ -74,6 +74,8 @@ import {
 import { VirtualList } from "@/components/VirtualList";
 import { useThoughtBodyFollow } from "@/hooks/useThoughtBodyFollow";
 import { ToolExpandBody } from "./ToolExpandBody";
+import { FleetTranscriptChip } from "@/components/FleetTranscriptChip";
+import { fleetChipKind } from "@/lib/backgroundFleet";
 import { MarkdownChat } from "./MarkdownChat";
 import { findMatchesBeforeVisible } from "@/lib/chatFind";
 import {
@@ -194,6 +196,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   findActiveOccurrence,
   messageContent,
   onOpenExternalLink,
+  sessionId,
 }: {
   step: GrokActivityStep;
   isLast: boolean;
@@ -233,6 +236,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
   findActiveOccurrence?: number | null;
   messageContent?: string;
   onOpenExternalLink?: (url: string) => void;
+  sessionId?: string | null;
 }) {
   const failed =
     step.type !== "thought" &&
@@ -356,6 +360,28 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     );
   }
 
+  if (sessionId && step.type === "tool") {
+    const chipKind = fleetChipKind({
+      name: step.tool.toolKind,
+      title: step.tool.title,
+      hint: step.tool.fleetHint,
+    });
+    if (chipKind) {
+      const label = resolveToolPrimaryLabel(step.tool, (key, params) =>
+        tr(key as MessageKey, params as Record<string, string> | undefined),
+      );
+      return (
+        <FleetTranscriptChip
+          sessionId={sessionId}
+          toolCallId={step.tool.toolCallId}
+          label={label}
+          running={running}
+          locale={locale}
+        />
+      );
+    }
+  }
+
   return (
     <div
       className={
@@ -433,6 +459,7 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
                 findActiveOccurrence={findActiveOccurrence}
                 messageContent={messageContent}
                 onOpenExternalLink={onOpenExternalLink}
+                sessionId={sessionId}
               />
             </div>
           ) : step.type === "thought" ? (
@@ -483,6 +510,7 @@ export function GrokActivitySteps({
   findActiveOccurrence,
   messageContent,
   onOpenExternalLink,
+  sessionId,
 }: {
   steps: GrokActivityStep[];
   tr: ReturnType<typeof createT>;
@@ -493,6 +521,7 @@ export function GrokActivitySteps({
   findActiveOccurrence?: number | null;
   messageContent?: string;
   onOpenExternalLink?: (url: string) => void;
+  sessionId?: string | null;
 }) {
   const total = steps.length;
   const [expandState, setExpandState] = useState<ActivityStepExpandState>(() =>
@@ -573,6 +602,7 @@ export function GrokActivitySteps({
         findActiveOccurrence={findActiveOccurrence}
         messageContent={messageContent}
         onOpenExternalLink={onOpenExternalLink}
+        sessionId={sessionId}
       />
     ),
     [
@@ -588,6 +618,7 @@ export function GrokActivitySteps({
       findActiveOccurrence,
       messageContent,
       onOpenExternalLink,
+      sessionId,
     ],
   );
 
@@ -625,6 +656,7 @@ export function GrokActivitySteps({
             findActiveOccurrence={findActiveOccurrence}
             messageContent={messageContent}
             onOpenExternalLink={onOpenExternalLink}
+            sessionId={sessionId}
             expanded={expandState.expandedKeys.has(step.key)}
             onUserToggle={onUserToggle}
             onPolicySync={onPolicySync}
@@ -670,6 +702,7 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
   findActiveOccurrence,
   messageContent,
   onOpenExternalLink,
+  sessionId,
 }: {
   phase: TimelinePhase;
   locale: Locale;
@@ -681,6 +714,7 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
   findActiveOccurrence?: number | null;
   messageContent?: string;
   onOpenExternalLink?: (url: string) => void;
+  sessionId?: string | null;
 }) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [autoCollapse, setAutoCollapse] = useState(
@@ -932,6 +966,7 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
           findActiveOccurrence={findActiveOccurrence}
           messageContent={messageContent}
           onOpenExternalLink={onOpenExternalLink}
+          sessionId={sessionId}
         />
       ) : errorExcerpt.rows.length > 0 ? (
         <div
@@ -947,6 +982,7 @@ export const TimelinePhaseBlock = memo(function TimelinePhaseBlock({
             findActiveOccurrence={findActiveOccurrence}
             messageContent={messageContent}
             onOpenExternalLink={onOpenExternalLink}
+            sessionId={sessionId}
           />
           {errorExcerpt.overflow > 0 ? (
             <button

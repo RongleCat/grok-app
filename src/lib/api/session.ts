@@ -11,6 +11,7 @@ import type {
   SessionSnapshot,
 } from "../session";
 import { IDLE_SNAPSHOT } from "../session";
+import type { WorkflowRunRecord } from "../workflowRunView";
 import {
   SESSION_CONNECT_CLIENT_TIMEOUT_MS,
   SESSION_STOP_CLIENT_TIMEOUT_MS,
@@ -70,6 +71,14 @@ export function sessionPrewarm(): void {
   void invoke("session_prewarm", {}).catch(() => {
     /* best-effort — connect still works via cold spawn */
   });
+}
+
+/** Workflow phase snapshots for the CLI session bound to this chat. */
+export async function workflowRunsForSession(
+  sessionId: string,
+): Promise<WorkflowRunRecord[]> {
+  if (!sessionId.trim() || !isTauri()) return [];
+  return invoke("workflow_runs_for_session", { sessionId });
 }
 
 /** Unfinished command from an interrupted-turn lease (Continue chip). */

@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- Background tasks show a workflow's phases, agents, and token total while it runs.
+
+**中文 · 新增**
+
+- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。
+
 ## [0.2.51] - 2026-11-14
 
 > **Highlight:** Rewound chats keep their new replies, and model menus use a fresh catalog.
