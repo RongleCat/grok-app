@@ -36,8 +36,7 @@ import {
 } from "@/components/icons";
 import { ToolBucketIcon } from "./TimelinePhaseBlock";
 import { ToolExpandBody } from "./ToolExpandBody";
-import { FleetTranscriptChip } from "@/components/FleetTranscriptChip";
-import { fleetChipKind } from "@/lib/backgroundFleet";
+import { fleetTranscriptChip } from "@/components/FleetTranscriptChip";
 
 export function toolSegmentIsRunning(seg: MessageToolSegment): boolean {
   if (seg.streaming) return true;
@@ -161,22 +160,17 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     [showBody, tool, failed],
   );
 
-  const chipKind = fleetChipKind({
+  const chip = fleetTranscriptChip({
+    sessionId,
     name: tool.toolKind,
     title: tool.title,
     hint: tool.fleetHint,
+    toolCallId: tool.toolCallId,
+    label: summary,
+    running,
+    locale,
   });
-  if (chipKind && sessionId) {
-    return (
-      <FleetTranscriptChip
-        sessionId={sessionId}
-        toolCallId={tool.toolCallId}
-        label={summary}
-        running={running}
-        locale={locale}
-      />
-    );
-  }
+  if (chip) return chip;
 
   return (
     <div
