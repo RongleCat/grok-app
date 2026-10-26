@@ -74,8 +74,7 @@ import {
 import { VirtualList } from "@/components/VirtualList";
 import { useThoughtBodyFollow } from "@/hooks/useThoughtBodyFollow";
 import { ToolExpandBody } from "./ToolExpandBody";
-import { FleetTranscriptChip } from "@/components/FleetTranscriptChip";
-import { fleetChipKind } from "@/lib/backgroundFleet";
+import { fleetTranscriptChip } from "@/components/FleetTranscriptChip";
 import { MarkdownChat } from "./MarkdownChat";
 import { findMatchesBeforeVisible } from "@/lib/chatFind";
 import {
@@ -360,26 +359,21 @@ const GrokActivityStepRow = memo(function GrokActivityStepRow({
     );
   }
 
-  if (sessionId && step.type === "tool") {
-    const chipKind = fleetChipKind({
+  if (step.type === "tool") {
+    const chip = fleetTranscriptChip({
+      sessionId,
       name: step.tool.toolKind,
       title: step.tool.title,
       hint: step.tool.fleetHint,
+      toolCallId: step.tool.toolCallId,
+      label: () =>
+        resolveToolPrimaryLabel(step.tool, (key, params) =>
+          tr(key as MessageKey, params as Record<string, string> | undefined),
+        ),
+      running,
+      locale,
     });
-    if (chipKind) {
-      const label = resolveToolPrimaryLabel(step.tool, (key, params) =>
-        tr(key as MessageKey, params as Record<string, string> | undefined),
-      );
-      return (
-        <FleetTranscriptChip
-          sessionId={sessionId}
-          toolCallId={step.tool.toolCallId}
-          label={label}
-          running={running}
-          locale={locale}
-        />
-      );
-    }
+    if (chip) return chip;
   }
 
   return (
