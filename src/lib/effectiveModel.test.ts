@@ -37,13 +37,13 @@ describe("resolveCustomRouteDisplay", () => {
     ],
   };
 
-  it("shows the channel model when a generic chat stored a sibling id", () => {
+  it("shows the catalog row a generic chat stored", () => {
     const shown = resolveCustomRouteDisplay(provider, "deepseek-v4-flash");
     expect(shown?.chip).toEqual({
-      name: "DeepSeek Chat",
-      model: "deepseek-chat",
+      name: "DeepSeek V4 Flash",
+      model: "deepseek-v4-flash",
     });
-    expect(shown?.requestModel).toBe("deepseek-chat");
+    expect(shown?.requestModel).toBe("deepseek-v4-flash");
   });
 
   it("shows the catalog id a Grok Build-compatible relay picked", () => {

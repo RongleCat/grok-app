@@ -21,6 +21,20 @@ See `docs/llm-wiki/release.md`.
 
 - 后台任务会在运行时显示工作流的阶段、代理和令牌总量。手机上的空白新对话不会再打开这个面板。
 
+## [0.2.50] - 2026-10-28
+
+> **Highlight:** Every model of a custom provider is selectable again, and the chosen one is the one used.
+>
+> **中文 · 亮点：** 自定义供应商的每个模型都能重新选择，选哪个就用哪个。
+
+### Fixed
+- Every model of a custom provider shows in the model menu again, and the model you pick is the one sent.
+- Desktop notifications play their short sound when the sound setting is on, including the test notification.
+
+**中文 · 修复**
+- 自定义供应商的每个模型重新出现在模型菜单里，选哪个模型就发送哪个。
+- 开启提示音后，桌面通知（包括测试通知）会播放一声短音。
+
 ## [0.2.49] - 2026-10-28
 
 > **Highlight:** Director mode in Settings can send large work to a background workflow.

@@ -1639,8 +1639,8 @@ impl SessionManager {
                 }
                 // Mirror the unpark path — apply the resolved model via
                 // session/set_model after session/new. Generic relays send the
-                // section id (same as spawn). Official and proxy relays send the
-                // catalog id, which spawn may have resolved differently (#1000).
+                // per-model section when one exists (same id as spawn). Official
+                // and proxy relays send the catalog id (#1000, #1394).
                 let session_model = connect_set_model_argument(
                     ssh_alias.is_some(),
                     &route,

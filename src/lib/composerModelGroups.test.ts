@@ -53,7 +53,7 @@ describe("buildComposerModelGroups", () => {
       ],
     });
     expect(groups[1].title).toBe("云驿");
-    expect(groups[1].entries).toHaveLength(1);
+    expect(groups[1].entries).toHaveLength(2);
     expect(groups[1].entries[0]).toMatchObject({
       pick: {
         kind: "custom",
@@ -62,6 +62,15 @@ describe("buildComposerModelGroups", () => {
       },
       title: "DeepSeek Chat",
       subtitle: "deepseek-chat",
+    });
+    expect(groups[1].entries[1]).toMatchObject({
+      pick: {
+        kind: "custom",
+        providerId: "yunyi",
+        modelId: "deepseek-reasoner",
+      },
+      title: "Reasoner",
+      subtitle: "deepseek-reasoner",
     });
     expect(groups[2].entries[0]).toMatchObject({
       pick: { kind: "custom", providerId: "local", modelId: "llama3" },
@@ -80,7 +89,7 @@ describe("buildComposerModelGroups", () => {
     expect(groups[0].key).toBe("official");
   });
 
-  it("lists only the generic channel model and hides sibling app_models", () => {
+  it("lists every catalog row on a generic channel", () => {
     const groups = buildComposerModelGroups({
       officialModels: [],
       providers: [
@@ -99,13 +108,10 @@ describe("buildComposerModelGroups", () => {
       officialGroupTitle: "Official",
     });
     expect(groups).toHaveLength(1);
-    expect(groups[0].entries).toEqual([
-      {
-        key: "custom:kiro:auto",
-        pick: { kind: "custom", providerId: "kiro", modelId: "auto" },
-        title: "Auto",
-        subtitle: "auto",
-      },
+    expect(groups[0].entries.map((e) => e.pick)).toEqual([
+      { kind: "custom", providerId: "kiro", modelId: "gpt-5.6-luna" },
+      { kind: "custom", providerId: "kiro", modelId: "auto" },
+      { kind: "custom", providerId: "kiro", modelId: "gpt-5.6-sol" },
     ]);
   });
 
@@ -154,12 +160,14 @@ describe("filterComposerModelGroups", () => {
     });
     const filtered = filterComposerModelGroups(groups, "deep");
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].entries[0].pick).toEqual({
-      kind: "custom",
-      providerId: "yunyi",
-      modelId: "deepseek-chat",
-    });
-    expect(filterComposerModelGroups(groups, "reason")).toEqual([]);
+    expect(filtered[0].entries.map((e) => e.pick)).toEqual([
+      { kind: "custom", providerId: "yunyi", modelId: "deepseek-chat" },
+      { kind: "custom", providerId: "yunyi", modelId: "deepseek-reasoner" },
+    ]);
+    const reason = filterComposerModelGroups(groups, "reason");
+    expect(reason[0].entries.map((e) => e.pick)).toEqual([
+      { kind: "custom", providerId: "yunyi", modelId: "deepseek-reasoner" },
+    ]);
   });
 });
 

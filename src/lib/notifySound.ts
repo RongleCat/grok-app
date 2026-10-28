@@ -91,6 +91,22 @@ export function playNotifySound(): boolean {
     const Ctor = audioContextCtor();
     if (!Ctor) return false;
     const ctx = new Ctor();
+    // WKWebView starts AudioContext suspended. Without resume() the
+    // oscillator is scheduled and the call returns true, but nothing is heard.
+    const resumable = ctx as AudioContext & {
+      resume?: () => Promise<void> | void;
+      state?: string;
+    };
+    if (
+      resumable.state === "suspended" &&
+      typeof resumable.resume === "function"
+    ) {
+      try {
+        void resumable.resume();
+      } catch {
+        /* ignore */
+      }
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";

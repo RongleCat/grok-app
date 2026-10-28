@@ -42,7 +42,7 @@ describe("resolveComposerPrefsSelection", () => {
     expect(shown?.requestModel).toBe("gemini-3.5-flash");
   });
 
-  it("pins a generic channel to its model field, not a stored sibling", () => {
+  it("keeps a stored catalog id on a generic channel", () => {
     const next = resolveComposerPrefsSelection({
       prefs: {
         modelId: "gemini-3.5-flash",
@@ -52,11 +52,14 @@ describe("resolveComposerPrefsSelection", () => {
       catalog: GROK_BUILD_MODELS,
       providers: [requesty],
     });
-    expect(next.modelId).toBe("grok-4.6");
+    expect(next.modelId).toBe("gemini-3.5-flash");
     expect(next.effort).toBe("max");
-    const shown = resolveCustomRouteDisplay(requesty, "gemini-3.5-flash");
-    expect(shown?.chip).toEqual({ name: "Grok 4.6", model: "grok-4.6" });
-    expect(shown?.requestModel).toBe("grok-4.6");
+    const shown = resolveCustomRouteDisplay(requesty, next.modelId);
+    expect(shown?.chip).toEqual({
+      name: "Gemini 3.5 Flash",
+      model: "gemini-3.5-flash",
+    });
+    expect(shown?.requestModel).toBe("gemini-3.5-flash");
   });
 
   it("keeps a new chat's pick when the resolve returns the default", () => {
@@ -85,7 +88,7 @@ describe("resolveComposerPrefsSelection", () => {
     });
 
     // Act / Assert
-    expect(next).toEqual({ modelId: "grok-4.6", effort: "max" });
+    expect(next).toEqual({ modelId: "gemini-3.5-flash", effort: "max" });
   });
 
   it("keeps a new chat's pick on a Grok Build-compatible relay", () => {
@@ -174,7 +177,7 @@ describe("resolveComposerPrefsSelection", () => {
     expect(next.effort).toBe("max");
   });
 
-  it("does not keep a sibling effort ladder on a generic channel", () => {
+  it("keeps the selected model's effort ladder on a generic channel", () => {
     const provider = {
       id: "relay",
       model: "plain",
@@ -202,11 +205,11 @@ describe("resolveComposerPrefsSelection", () => {
       catalog: GROK_BUILD_MODELS,
       providers: [provider],
     });
-    expect(next.modelId).toBe("plain");
-    expect(next.effort).toBe("high");
+    expect(next.modelId).toBe("gemini-3.5-flash");
+    expect(next.effort).toBe("max");
   });
 
-  it("keeps each generic chat on its own channel model", () => {
+  it("keeps each generic chat on its stored catalog model", () => {
     const kiro = {
       id: "kiro",
       model: "auto",
@@ -235,8 +238,8 @@ describe("resolveComposerPrefsSelection", () => {
       catalog: GROK_BUILD_MODELS,
       providers: [kiro, other],
     });
-    expect(luna.modelId).toBe("auto");
-    expect(sol.modelId).toBe("sol");
+    expect(luna.modelId).toBe("gpt-5.6-luna");
+    expect(sol.modelId).toBe("gpt-5.6-luna");
   });
 
   it("falls back to the provider model when the stored custom id is unknown", () => {

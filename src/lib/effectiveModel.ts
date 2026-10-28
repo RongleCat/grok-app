@@ -1,13 +1,10 @@
 /**
  * Effective inference model shown in composer model chips.
  *
- * A Grok Build-compatible relay shows the model this chat picked when that
- * id is in the catalog. A generic relay shows the channel `model` field —
- * sibling `app_models` ids are not what the CLI sends upstream (#1337).
- * Neither path shows a leftover official catalog id such as Grok 4.5.
+ * Shows the model this chat picked when that id is in the provider catalog.
+ * A leftover official catalog id such as Grok 4.5, which is not in the
+ * catalog, falls back to the channel `model` (#1337, #1394).
  */
-
-import { customChannelListsSubmodels } from "@/lib/composerModelGroups";
 
 export function resolveCustomRouteDisplay(
   provider:
@@ -28,12 +25,9 @@ export function resolveCustomRouteDisplay(
   const models = provider.models ?? [];
   const sessionId = sessionModelId.trim();
   const configured = provider.model?.trim() ?? "";
-  const allowSibling =
-    customChannelListsSubmodels(provider.providerMode) || !configured;
-  const sessionEntry =
-    sessionId && (allowSibling || sessionId === configured)
-      ? models.find((m) => m.id === sessionId)
-      : undefined;
+  const sessionEntry = sessionId
+    ? models.find((m) => m.id === sessionId)
+    : undefined;
   const configuredEntry = configured
     ? models.find((m) => m.id === configured)
     : undefined;

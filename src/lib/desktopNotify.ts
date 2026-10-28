@@ -230,10 +230,17 @@ export function focusAppFromNotification(): void {
   })();
 }
 
+/**
+ * Whether this notification should make a sound.
+ * Explicit `sound` wins; omitted uses the localStorage pref (default off).
+ */
+export function resolveNotifySoundEnabled(sound: boolean | undefined): boolean {
+  return sound ?? loadNotifySoundPref();
+}
+
 function playOptionalSound(opts: DesktopNotifyOptions): void {
   try {
-    const wantSound = opts.sound ?? loadNotifySoundPref();
-    if (wantSound) playNotifySound();
+    if (resolveNotifySoundEnabled(opts.sound)) playNotifySound();
   } catch {
     /* ignore */
   }
@@ -266,10 +273,13 @@ async function notifyViaTauriPlugin(
         : null;
     try {
       // Host returns delivery path string on success (e.g. osascript / unusernotification).
+      // `sound` is the Settings beep. The host plays it; the Web Audio beep
+      // is not also played on this path (that would double).
       await invoke<string>("desktop_notify_show", {
         title: opts.title,
         body: opts.body ?? null,
         sessionId,
+        sound: resolveNotifySoundEnabled(opts.sound),
       });
       return true;
     } catch (hostErr) {
@@ -329,11 +339,12 @@ export function showDesktopNotification(opts: DesktopNotifyOptions): boolean {
     void (async () => {
       const ok = await notifyViaTauriPlugin(opts);
       if (!ok) {
-        // Fallback: polyfilled / Web constructor (may still work).
-        tryShowWebNotification(opts, { playSound: false });
+        // Host never played the beep. Fall back to the Web Audio one.
+        if (!tryShowWebNotification(opts, { playSound: true })) {
+          playOptionalSound(opts);
+        }
       }
     })();
-    playOptionalSound(opts);
     return true;
   }
 

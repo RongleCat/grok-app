@@ -45,6 +45,9 @@ pub fn desktop_notify_show(
     title: String,
     body: Option<String>,
     session_id: Option<String>,
+    // `Some(true)` when Settings "Play a sound with notifications" is on.
+    // Missing / false stays silent (the pref defaults off).
+    sound: Option<bool>,
 ) -> Result<String, String> {
     let title = title.trim().to_string();
     if title.is_empty() {
@@ -57,10 +60,11 @@ pub fn desktop_notify_show(
         .unwrap_or("")
         .to_string();
     let session_id = sanitize_session_id(session_id.as_deref());
+    let sound = notify_sound_enabled(sound);
 
     #[cfg(target_os = "macos")]
     {
-        match show_macos(&app, &title, &body, session_id.as_deref()) {
+        match show_macos(&app, &title, &body, session_id.as_deref(), sound) {
             Ok(path) => {
                 tracing::info!(
                     target: "desktop_notify",
@@ -84,7 +88,7 @@ pub fn desktop_notify_show(
 
     #[cfg(windows)]
     {
-        match show_via_winrt(&app, &title, &body, session_id.as_deref()) {
+        match show_via_winrt(&app, &title, &body, session_id.as_deref(), sound) {
             Ok(()) => {
                 tracing::info!(
                     target: "desktop_notify",
@@ -106,7 +110,7 @@ pub fn desktop_notify_show(
 
     #[cfg(target_os = "linux")]
     {
-        match show_via_notify_rust(&app, &title, &body, session_id.as_deref()) {
+        match show_via_notify_rust(&app, &title, &body, session_id.as_deref(), sound) {
             Ok(()) => {
                 tracing::info!(
                     target: "desktop_notify",
@@ -247,6 +251,7 @@ fn show_via_winrt(
     title: &str,
     body: &str,
     session_id: Option<&str>,
+    sound: bool,
 ) -> Result<(), String> {
     use tauri_winrt_notification::Toast;
 
@@ -255,6 +260,10 @@ fn show_via_winrt(
     let mut toast = Toast::new(&app.config().identifier).title(title);
     if !body.is_empty() {
         toast = toast.text1(body);
+    }
+    // Empty `<audio>` is the default toast ding. `sound(None)` is `silent="true"`.
+    if !sound {
+        toast = toast.sound(None);
     }
     toast
         .on_activated(move |_action| {
@@ -271,11 +280,17 @@ fn show_via_notify_rust(
     title: &str,
     body: &str,
     session_id: Option<&str>,
+    sound: bool,
 ) -> Result<(), String> {
     let mut n = notify_rust::Notification::new();
     n.summary(title);
     if !body.is_empty() {
         n.body(body);
+    }
+    if sound {
+        n.sound_name("message-new-instant");
+    } else {
+        n.hint(notify_rust::Hint::SuppressSound(true));
     }
     n.action("default", "Open");
     let handle = n.show().map_err(|e| e.to_string())?;
@@ -321,10 +336,18 @@ fn show_macos(
     title: &str,
     body: &str,
     session_id: Option<&str>,
+    sound: bool,
 ) -> Result<&'static str, String> {
+    // Host beep is the audible path. UNNotificationSound.soundNamed only
+    // looks inside the app bundle, and AppleScript `sound name "default"`
+    // is not a file under /System/Library/Sounds (NSSound(named:) is nil).
+    // A second payload sound on top of the beep would double-play.
+    let host_beep = sound && schedule_soft_beep(app);
+    let payload_sound = sound && !host_beep;
+
     if is_real_app_bundle() {
         // Packaged app: modern UN first (real Grok identity + System Settings entry).
-        match show_via_usernotifications(title, body) {
+        match show_via_usernotifications(title, body, payload_sound) {
             Ok(handle) => {
                 watch_macos_click(app.clone(), handle, session_id.map(|s| s.to_string()));
                 return Ok("unusernotification");
@@ -339,7 +362,7 @@ fn show_macos(
         }
         // Packaged fallback: NS with our product id. Click may activate the
         // bundle, but this crate path cannot carry sessionId.
-        match show_via_nsusernotification(title, body) {
+        match show_via_nsusernotification(title, body, payload_sound) {
             Ok(()) => return Ok("nsusernotification"),
             Err(e) => {
                 tracing::debug!(
@@ -349,14 +372,14 @@ fn show_macos(
                 );
             }
         }
-        return show_via_osascript(title, body).map(|_| "osascript");
+        return show_via_osascript(title, body, payload_sound).map(|_| "osascript");
     }
 
     // Bare `tauri dev` binary on Sequoia:
     // - UN → process crash (never call)
     // - NS / notify-rust → often Ok with zero visible delivery
     // - osascript → lands in Notification Center under Script Editor (verified)
-    show_via_osascript(title, body).map(|_| "osascript")
+    show_via_osascript(title, body, payload_sound).map(|_| "osascript")
 }
 
 #[cfg(target_os = "macos")]
@@ -401,6 +424,7 @@ fn request_macos_auth() -> Result<bool, String> {
 fn show_via_usernotifications(
     title: &str,
     body: &str,
+    sound: bool,
 ) -> Result<mac_usernotifications::NotificationHandle, String> {
     if !is_real_app_bundle() {
         return Err("not a real .app bundle".into());
@@ -413,6 +437,11 @@ fn show_via_usernotifications(
     let mut n = mac_usernotifications::Notification::new().title(title);
     if !body.is_empty() {
         n = n.message(body);
+    }
+    // Only when the host beep could not be scheduled. `default_sound()` is
+    // the crate's best effort; the normal path plays the WAV via NSSound.
+    if sound {
+        n = n.default_sound();
     }
     n.send_blocking().map_err(|e| e.to_string())
 }
@@ -428,33 +457,25 @@ fn pin_ns_application() -> Result<(), String> {
 }
 
 #[cfg(target_os = "macos")]
-fn show_via_nsusernotification(title: &str, body: &str) -> Result<(), String> {
+fn show_via_nsusernotification(title: &str, body: &str, sound: bool) -> Result<(), String> {
     pin_ns_application()?;
-    mac_notification_sys::send_notification(title, None, body, None).map_err(|e| e.to_string())?;
+    if sound {
+        let mut opts = mac_notification_sys::Notification::new();
+        opts.default_sound();
+        mac_notification_sys::send_notification(title, None, body, Some(&opts))
+            .map_err(|e| e.to_string())?;
+    } else {
+        mac_notification_sys::send_notification(title, None, body, None)
+            .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
-fn show_via_osascript(title: &str, body: &str) -> Result<(), String> {
+fn show_via_osascript(title: &str, body: &str, sound: bool) -> Result<(), String> {
     use std::process::Command;
 
-    // Collapse control/newlines and cap length so AppleScript stays valid
-    // (availability; title/body are app-controlled i18n strings).
-    let sanitize = |s: &str| -> String {
-        let flat: String = s
-            .chars()
-            .map(|c| if c.is_control() { ' ' } else { c })
-            .collect();
-        let flat = flat.split_whitespace().collect::<Vec<_>>().join(" ");
-        let truncated: String = flat.chars().take(200).collect();
-        truncated.replace('\\', "\\\\").replace('"', "\\\"")
-    };
-    // sound name makes the alert more noticeable when banners are subtle.
-    let script = format!(
-        "display notification \"{}\" with title \"{}\" sound name \"default\"",
-        sanitize(body),
-        sanitize(title)
-    );
+    let script = osascript_notification_script(title, body, sound);
     let out = Command::new("osascript")
         .arg("-e")
         .arg(&script)
@@ -473,9 +494,163 @@ fn show_via_osascript(title: &str, body: &str) -> Result<(), String> {
     }
 }
 
+/// Missing and `false` stay silent. The Settings pref defaults off.
+fn notify_sound_enabled(sound: Option<bool>) -> bool {
+    matches!(sound, Some(true))
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// AppleScript string literal body: no controls, capped, quotes escaped.
+fn apple_script_literal(s: &str) -> String {
+    let flat: String = s
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let flat = flat.split_whitespace().collect::<Vec<_>>().join(" ");
+    let truncated: String = flat.chars().take(200).collect();
+    truncated.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// Fallback sound for `osascript` only. `"default"` is not a system sound
+/// (`NSSound(named: "default")` is nil). `Tink.aiff` is in
+/// `/System/Library/Sounds`.
+const OSASCRIPT_SOUND_NAME: &str = "Tink";
+
+#[cfg(any(target_os = "macos", test))]
+/// `display notification` script. Sound clause is omitted when `sound` is false
+/// so a disabled pref does not ding via Script Editor.
+fn osascript_notification_script(title: &str, body: &str, sound: bool) -> String {
+    let title = apple_script_literal(title);
+    let body = apple_script_literal(body);
+    if sound {
+        format!(
+            "display notification \"{body}\" with title \"{title}\" sound name \"{OSASCRIPT_SOUND_NAME}\""
+        )
+    } else {
+        format!("display notification \"{body}\" with title \"{title}\"")
+    }
+}
+
+#[cfg(any(target_os = "macos", test))]
+/// 880 Hz, 120 ms, 16-bit mono WAV. Same short beep the Settings copy describes.
+/// Sample rate 22050 × 0.12 s = 2646 frames.
+const BEEP_SAMPLE_RATE: u32 = 22_050;
+#[cfg(any(target_os = "macos", test))]
+const BEEP_SAMPLE_COUNT: usize = 2_646;
+
+#[cfg(any(target_os = "macos", test))]
+fn soft_notify_beep_wav() -> Vec<u8> {
+    let data_len = (BEEP_SAMPLE_COUNT * 2) as u32;
+    let mut wav = Vec::with_capacity(44 + data_len as usize);
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + data_len).to_le_bytes());
+    wav.extend_from_slice(b"WAVE");
+    wav.extend_from_slice(b"fmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    wav.extend_from_slice(&1u16.to_le_bytes()); // mono
+    wav.extend_from_slice(&BEEP_SAMPLE_RATE.to_le_bytes());
+    wav.extend_from_slice(&(BEEP_SAMPLE_RATE * 2).to_le_bytes()); // byte rate
+    wav.extend_from_slice(&2u16.to_le_bytes()); // block align
+    wav.extend_from_slice(&16u16.to_le_bytes()); // bits
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&data_len.to_le_bytes());
+
+    let attack = (BEEP_SAMPLE_COUNT / 15).max(1);
+    for i in 0..BEEP_SAMPLE_COUNT {
+        let t = i as f32 / BEEP_SAMPLE_RATE as f32;
+        let env = if i < attack {
+            i as f32 / attack as f32
+        } else {
+            let tail = BEEP_SAMPLE_COUNT - i;
+            (tail as f32 / (BEEP_SAMPLE_COUNT - attack) as f32).clamp(0.0, 1.0)
+        };
+        let sample = (t * 880.0 * std::f32::consts::TAU).sin() * 0.25 * env;
+        let pcm = (sample.clamp(-1.0, 1.0) * 32_767.0).round() as i16;
+        wav.extend_from_slice(&pcm.to_le_bytes());
+    }
+    wav
+}
+
+/// Queue the beep on the main thread. Returns false only when it could not be
+/// queued and the inline attempt also failed — callers may then attach a
+/// platform payload sound instead of staying silent.
+#[cfg(target_os = "macos")]
+fn schedule_soft_beep(app: &AppHandle) -> bool {
+    match app.run_on_main_thread(|| {
+        play_soft_beep_now();
+    }) {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::debug!(
+                target: "desktop_notify",
+                error = %e,
+                "notify beep main-thread schedule failed"
+            );
+            play_soft_beep_now()
+        }
+    }
+}
+
+/// One NSSound kept alive so `play` (async) is not released mid-beep.
+/// Replaced on the next beep. Main-thread only, guarded by the mutex.
+#[cfg(target_os = "macos")]
+struct HeldSound(*mut objc2::runtime::AnyObject);
+
+#[cfg(target_os = "macos")]
+// SAFETY: the pointer is an NSSound created and released only while `HELD_BEEP`
+// is locked. Callers schedule that work on the main thread.
+unsafe impl Send for HeldSound {}
+
+#[cfg(target_os = "macos")]
+static HELD_BEEP: parking_lot::Mutex<Option<HeldSound>> = parking_lot::Mutex::new(None);
+
+#[cfg(target_os = "macos")]
+fn play_soft_beep_now() -> bool {
+    use objc2::runtime::{AnyObject, Bool};
+    use objc2::{class, msg_send};
+
+    let wav = soft_notify_beep_wav();
+    // SAFETY: NSData copies the bytes. NSSound `initWithData:` returns +1 or
+    // nil (and consumes the alloc). `play` is asynchronous; we keep the +1
+    // until the next beep so the object outlives playback.
+    unsafe {
+        let data: *mut AnyObject = msg_send![
+            class!(NSData),
+            dataWithBytes: wav.as_ptr(),
+            length: wav.len()
+        ];
+        if data.is_null() {
+            return false;
+        }
+        let alloc: *mut AnyObject = msg_send![class!(NSSound), alloc];
+        if alloc.is_null() {
+            return false;
+        }
+        let sound: *mut AnyObject = msg_send![alloc, initWithData: data];
+        if sound.is_null() {
+            return false;
+        }
+        let played: Bool = msg_send![sound, play];
+        if !played.as_bool() {
+            let _: () = msg_send![sound, release];
+            return false;
+        }
+        let mut slot = HELD_BEEP.lock();
+        if let Some(prev) = slot.replace(HeldSound(sound)) {
+            let _: () = msg_send![prev.0, release];
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{notify_click_payload, sanitize_session_id};
+    use super::{
+        notify_click_payload, notify_sound_enabled, osascript_notification_script,
+        sanitize_session_id, soft_notify_beep_wav, BEEP_SAMPLE_COUNT,
+    };
 
     #[test]
     fn sanitize_session_id_trims_and_drops_empty() {
@@ -496,5 +671,46 @@ mod tests {
             notify_click_payload(Some(" sess-9 ")),
             serde_json::json!({ "sessionId": "sess-9" })
         );
+    }
+
+    #[test]
+    fn notify_sound_enabled_defaults_off() {
+        assert!(!notify_sound_enabled(None));
+        assert!(!notify_sound_enabled(Some(false)));
+        assert!(notify_sound_enabled(Some(true)));
+    }
+
+    #[test]
+    fn osascript_script_adds_tink_only_when_sound_is_on() {
+        let on = osascript_notification_script("Hello", "Body text", true);
+        assert!(on.contains("sound name \"Tink\""));
+        assert!(on.contains("with title \"Hello\""));
+        assert!(on.contains("display notification \"Body text\""));
+        assert!(!on.contains("default"));
+
+        let off = osascript_notification_script("Hello", "Body text", false);
+        assert!(!off.contains("sound name"));
+        assert!(off.contains("with title \"Hello\""));
+    }
+
+    #[test]
+    fn osascript_script_escapes_quotes_and_strips_controls() {
+        let script = osascript_notification_script("a\"b\\c", "line\n\t two", false);
+        assert!(script.contains("a\\\"b\\\\c"));
+        assert!(script.contains("line two"));
+        assert!(!script.contains('\n'));
+    }
+
+    #[test]
+    fn soft_beep_wav_is_short_pcm() {
+        let wav = soft_notify_beep_wav();
+        assert!(wav.starts_with(b"RIFF"));
+        assert_eq!(&wav[8..12], b"WAVE");
+        assert_eq!(&wav[36..40], b"data");
+        let data_len = u32::from_le_bytes(wav[40..44].try_into().expect("len"));
+        assert_eq!(wav.len(), 44 + data_len as usize);
+        assert_eq!(data_len as usize, BEEP_SAMPLE_COUNT * 2);
+        let pcm = &wav[44..];
+        assert!(pcm.chunks(2).any(|frame| frame != [0, 0]));
     }
 }

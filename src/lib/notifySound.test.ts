@@ -122,6 +122,39 @@ describe("playNotifySound", () => {
     expect(osc.frequency.value).toBe(880);
   });
 
+  it("resumes a suspended AudioContext before starting the beep", () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const start = vi.fn();
+    const stop = vi.fn();
+    const connect = vi.fn();
+    class SuspendedAudioContext {
+      state = "suspended";
+      currentTime = 0;
+      resume = resume;
+      createOscillator = () => ({
+        type: "sine" as OscillatorType,
+        frequency: { value: 0 },
+        connect,
+        start,
+        stop,
+        onended: null as (() => void) | null,
+      });
+      createGain = () => ({
+        gain: {
+          setValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+        },
+        connect,
+      });
+      destination = {};
+      close = vi.fn().mockResolvedValue(undefined);
+    }
+    g.AudioContext = SuspendedAudioContext;
+    expect(playNotifySound()).toBe(true);
+    expect(resume).toHaveBeenCalledOnce();
+    expect(start).toHaveBeenCalled();
+  });
+
   it("returns false when AudioContext constructor throws", () => {
     g.AudioContext = class {
       constructor() {

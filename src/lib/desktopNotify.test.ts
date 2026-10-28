@@ -7,6 +7,7 @@ import {
   notificationSupport,
   setDesktopNotifySessionFocusHandler,
   shouldShowDesktopNotify,
+  resolveNotifySoundEnabled,
   showDesktopNotification,
 } from "./desktopNotify";
 import * as notifySound from "./notifySound";
@@ -289,6 +290,17 @@ describe("desktopNotify", () => {
     const { ctor } = mockNotification("denied");
     expect(showDesktopNotification({ title: "x", force: true })).toBe(false);
     expect(ctor).not.toHaveBeenCalled();
+  });
+
+  it("resolveNotifySoundEnabled prefers an explicit flag over the pref", () => {
+    const load = vi
+      .spyOn(notifySound, "loadNotifySoundPref")
+      .mockReturnValue(true);
+    expect(resolveNotifySoundEnabled(false)).toBe(false);
+    expect(resolveNotifySoundEnabled(true)).toBe(true);
+    expect(load).not.toHaveBeenCalled();
+    expect(resolveNotifySoundEnabled(undefined)).toBe(true);
+    expect(load).toHaveBeenCalledOnce();
   });
 
   it("plays sound when opts.sound is true", () => {

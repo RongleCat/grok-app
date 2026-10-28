@@ -30,20 +30,13 @@ export type ComposerProviderInput = {
   /** Active request model for this channel (`[model.<id>].model`). */
   model: string;
   /**
-   * `grok_build_proxy` lists every catalog id. Any other mode, including a
-   * missing one, is a generic relay: the composer offers only `model`.
+   * `grok_build_proxy` sends the catalog id. Any other mode, including a
+   * missing one, is a generic relay. Both list every catalog row (#1394).
    */
   providerMode?: string | null;
   /** Catalog of selectable models; falls back to single `model` when empty. */
   models?: ComposerProviderModelInput[];
 };
-
-/** Grok Build-compatible relays can switch catalog ids. Generic relays cannot. */
-export function customChannelListsSubmodels(
-  providerMode: string | null | undefined,
-): boolean {
-  return (providerMode ?? "").trim() === "grok_build_proxy";
-}
 
 function cleanModels(
   models: ReadonlyArray<ComposerProviderModelInput> | null | undefined,
@@ -59,23 +52,17 @@ function cleanModels(
 /**
  * Models the composer may offer for one channel.
  *
- * A generic relay's `session/set_model` only accepts the TOML section name.
- * CLI 1.0.70 rejects an `app_models` id with `unknown model id`, and the
- * request body stays `[model.<id>].model`. Listing the other rows made the
- * chip disagree with the upstream model (#1337). One row, that field.
- * A Grok Build-compatible relay already sends the catalog id, so it keeps
- * the full list.
+ * Every catalog row is listed. A generic relay sends the matching
+ * `[model.<provider>__<slug>]` section, whose `model` field is that row's
+ * upstream id (#1337, #1394). A Grok Build-compatible relay sends the
+ * catalog id. An empty catalog falls back to the channel `model`.
  */
 function modelsForProvider(
   p: ComposerProviderInput,
 ): ComposerProviderModelInput[] {
   const catalog = cleanModels(p.models);
-  const configured = p.model?.trim() ?? "";
-  if (!customChannelListsSubmodels(p.providerMode) && configured) {
-    const hit = catalog.find((m) => m.id === configured);
-    return [{ id: configured, name: hit?.name || configured }];
-  }
   if (catalog.length > 0) return catalog;
+  const configured = p.model?.trim() ?? "";
   if (!configured) return [];
   return [{ id: configured, name: configured }];
 }

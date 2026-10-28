@@ -16,7 +16,6 @@ import {
   type EffortOption,
   type ModelOption,
 } from "@/lib/grokCatalog";
-import { customChannelListsSubmodels } from "@/lib/composerModelGroups";
 import { resolveProviderEfforts } from "@/lib/providerModelConfig";
 
 export type ComposerPrefsSelectionInput = {
@@ -29,7 +28,7 @@ export type ComposerPrefsProvider = Pick<
   CustomProvider,
   "id" | "model" | "models" | "efforts" | "baseUrl"
 > & {
-  /** Missing means generic: only the channel `model` is selectable. */
+  /** Missing means generic. Every catalog id is selectable (#1394). */
   providerMode?: CustomProvider["providerMode"];
 };
 
@@ -42,17 +41,6 @@ function providerModelList(provider: ComposerPrefsProvider) {
   if (provider.models?.length) return provider.models;
   const configured = provider.model?.trim() ?? "";
   return configured ? [{ id: configured, name: configured }] : [];
-}
-
-/** Ids this chat can actually run. Generic relays only run `provider.model`. */
-function selectableProviderModels(provider: ComposerPrefsProvider) {
-  const list = providerModelList(provider);
-  const configured = provider.model?.trim() ?? "";
-  if (customChannelListsSubmodels(provider.providerMode) || !configured) {
-    return list;
-  }
-  const named = list.find((m) => m.id === configured);
-  return [{ id: configured, name: named?.name?.trim() || configured }];
 }
 
 function pickEffort(
@@ -89,14 +77,14 @@ function draftModelIdIsKnown(
   const provider = providers.find((p) => p.id === draftProviderId?.trim());
   // List not back yet: nothing disproves the pick, so keep it.
   if (!provider) return providers.length === 0;
-  return selectableProviderModels(provider).some((m) => m.id === modelId);
+  return providerModelList(provider).some((m) => m.id === modelId);
 }
 
 function resolvedCustomModel(
   provider: ComposerPrefsProvider,
   storedModel: string,
 ): string {
-  const selectable = selectableProviderModels(provider);
+  const selectable = providerModelList(provider);
   if (storedModel && selectable.some((m) => m.id === storedModel)) {
     return storedModel;
   }

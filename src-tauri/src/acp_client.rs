@@ -817,7 +817,17 @@ impl AcpClient {
             }
         } else if opts.route_provider_id.is_some() {
             let m = opts.model_id.as_deref().unwrap_or("").trim();
-            if m.is_empty() || custom_route {
+            if m.is_empty() {
+                route_provider_id.clone()
+            } else if custom_route
+                && crate::providers::provider_mode_for_id(&route_provider_id)
+                    != crate::providers::PROVIDER_MODE_GROK_BUILD_PROXY
+            {
+                // Generic: `--model` is the per-model section, not the channel id.
+                // The id passed in may already be that section (connect) or the
+                // catalog id. Proxy relays took the catalog id above.
+                crate::providers::spawn_model_for_provider(&route_provider_id, m)
+            } else if custom_route {
                 route_provider_id.clone()
             } else {
                 m.to_string()
