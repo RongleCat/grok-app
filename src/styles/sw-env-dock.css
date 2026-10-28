@@ -19,6 +19,12 @@
   --env-summary-gutter: 316px;
 }
 
+/* The fleet pane already margins the chat column. Do not squeeze the stage
+   again, and sit this card to the left of the pane. */
+.main:has(> .chat-fleet-pane):has(.sw-env-dock .sw-env-menu.is-open:not(.is-parked)) {
+  --env-summary-gutter: 0px;
+}
+
 .main__chat-column > .main__stage {
   margin-right: var(--env-summary-gutter);
   transition: margin-right var(--motion-pane) var(--motion-pane-ease);
@@ -53,6 +59,10 @@
     transform var(--motion-pane) var(--motion-pane-ease);
   pointer-events: none;
   z-index: auto;
+}
+
+.main:has(> .chat-fleet-pane) .sw-env-dock .sw-env-menu {
+  right: calc(var(--chat-fleet-gutter) + 16px);
 }
 
 .sw-env-dock .sw-env-menu.is-open:not(.is-parked) {

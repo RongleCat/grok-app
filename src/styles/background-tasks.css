@@ -278,11 +278,13 @@
   color: var(--text-secondary);
 }
 
-.app-shell--phone .main:has(> .chat-fleet-pane) {
+/* Full screen only while a row is running. An empty pane stays a column
+   so it does not cover the phone composer. */
+.app-shell--phone .main:has(> .chat-fleet-pane[data-fleet-running="true"]) {
   --chat-fleet-gutter: 0px;
 }
 
-.app-shell--phone .chat-fleet-pane {
+.app-shell--phone .chat-fleet-pane[data-fleet-running="true"] {
   left: 0;
   width: auto;
   z-index: 30;

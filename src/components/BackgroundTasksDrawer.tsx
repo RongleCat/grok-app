@@ -643,6 +643,7 @@ export function BackgroundTasksPane({
       className="chat-fleet-pane"
       aria-label={tr("fleet.title")}
       data-testid="chat-fleet-pane"
+      data-fleet-running={runningCount > 0 ? "true" : "false"}
     >
       <header className="chat-fleet-pane__head">
         <h2 className="chat-fleet-pane__title">
