@@ -3,6 +3,7 @@ import {
   adoptDraftFleet,
   beginNewChatFleet,
   clearDraftFleet,
+  welcomeOpensFleetPane,
   FLEET_DRAFT_ID,
   forgetFleetAutoOpen,
   getBackgroundTasksSnapshot,
@@ -34,6 +35,11 @@ describe("backgroundTasksStore", () => {
     setFleetChatContext("a", false);
     expect(getBackgroundTasksSnapshot().open).toBe(true);
     expect(getBackgroundTasksSnapshot().sessionId).toBe("a");
+  });
+
+  it("opens the pane for a new desktop chat and skips that open on a phone", () => {
+    expect(welcomeOpensFleetPane(false)).toBe(true);
+    expect(welcomeOpensFleetPane(true)).toBe(false);
   });
 
   it("opens the pane for a new chat and keeps it on the session that chat creates", () => {

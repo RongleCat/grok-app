@@ -15,11 +15,11 @@ See `docs/llm-wiki/release.md`.
 
 ### Added
 
-- Background tasks show a workflow's phases, agents, and token total while it runs.
+- Background tasks show a workflow's phases, agents, and token total while it runs. On a phone, an empty new chat leaves that pane closed.
 
 **中文 · 新增**
 
-- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。
+- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。手机上的空白新对话不会再打开这个面板。
 
 ## [0.2.49] - 2026-10-28
 

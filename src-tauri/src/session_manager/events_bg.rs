@@ -579,14 +579,7 @@ impl SessionManager {
                 }
             }
             AcpEvent::FleetUpdate { kind, body } => {
-                let _ = app.emit(
-                    "session://fleet",
-                    serde_json::json!({
-                        "sessionId": app_session_id,
-                        "kind": kind,
-                        "body": body,
-                    }),
-                );
+                super::fleet_emit::emit_fleet_update(app, app_session_id, &kind, &body);
             }
             AcpEvent::ToolOpenReleased { tool_call_id } => {
                 let mut pending_emits = Vec::new();

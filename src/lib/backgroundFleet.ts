@@ -627,8 +627,8 @@ export type FleetStopPlan =
   | { kind: "unavailable"; messageKey: "fleet.stopUnavailable" };
 
 /**
- * Stop never claims a SIGKILL. While a turn is streaming, queue a director
- * instruction. Otherwise keep the honest no-kill copy.
+ * Stop never claims a SIGKILL. While a turn is streaming, ask that turn to
+ * stop the task. Otherwise keep the honest no-kill copy.
  */
 /** Collapse a parent transcript row only when the host marked it as fleet work. */
 export function fleetChipKind(input: {

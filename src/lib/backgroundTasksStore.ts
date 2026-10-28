@@ -64,6 +64,14 @@ function publish(): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Desktop welcome opens the empty pane. A phone welcome does not: the phone
+ * pane is full screen and would cover the composer before any task exists.
+ */
+export function welcomeOpensFleetPane(phoneLayout: boolean): boolean {
+  return !phoneLayout;
+}
+
 /** Open the floating pane for a new empty chat. A later close stays closed. */
 export function beginNewChatFleet(): void {
   if (openBySession.has(FLEET_DRAFT_ID)) return;

@@ -399,7 +399,7 @@ describe("fleetChipKind", () => {
 });
 
 describe("fleetStopPlan", () => {
-  it("queues a director instruction only while a turn is streaming", () => {
+  it("asks the running turn to stop only while that turn is streaming", () => {
     expect(
       fleetStopPlan({
         taskId: "call-1",
@@ -425,6 +425,8 @@ describe("fleetStopPlan", () => {
       }).kind,
     ).toBe("unavailable");
     expect(enTasks["fleet.stopUnavailable"]).toMatch(/not available over ACP/i);
+    expect(enTasks["fleet.stopQueued"]).not.toMatch(/director/i);
+    expect(enTasks["fleet.stopUnavailable"]).not.toMatch(/director/i);
     expect(enTasks["tasks.noKill"]).toMatch(/not available over ACP/i);
   });
 });
