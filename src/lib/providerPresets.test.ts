@@ -11,6 +11,7 @@ import {
   ORCAROUTER_MODELS,
   PROVIDER_PRESETS,
   REQUESTY_MODELS,
+  RUNCRATE_MODELS,
   VOLCANO_ARK_MODELS,
   YUN_API_MODELS,
   ZHIPU_ENDPOINTS,
@@ -224,6 +225,45 @@ describe("providerPresets", () => {
       })?.id,
     ).toBe("requesty");
     expect(resolveProviderBrandId({ providerId: "requesty" })).toBe(null);
+  });
+
+  it("ships Runcrate with vendor/model ids, chat_completions, vision, and Grok efforts", () => {
+    const p = findProviderPreset("runcrate");
+    expect(p).toBeDefined();
+    expect(findProviderPreset("Runcrate")?.id).toBe("runcrate");
+    expect(p!.name).toBe("Runcrate");
+    expect(p!.suggestedId).toBe("runcrate");
+    expect(p!.baseUrl).toBe("https://api.runcrate.ai/v1");
+    expect(p!.apiBackend).toBe("chat_completions");
+    expect(p!.supportsVision).toBe(true);
+    expect(p!.brandId).toBeUndefined();
+    expect(RUNCRATE_MODELS.map((m) => m.id)).toEqual([
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "zai-org/GLM-5.3-Flash",
+      "Qwen/Qwen3.8-Flash",
+    ]);
+    expect(p!.models).toEqual(RUNCRATE_MODELS);
+    expect(p!.efforts.map((e) => e.id)).toEqual(
+      GROK_CHANNEL_EFFORTS.map((e) => e.id),
+    );
+    expect(p!.efforts.find((e) => e.isDefault)?.id).toBe("medium");
+    expect(p!.apiKeyUrl).toBe("https://www.runcrate.ai/dashboard/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        providerId: "runcrate-----123",
+      }),
+    ).toBe("https://www.runcrate.ai/dashboard/api-keys");
+    expect(
+      resolveProviderApiKeyUrl({
+        baseUrl: "https://api.runcrate.ai/v1",
+      }),
+    ).toBe("https://www.runcrate.ai/dashboard/api-keys");
+    expect(
+      resolveMatchedProviderPreset({
+        providerId: "runcrate-----999",
+      })?.id,
+    ).toBe("runcrate");
+    expect(resolveProviderBrandId({ providerId: "runcrate" })).toBe(null);
   });
 
   it("resolves get-api-key URLs by id or base host", () => {

@@ -83,6 +83,7 @@ export const trProviders = {
   "prov.preset.openrouter.blurb": "OpenRouter — chat_completions üzerinden GLM-5.3 Flash, 1M bağlam, görsel açık",
   "prov.preset.orcarouter.blurb": "OrcaRouter — OpenAI uyumlu çok sağlayıcılı ağ geçidi, Auto Router, görsel açık",
   "prov.preset.requesty.blurb": "Requesty: OpenAI uyumlu çok sağlayıcılı yönlendirici, Grok 4.6 / Gemini 3.5 Flash / DeepSeek V4 Flash",
+  "prov.preset.runcrate.blurb": "Runcrate: açık modeller için OpenAI uyumlu API, DeepSeek V4.1 Flash / GLM 5.3 Flash / Qwen3.8 Flash",
   "prov.preset.amux.blurb": "Amux aktarıcısı — Grok 4.7 / 4.6 / 4.5, resmî düzeyler low/medium/high/xhigh",
   "prov.preset.yunApi.blurb": "Yun API (yunyi) — Grok 4.7 / 4.6 / 4.5, resmî düzeyler low/medium/high/xhigh",
   "prov.preset.opencodeGo.blurb": "OpenCode Zen Go — chat_completions üzerinden DeepSeek V4 (Responses değil)",

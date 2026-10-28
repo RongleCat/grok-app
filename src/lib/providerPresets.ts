@@ -235,6 +235,32 @@ export const REQUESTY_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * Runcrate OpenAI-compatible inference API for open models. Model ids are
+ * `vendor/model` slugs from GET /v1/models; Fetch models lists the rest.
+ * See https://www.runcrate.ai/inference/pricing
+ */
+export const RUNCRATE_MODELS: ProviderModelEntry[] = [
+  {
+    id: "deepseek-ai/DeepSeek-V4.1-Flash",
+    name: "DeepSeek V4.1 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+  },
+  {
+    id: "zai-org/GLM-5.3-Flash",
+    name: "GLM 5.3 Flash",
+    contextWindow: 1_048_576,
+    supportsVision: true,
+  },
+  {
+    id: "Qwen/Qwen3.8-Flash",
+    name: "Qwen3.8 Flash",
+    contextWindow: 1_000_000,
+    supportsVision: false,
+  },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -385,6 +411,22 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
   },
+  /**
+   * Runcrate OpenAI-compatible inference API (chat_completions). Model ids are
+   * `vendor/model` slugs. No brand logo yet.
+   */
+  {
+    id: "runcrate",
+    name: "Runcrate",
+    suggestedId: "runcrate",
+    baseUrl: "https://api.runcrate.ai/v1",
+    apiBackend: "chat_completions",
+    models: RUNCRATE_MODELS,
+    efforts: GROK_CHANNEL_EFFORTS.map((e) => ({ ...e })),
+    blurbKey: "prov.preset.runcrate.blurb",
+    apiKeyUrl: "https://www.runcrate.ai/dashboard/api-keys",
+    supportsVision: true,
+  },
   {
     id: "amux",
     name: "Amux",
@@ -531,6 +573,10 @@ function matchPreset(opts: {
     if (pid === "requesty" || pid.startsWith("requesty-")) {
       const rq = PROVIDER_PRESETS.find((p) => p.id === "requesty");
       if (rq) return rq;
+    }
+    if (pid === "runcrate" || pid.startsWith("runcrate-")) {
+      const rc = PROVIDER_PRESETS.find((p) => p.id === "runcrate");
+      if (rc) return rc;
     }
     if (
       pid === "zhipu" ||

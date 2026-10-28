@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+- Runcrate is available as a custom-provider preset.
+
+**中文 · 新增**
+- 自定义供应商画廊增加了 Runcrate 一键预设。
+
 ## [0.2.50] - 2026-10-28
 
 > **Highlight:** Every model of a custom provider is selectable again, and the chosen one is the one used.
