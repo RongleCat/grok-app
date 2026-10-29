@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   adoptDraftFleet,
-  beginNewChatFleet,
   clearDraftFleet,
-  welcomeOpensFleetPane,
   FLEET_DRAFT_ID,
   forgetFleetAutoOpen,
   getBackgroundTasksSnapshot,
@@ -37,29 +35,33 @@ describe("backgroundTasksStore", () => {
     expect(getBackgroundTasksSnapshot().sessionId).toBe("a");
   });
 
-  it("opens the pane for a new desktop chat and skips that open on a phone", () => {
-    expect(welcomeOpensFleetPane(false)).toBe(true);
-    expect(welcomeOpensFleetPane(true)).toBe(false);
+  it("leaves the pane closed for a new chat", () => {
+    setFleetChatContext(FLEET_DRAFT_ID, false);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
+    expect(getBackgroundTasksSnapshot().sessionId).toBe(FLEET_DRAFT_ID);
+    adoptDraftFleet("created-closed");
+    setFleetChatContext("created-closed", false);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
+    expect(getBackgroundTasksSnapshot().sessionId).toBe("created-closed");
   });
 
-  it("opens the pane for a new chat and keeps it on the session that chat creates", () => {
-    beginNewChatFleet();
+  it("carries a manual open or close onto the session that chat creates", () => {
     setFleetChatContext(FLEET_DRAFT_ID, false);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
+    setBackgroundTasksOpen(true);
     expect(getBackgroundTasksSnapshot().open).toBe(true);
-    setBackgroundTasksOpen(false);
-    expect(getBackgroundTasksSnapshot().open).toBe(false);
-    beginNewChatFleet();
-    expect(getBackgroundTasksSnapshot().open).toBe(false);
     adoptDraftFleet("created");
     setFleetChatContext("created", false);
-    expect(getBackgroundTasksSnapshot().open).toBe(false);
-    expect(getBackgroundTasksSnapshot().sessionId).toBe("created");
-    beginNewChatFleet();
-    setFleetChatContext(FLEET_DRAFT_ID, false);
     expect(getBackgroundTasksSnapshot().open).toBe(true);
+    expect(getBackgroundTasksSnapshot().sessionId).toBe("created");
+    setFleetChatContext(FLEET_DRAFT_ID, false);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
+    setBackgroundTasksOpen(true);
+    setBackgroundTasksOpen(false);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
     adoptDraftFleet("created-2");
     setFleetChatContext("created-2", true);
-    expect(getBackgroundTasksSnapshot().open).toBe(true);
+    expect(getBackgroundTasksSnapshot().open).toBe(false);
     expect(getBackgroundTasksSnapshot().sessionId).toBe("created-2");
   });
 

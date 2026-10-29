@@ -42,25 +42,12 @@ import { PlanStatusBar } from "@/components/PlanStatusBar";
 import { ChatFindLive } from "@/components/ChatFindLive";
 import { AgentTasksPanelLive } from "@/components/AgentTasksPanelLive";
 import { BackgroundTasksPane } from "@/components/BackgroundTasksDrawer";
-import { isMirrorPhoneLayout } from "@/lib/layout";
-import { isMirrorClient } from "@/lib/mirrorTransport";
 import {
   adoptDraftFleet,
-  beginNewChatFleet,
   clearDraftFleet,
   FLEET_DRAFT_ID,
   setFleetChatContext,
-  welcomeOpensFleetPane,
 } from "@/lib/backgroundTasksStore";
-
-/** Same gate as `.app-shell--phone`: mirror client at the phone breakpoint. */
-function welcomeFleetIsPhone(): boolean {
-  if (typeof window === "undefined") return false;
-  return isMirrorPhoneLayout({
-    isMirror: isMirrorClient(),
-    viewportWidth: window.innerWidth,
-  });
-}
 
 type TFn = ReturnType<typeof createT>;
 type TStore = typeof sessionTranscriptStoreInstance;
@@ -241,18 +228,7 @@ export function WorkbenchChatStage(p: WorkbenchChatStageProps) {
         if (!draftSessionIds.current) {
           draftSessionIds.current = new Set(sessions.map((item) => item.id));
         }
-        if (welcomeOpensFleetPane(welcomeFleetIsPhone())) {
-          beginNewChatFleet();
-        }
         setFleetChatContext(FLEET_DRAFT_ID, false);
-        if (typeof window === "undefined") return;
-        const onResize = () => {
-          if (!welcomeOpensFleetPane(welcomeFleetIsPhone())) return;
-          beginNewChatFleet();
-          setFleetChatContext(FLEET_DRAFT_ID, false);
-        };
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
       } else {
         draftSessionIds.current = null;
         setFleetChatContext(null, false);
