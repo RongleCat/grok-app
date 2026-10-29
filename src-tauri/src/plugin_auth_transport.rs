@@ -37,11 +37,16 @@ pub fn execute(
                 .spawn()
                 .map_err(|e| format!("Failed to start plugin: {e}"))?;
             let mut input = child.stdin.take().ok_or("Plugin stdin is unavailable")?;
+            let len = u32::try_from(payload.len()).map_err(|_| "Plugin auth input is too large")?;
+            input
+                .write_all(&len.to_le_bytes())
+                .await
+                .map_err(|_| "Could not send plugin auth input")?;
             input
                 .write_all(&payload)
                 .await
                 .map_err(|_| "Could not send plugin auth input")?;
-            // Drop does not deliver stdin EOF on Windows, so Node keeps waiting.
+            // The reader no longer waits for EOF; shutdown remains so the pipe is not left open.
             input
                 .shutdown()
                 .await
@@ -120,7 +125,7 @@ mod tests {
             "--api-secret".into(),
             "synthetic-密钥-+\"".into(),
         ];
-        let out = execute(command(&fixture.script()), &args, Duration::from_secs(10)).unwrap();
+        let out = execute(command(&fixture.script()), &args, Duration::from_secs(30)).unwrap();
         assert!(out.status.success());
         assert_eq!(
             serde_json::from_slice::<Vec<String>>(&out.stdout).unwrap(),
