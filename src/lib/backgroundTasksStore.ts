@@ -65,22 +65,9 @@ function publish(): void {
 }
 
 /**
- * Desktop welcome opens the empty pane. A phone welcome does not: the phone
- * pane is full screen and would cover the composer before any task exists.
- */
-export function welcomeOpensFleetPane(phoneLayout: boolean): boolean {
-  return !phoneLayout;
-}
-
-/** Open the floating pane for a new empty chat. A later close stays closed. */
-export function beginNewChatFleet(): void {
-  if (openBySession.has(FLEET_DRAFT_ID)) return;
-  openBySession.set(FLEET_DRAFT_ID, true);
-}
-
-/**
  * Carry the new-chat pane onto the session that chat just created.
  * Does nothing when that session already has its own open state.
+ * A missing draft stays closed. A manual open or close is copied as-is.
  */
 export function adoptDraftFleet(sessionId: string): void {
   const sid = sessionId.trim();
@@ -92,7 +79,7 @@ export function adoptDraftFleet(sessionId: string): void {
   openBySession.delete(FLEET_DRAFT_ID);
 }
 
-/** Drop the new-chat pane so the next new chat can open it again. */
+/** Drop the new-chat pane so it does not leak onto another chat. */
 export function clearDraftFleet(): void {
   if (!openBySession.has(FLEET_DRAFT_ID)) return;
   openBySession.delete(FLEET_DRAFT_ID);
