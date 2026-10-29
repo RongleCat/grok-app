@@ -15,8 +15,8 @@ permission option mapping). Exercised by `src/acp_golden_test.rs` via
 | `goal_updated.json` | CLI 0.2.117+ `sessionUpdate: goal_updated` (goal orch phases) |
 | `subagent_lifecycle.json` | CLI 1.0.x `_x.ai/session_notification` subagent_spawned / _progress / _finished |
 | `session_new_rules.json` | `session/new` `_meta.rules` (omitted when empty) |
-| `task_backgrounded.json` | CLI 1.0.46 `task_backgrounded` → open-tool release + fleet snapshot |
-| `task_completed.json` | `task_completed.task_snapshot`; multiline `output` clips to the last line |
+| `task_backgrounded.json` | CLI 1.0.70 `task_backgrounded` → open-tool release + fleet snapshot |
+| `task_completed.json` | CLI 1.0.70 `task_completed.task_snapshot`; multiline `output` clips to the last line |
 | `background_tasks.json` | `background_tasks` list (`bash`, `monitor`) and an empty list |
 | `spawn_subagent.json` | `spawn_subagent` tool call: optional `rawInput.model`, child id in content text |
 | `workflow_tool.json` | `workflow` tool call: `source.name`, `args`, `agent_budget`; no phase field |
@@ -63,9 +63,10 @@ builders/parsers — the suite is the contract.
 result included `sessionId`). The builder lock is `session_new_rules.json`.
 Empty rules omit `_meta`.
 
-## Fleet probe (grok 1.0.46)
+## Fleet probe (grok 1.0.70 / 1.0.46)
 
-Child token totals are not on `task_backgrounded`,
-`task_completed.task_snapshot`, `background_tasks`, `spawn_subagent.rawInput`,
-or `<subagent_meta>`. Do not add a token column from these fixtures. Phase
-progress is not on the `workflow` tool call.
+Child token totals are not on `task_backgrounded` or
+`task_completed.task_snapshot` (recorded from grok 1.0.70). They are also
+not on the 1.0.46 `background_tasks`, `spawn_subagent.rawInput`, or
+`<subagent_meta>` fixtures. Do not add a token column from these fixtures.
+Phase progress is not on the `workflow` tool call (1.0.46; not re-recorded).

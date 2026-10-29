@@ -420,7 +420,7 @@ fn session_new_rules_match_fixture() {
     );
 }
 
-// ── background fleet snapshots (CLI 1.0.46) ─────────────────────────────────
+// ── background fleet snapshots (task_* recorded on grok 1.0.70) ─────────────
 
 fn assert_fleet<'a>(events: &'a [AcpEvent], kind: &str) -> &'a Value {
     match events
@@ -461,38 +461,33 @@ fn task_backgrounded_keeps_snapshot_and_releases_open_tool() {
 #[test]
 fn task_completed_clips_output_to_last_line() {
     let fx = load_fixture("task_completed.json");
-    let multi = &fx["multiline"];
-    let events = decode_session_update(&multi["params"]);
+    let raw_output = fx["params"]["update"]["task_snapshot"]["output"]
+        .as_str()
+        .unwrap();
+    assert!(
+        raw_output.contains('\n'),
+        "1.0.70 task_completed output was multiline"
+    );
+    let last = raw_output
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .unwrap();
+    let events = decode_session_update(&fx["params"]);
     assert!(matches!(
         events.first(),
         Some(AcpEvent::ToolOpenReleased { tool_call_id })
-            if tool_call_id == multi["expect"]["toolCallId"].as_str().unwrap()
+            if tool_call_id == fx["expect"]["toolCallId"].as_str().unwrap()
     ));
     let body = assert_fleet(&events, "task_completed");
-    assert_eq!(body["will_wake"], multi["expect"]["will_wake"]);
+    assert_eq!(body, &fx["expect"]["body"]);
     let snap = &body["task_snapshot"];
-    assert_eq!(snap["output"], multi["expect"]["output"]);
+    assert_eq!(snap["output"].as_str(), Some(last));
     assert_eq!(snap["output_clipped"], json!(true));
-    assert_eq!(snap["kind"], multi["expect"]["kindOnSnapshot"]);
-    assert_eq!(
-        snap["owner_session_id"],
-        multi["expect"]["owner_session_id"]
-    );
-    assert_eq!(snap["explicitly_killed"], json!(false));
+    assert!(!snap["output"].as_str().unwrap().contains('\n'));
     assert!(snap.get("model").is_none());
     assert!(snap.get("tokens").is_none());
     assert!(snap.get("phase").is_none());
-    // The original multiline body must not survive.
-    assert!(!snap["output"].as_str().unwrap().contains('\n'));
-
-    let one = &fx["singleLine"];
-    let events = decode_session_update(&one["params"]);
-    let body = assert_fleet(&events, "task_completed");
-    let snap = &body["task_snapshot"];
-    assert_eq!(snap["output"], one["expect"]["output"]);
-    assert!(snap.get("output_clipped").is_none());
-    assert_eq!(snap["kind"], one["expect"]["kindOnSnapshot"]);
-    assert_eq!(snap["display_command"], one["expect"]["display_command"]);
 }
 
 #[test]
