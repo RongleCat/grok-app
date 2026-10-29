@@ -13,6 +13,14 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- Legacy plugin sign-in no longer waits on Windows for a stdin close that may never arrive.
+
+**中文 · 修复**
+
+- 旧版插件登录在 Windows 上不再等待可能不会到来的标准输入关闭。
+
 ## [0.2.51] - 2026-11-14
 
 > **Highlight:** Rewound chats keep their new replies, and model menus use a fresh catalog.
