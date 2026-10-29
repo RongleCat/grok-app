@@ -2119,6 +2119,7 @@ impl SessionManager {
             AcpEvent::Stream { .. } => "stream",
             AcpEvent::ToolCall { .. } => "tool_call",
             AcpEvent::ToolOpenReleased { .. } => "tool_open_released",
+            AcpEvent::FleetUpdate { .. } => "fleet_update",
             AcpEvent::Plan { .. } => "plan",
             AcpEvent::AskUserQuestion { .. } => "ask_user",
             AcpEvent::PermissionRequest { .. } => "permission",
@@ -2144,6 +2145,7 @@ impl SessionManager {
             AcpEvent::Stream { .. }
                 | AcpEvent::ToolCall { .. }
                 | AcpEvent::ToolOpenReleased { .. }
+                | AcpEvent::FleetUpdate { .. }
                 | AcpEvent::PromptComplete { .. }
                 | AcpEvent::PermissionRequest { .. }
                 | AcpEvent::Plan { .. }

@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ContextCompactMeta,
   ContextCompactPayload,
+  FleetToolHint,
   MessageSegment,
   MessageToolSegment,
   ToolEventPayload,
@@ -158,6 +159,7 @@ export function toolSegmentFromFields(fields: {
   streaming?: boolean;
   isError?: boolean;
   createdAt?: string;
+  fleetHint?: FleetToolHint;
 }): MessageToolSegment {
   return {
     kind: "tool",
@@ -173,7 +175,30 @@ export function toolSegmentFromFields(fields: {
     streaming: !!fields.streaming,
     isError: !!fields.isError,
     createdAt: fields.createdAt,
+    fleetHint: fields.fleetHint,
   };
+}
+
+function mergeFleetHint(
+  prev?: FleetToolHint,
+  next?: FleetToolHint | null,
+): FleetToolHint | undefined {
+  const out: FleetToolHint = { ...(prev ?? {}) };
+  if (next) {
+    if (next.model?.trim()) out.model = next.model.trim();
+    if (next.background === true) out.background = true;
+    if (typeof next.blockUntilMs === "number") out.blockUntilMs = next.blockUntilMs;
+    if (next.prompt?.trim()) out.prompt = next.prompt;
+    if (next.argsLine?.trim()) out.argsLine = next.argsLine.trim();
+    if (next.sourceName?.trim()) out.sourceName = next.sourceName.trim();
+    if (typeof next.agentBudget === "number") out.agentBudget = next.agentBudget;
+    if (typeof next.phaseIndex === "number") out.phaseIndex = next.phaseIndex;
+    if (typeof next.phaseTotal === "number") out.phaseTotal = next.phaseTotal;
+    if (typeof next.agentCount === "number") out.agentCount = next.agentCount;
+    if (typeof next.tokens === "number") out.tokens = next.tokens;
+    if (next.isolation?.trim()) out.isolation = next.isolation.trim();
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -226,6 +251,7 @@ export function upsertToolInSegments(
       output: (tool.output || "").trim() ? tool.output : prev.output,
       meta: tool.meta || prev.meta,
       toolKind: tool.toolKind || prev.toolKind,
+      fleetHint: mergeFleetHint(prev.fleetHint, tool.fleetHint),
     };
     return next;
   }
@@ -886,6 +912,7 @@ export function syncTurnToolsIntoAssistant(
       streaming: !!m.streaming,
       isError: !!m.isError || status === "failed" || status === "error",
       createdAt: m.createdAt,
+      fleetHint: m.fleetHint,
     });
     have.add(tcid);
     if (i < aIdx) pre.push(toolSeg);
@@ -968,6 +995,7 @@ export function applyToolEvent(
   // Explicit Host presentation meta wins; otherwise keep the previous row's
   // meta so a later sparse tick never wipes the typed card.
   const toolMeta = payload.meta || prev?.toolMeta || undefined;
+  const fleetHint = mergeFleetHint(prev?.fleetHint, payload.fleetHint);
 
   // Host vision / X: **only** live on the assistant timeline. A separate
   // tool_step row + inlined segment was painting "搜索 X 信息" twice.
@@ -1002,6 +1030,7 @@ export function applyToolEvent(
         toolOutput,
         toolMeta,
         toolParentId: parentId,
+        fleetHint,
         streaming: running,
         marker: "tool_step",
         createdAt: prev?.createdAt || now,
@@ -1023,6 +1052,7 @@ export function applyToolEvent(
       streaming: running,
       isError,
       createdAt: prev?.createdAt || now,
+      fleetHint,
     });
     const segs = compactMessageSegments(
       upsertToolInSegments(ensureSegments(asst), toolSeg),
@@ -1045,6 +1075,7 @@ export function applyToolEvent(
     toolOutput,
     toolMeta,
     toolParentId: parentId,
+    fleetHint,
     streaming: running,
     marker: "tool_step",
     createdAt: now,
@@ -1068,6 +1099,7 @@ export function applyToolEvent(
       toolMeta: toolMeta || prev!.toolMeta,
       toolKind: toolKind || prev!.toolKind,
       toolParentId: parentId || prev!.toolParentId,
+      fleetHint: fleetHint || prev!.fleetHint,
     };
   }
 
@@ -1089,6 +1121,7 @@ export function applyToolEvent(
     streaming: running,
     isError: !!row.isError,
     createdAt: row.createdAt || prev?.createdAt || now,
+    fleetHint: row.fleetHint,
   });
   const segs = compactMessageSegments(
     upsertToolInSegments(ensureSegments(asst), toolSeg),
@@ -1268,6 +1301,7 @@ export function parseToolStepContent(content: string): {
   path?: string;
   input?: string;
   output?: string;
+  fleetHint?: FleetToolHint;
 } | null {
   if (!content.startsWith("tool_step|")) return null;
   // Split real tool output off first: it is free-form multi-line stdout and
@@ -1318,6 +1352,19 @@ export function parseToolStepContent(content: string): {
   if (inputIdx >= 0) {
     input = rest[inputIdx]!.slice("input:".length).trim() || undefined;
     rest = [...rest.slice(0, inputIdx), ...rest.slice(inputIdx + 1)];
+  }
+
+  let fleetHint: FleetToolHint | undefined;
+  const fleetIdx = rest.findIndex((line) => line.startsWith("fleet:"));
+  if (fleetIdx >= 0) {
+    const raw = rest[fleetIdx]!.slice("fleet:".length).trim();
+    rest = [...rest.slice(0, fleetIdx), ...rest.slice(fleetIdx + 1)];
+    try {
+      const parsed = JSON.parse(raw) as FleetToolHint;
+      if (parsed && typeof parsed === "object") fleetHint = mergeFleetHint(undefined, parsed);
+    } catch {
+      fleetHint = undefined;
+    }
   }
 
   // Recover from Execute `…` title text. For multi-line shell journals the
@@ -1391,6 +1438,7 @@ export function parseToolStepContent(content: string): {
     path,
     input,
     output,
+    fleetHint,
   };
 }
 

@@ -36,6 +36,7 @@ import {
 } from "@/components/icons";
 import { ToolBucketIcon } from "./TimelinePhaseBlock";
 import { ToolExpandBody } from "./ToolExpandBody";
+import { fleetTranscriptChip } from "@/components/FleetTranscriptChip";
 
 export function toolSegmentIsRunning(seg: MessageToolSegment): boolean {
   if (seg.streaming) return true;
@@ -72,11 +73,14 @@ export const TimelineToolRow = memo(function TimelineToolRow({
   autoCollapse: autoCollapseProp,
   defaultExpanded,
   locale,
+  sessionId,
 }: {
   tool: MessageToolSegment;
   autoCollapse?: boolean;
   defaultExpanded?: boolean;
   locale?: Locale;
+  /** Viewing chat. Present → fleet rows collapse to a drawer chip. */
+  sessionId?: string | null;
 }) {
   const tr = useMemo(() => createT(locale ?? "en"), [locale]);
   const failed = toolSegmentFailed(tool);
@@ -156,6 +160,18 @@ export const TimelineToolRow = memo(function TimelineToolRow({
     [showBody, tool, failed],
   );
 
+  const chip = fleetTranscriptChip({
+    sessionId,
+    name: tool.toolKind,
+    title: tool.title,
+    hint: tool.fleetHint,
+    toolCallId: tool.toolCallId,
+    label: summary,
+    running,
+    locale,
+  });
+  if (chip) return chip;
+
   return (
     <div
       className={
@@ -210,10 +226,12 @@ export function TimelineToolGroup({
   tools,
   locale,
   autoCollapse: autoCollapseProp,
+  sessionId,
 }: {
   tools: MessageToolSegment[];
   locale: Locale;
   autoCollapse?: boolean;
+  sessionId?: string | null;
 }) {
   const tr = useMemo(() => createT(locale), [locale]);
   const [autoCollapse, setAutoCollapse] = useState(
@@ -350,6 +368,7 @@ export function TimelineToolGroup({
               tool={t}
               autoCollapse={autoCollapse}
               locale={locale}
+              sessionId={sessionId}
             />
           ))}
         </div>

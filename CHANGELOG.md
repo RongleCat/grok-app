@@ -13,6 +13,22 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Added
+
+- Background tasks show a workflow's phases, agents, and token total while it runs. It stays closed until a background task is running.
+
+**中文 · 新增**
+
+- 后台任务会在运行时显示工作流的阶段、代理和令牌总量。没有后台任务时，这个面板保持收起。
+
+### Fixed
+
+- Legacy plugin sign-in no longer waits on Windows for a stdin close that may never arrive.
+
+**中文 · 修复**
+
+- 旧版插件登录在 Windows 上不再等待可能不会到来的标准输入关闭。
+
 ## [0.2.50] - 2026-10-28
 
 > **Highlight:** Every model of a custom provider is selectable again, and the chosen one is the one used.

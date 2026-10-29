@@ -23,6 +23,7 @@ mod connect;
 mod control;
 mod events;
 mod events_bg;
+mod fleet_emit;
 mod fork_trim;
 mod journal;
 mod post_turn_reconcile;

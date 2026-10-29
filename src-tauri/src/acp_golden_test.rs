@@ -420,6 +420,183 @@ fn session_new_rules_match_fixture() {
     );
 }
 
+// ── background fleet snapshots (task_* recorded on grok 1.0.70) ─────────────
+
+fn assert_fleet<'a>(events: &'a [AcpEvent], kind: &str) -> &'a Value {
+    match events
+        .iter()
+        .find(|ev| matches!(ev, AcpEvent::FleetUpdate { .. }))
+    {
+        Some(AcpEvent::FleetUpdate { kind: got, body }) => {
+            assert_eq!(got, kind);
+            body
+        }
+        other => panic!("expected FleetUpdate {kind}, got {other:?}"),
+    }
+}
+
+fn assert_absent(body: &Value, keys: &[&str]) {
+    for key in keys {
+        assert!(body.get(*key).is_none(), "decoder invented {key} on {body}");
+    }
+}
+
+#[test]
+fn task_backgrounded_keeps_snapshot_and_releases_open_tool() {
+    let fx = load_fixture("task_backgrounded.json");
+    let events = decode_session_update(&fx["params"]);
+    assert!(matches!(
+        events.first(),
+        Some(AcpEvent::ToolOpenReleased { tool_call_id })
+            if tool_call_id == fx["expect"]["toolCallId"].as_str().unwrap()
+    ));
+    let body = assert_fleet(&events, "task_backgrounded");
+    assert_eq!(body, &fx["expect"]["body"]);
+    assert_absent(
+        body,
+        &["model", "tokens", "phase", "session_id", "subagent_id"],
+    );
+}
+
+#[test]
+fn task_completed_clips_output_to_last_line() {
+    let fx = load_fixture("task_completed.json");
+    let raw_output = fx["params"]["update"]["task_snapshot"]["output"]
+        .as_str()
+        .unwrap();
+    assert!(
+        raw_output.contains('\n'),
+        "1.0.70 task_completed output was multiline"
+    );
+    let last = raw_output
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .unwrap();
+    let events = decode_session_update(&fx["params"]);
+    assert!(matches!(
+        events.first(),
+        Some(AcpEvent::ToolOpenReleased { tool_call_id })
+            if tool_call_id == fx["expect"]["toolCallId"].as_str().unwrap()
+    ));
+    let body = assert_fleet(&events, "task_completed");
+    assert_eq!(body, &fx["expect"]["body"]);
+    let snap = &body["task_snapshot"];
+    assert_eq!(snap["output"].as_str(), Some(last));
+    assert_eq!(snap["output_clipped"], json!(true));
+    assert!(!snap["output"].as_str().unwrap().contains('\n'));
+    assert!(snap.get("model").is_none());
+    assert!(snap.get("tokens").is_none());
+    assert!(snap.get("phase").is_none());
+}
+
+#[test]
+fn background_tasks_list_is_forwarded_without_invented_rows() {
+    let fx = load_fixture("background_tasks.json");
+    let events = decode_session_update(&fx["list"]["params"]);
+    assert!(
+        events
+            .iter()
+            .all(|ev| matches!(ev, AcpEvent::FleetUpdate { .. })),
+        "background_tasks must not release a tool id"
+    );
+    let body = assert_fleet(&events, "background_tasks");
+    assert_eq!(body["tasks"], fx["list"]["params"]["update"]["tasks"]);
+    assert_eq!(body["tasks"][0]["kind"], "bash");
+    assert_eq!(body["tasks"][1]["kind"], "monitor");
+    assert!(body["tasks"][0].get("tokens").is_none());
+    assert!(body["tasks"][0].get("model").is_none());
+
+    let empty = decode_session_update(&fx["empty"]["params"]);
+    let body = assert_fleet(&empty, "background_tasks");
+    assert_eq!(body["tasks"].as_array().map(|a| a.len()), Some(0));
+}
+
+#[test]
+fn spawn_and_workflow_tool_calls_keep_raw_fields() {
+    let spawn = load_fixture("spawn_subagent.json");
+    let with_model = decode_session_update(&spawn["withModel"]["params"]);
+    match &with_model[..] {
+        [AcpEvent::ToolCall { raw, .. }] => {
+            assert_eq!(
+                raw.pointer("/rawInput/model").and_then(Value::as_str),
+                Some("grok-4.6-build")
+            );
+            assert_eq!(
+                raw.pointer("/_meta/x.ai~1tool/name")
+                    .and_then(Value::as_str),
+                Some("spawn_subagent")
+            );
+            assert!(raw.get("tokens").is_none());
+        }
+        other => panic!("expected one ToolCall, got {other:?}"),
+    }
+
+    let no_model = decode_session_update(&spawn["noModel"]["params"]);
+    match &no_model[..] {
+        [AcpEvent::ToolCall { raw, .. }] => {
+            assert!(raw.pointer("/rawInput/model").is_none());
+        }
+        other => panic!("expected one ToolCall, got {other:?}"),
+    }
+
+    let result = decode_session_update(&spawn["resultText"]["params"]);
+    match &result[..] {
+        [AcpEvent::ToolCall { raw, .. }] => {
+            let text = raw
+                .pointer("/content/0/content/text")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            for needle in spawn["resultText"]["expectTextContains"]
+                .as_array()
+                .unwrap()
+            {
+                assert!(
+                    text.contains(needle.as_str().unwrap()),
+                    "result text missing {needle}"
+                );
+            }
+            assert!(!text.contains("tokens"));
+        }
+        other => panic!("expected one ToolCall, got {other:?}"),
+    }
+
+    let flow = load_fixture("workflow_tool.json");
+    let events = decode_session_update(&flow["params"]);
+    match &events[..] {
+        [AcpEvent::ToolCall { title, raw, .. }] => {
+            assert_eq!(title, "Workflow: deep-research");
+            assert_eq!(
+                raw.pointer("/rawInput/source/name").and_then(Value::as_str),
+                Some("deep-research")
+            );
+            assert_eq!(
+                raw.pointer("/rawInput/agent_budget")
+                    .and_then(Value::as_u64),
+                Some(6)
+            );
+            assert_eq!(
+                raw.pointer("/rawInput/args/query").and_then(Value::as_str),
+                Some("Which fleet fields exist on the wire?")
+            );
+            for key in [
+                "phase",
+                "phase_index",
+                "phase_total",
+                "agent_count",
+                "tokens",
+            ] {
+                assert!(raw.get(key).is_none(), "workflow raw invented {key}");
+                assert!(
+                    raw.pointer("/rawInput").and_then(|v| v.get(key)).is_none(),
+                    "workflow rawInput invented {key}"
+                );
+            }
+        }
+        other => panic!("expected one ToolCall, got {other:?}"),
+    }
+}
+
 // ── mock_acp stream golden ──────────────────────────────────────────────────
 
 #[test]
