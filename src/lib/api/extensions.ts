@@ -510,6 +510,34 @@ export async function inspectMcp(projectPath?: string | null) {
   });
 }
 
+/**
+ * Resolve a vendor icon for one MCP Target URL.
+ *
+ * The host derives the registrable domain, reads the vendor site's declared icon,
+ * caches the result, and returns a `data:` URL. A `none` result is a normal
+ * outcome (local server, blocked target, or no usable icon).
+ */
+export interface McpIconDto {
+  dataUrl: string | null;
+  domain: string | null;
+  /** `server` = declared by the MCP server's own `initialize` reply. */
+  source: "server" | "site" | "favicon" | "none";
+  fromCache: boolean;
+}
+
+/**
+ * Resolve a vendor icon for one MCP server.
+ *
+ * `serverName` lets the host attach the server's configured auth headers to a
+ * short `initialize` probe, so `serverInfo.icons` can win over site favicons.
+ */
+export async function mcpIconResolve(target: string, serverName?: string) {
+  return invoke<McpIconDto>("mcp_icon_resolve", {
+    target,
+    serverName: serverName?.trim() || null,
+  });
+}
+
 // ── Project inspect summary (`grok inspect --json`, secret-safe DTO) ────────
 
 export type {

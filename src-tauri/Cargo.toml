@@ -77,11 +77,14 @@ keyring = { version = "3.6", features = [
 ] }
 arboard = "3"
 # jpeg/gif/webp: chat image thumb disk cache (image_thumb.rs)
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+# ico: MCP vendor `/favicon.ico` decoding (mcp_icon.rs)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "ico"] }
 fs2 = "0.4"
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 url = "2"
 scraper = "0.27"
+# Public Suffix List: MCP Target 主机名 → 注册域（避免把 foo.github.io 当成 github.io）
+psl = "2"
 
 # Remote mirror host (HTTP + WS + token gate) — see src/mirror/
 axum = { version = "0.8", features = ["ws", "macros"] }

@@ -48,6 +48,10 @@ pub enum OriginPolicy {
     Official,
     /// User source: hop must stay same origin as the catalog URL.
     UserSameOrigin { catalog: Url },
+    /// Vendor-owned site (MCP icons): every hop must stay on this registrable
+    /// domain, so a logo may come from `www.` / `cdn.` subdomains but never
+    /// from a third party. Keeps "the MCP vendor list never leaves the vendor".
+    SameRegistrableDomain { domain: String },
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -91,6 +95,14 @@ fn validate_hop_url(raw: &str, policy: &OriginPolicy) -> Result<Url, String> {
         OriginPolicy::UserSameOrigin { catalog } => {
             if url.origin() != catalog.origin() {
                 return Err("url_blocked: user source must stay same origin".into());
+            }
+        }
+        OriginPolicy::SameRegistrableDomain { domain } => {
+            let host_domain = psl::domain_str(&host_l)
+                .map(|value| value.to_ascii_lowercase())
+                .unwrap_or_else(|| host_l.clone());
+            if host_domain != *domain {
+                return Err("url_blocked: hop left the vendor domain".into());
             }
         }
     }
@@ -531,6 +543,28 @@ mod tests {
         check_hop("https://pages.example/packs/a.grokskin", &policy, no_dns).unwrap();
         let e = check_hop("https://cdn.other/a.grokskin", &policy, no_dns).unwrap_err();
         assert!(e.contains("same origin"), "{e}");
+    }
+
+    #[test]
+    fn vendor_domain_allows_subdomains_but_not_third_parties() {
+        let policy = OriginPolicy::SameRegistrableDomain {
+            domain: "context7.com".into(),
+        };
+        check_hop("https://context7.com/favicon.ico", &policy, no_dns).unwrap();
+        check_hop("https://www.context7.com/", &policy, no_dns).unwrap();
+        check_hop("https://cdn.context7.com/icon.png", &policy, no_dns).unwrap();
+        let e = check_hop("https://cdn.other.example/icon.png", &policy, no_dns).unwrap_err();
+        assert!(e.contains("vendor domain"), "{e}");
+    }
+
+    #[test]
+    fn vendor_domain_does_not_match_a_public_suffix() {
+        let policy = OriginPolicy::SameRegistrableDomain {
+            domain: "foo.github.io".into(),
+        };
+        check_hop("https://cdn.foo.github.io/icon.png", &policy, no_dns).unwrap();
+        let e = check_hop("https://bar.github.io/icon.png", &policy, no_dns).unwrap_err();
+        assert!(e.contains("vendor domain"), "{e}");
     }
 
     #[test]

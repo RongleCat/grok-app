@@ -222,7 +222,7 @@ fn request_keeps_the_original_http_host() {
     let uri = "https://cdn.example:8443/image.jpg".parse().unwrap();
     let mut headers = HeaderMap::new();
     headers.insert(HOST, HeaderValue::from_static("forged.example"));
-    let request = build_get_request(uri, headers).unwrap();
+    let request = build_request(hyper::Method::GET, uri, headers, Bytes::new()).unwrap();
     assert_eq!(request.headers().get(HOST).unwrap(), "cdn.example:8443");
 }
 
@@ -235,7 +235,8 @@ fn request_rejects_caller_supplied_proxy_authorization() {
         HeaderValue::from_static("Basic sentinel-proxy-credential"),
     );
 
-    let error = build_get_request(uri, headers).expect_err("proxy credentials must stay hop-only");
+    let error = build_request(hyper::Method::GET, uri, headers, Bytes::new())
+        .expect_err("proxy credentials must stay hop-only");
 
     assert_eq!(error.kind(), SafeHttpsErrorKind::Blocked);
 }

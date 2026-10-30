@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "@/lib/api";
 import { createT, intlLocale, type Locale, type MessageKey } from "@/i18n";
 import { ExtensionsPanelSkillModals } from "@/components/ExtensionsPanelSkillModals";
+import { McpServerIcon } from "@/components/McpServerIcon";
 import { ExtensionsPanelPluginsModals } from "@/components/ExtensionsPanelPluginsModals";
 import { ExtensionsPanelMcpModals } from "@/components/ExtensionsPanelMcpModals";
 import {
@@ -2653,9 +2654,7 @@ export function ExtensionsPanel({
                   }
                 >
                   <div className="ext-ref-row__main">
-                    <div className="ext-ref-row__icon" aria-hidden>
-                      <IconPlug size={16} />
-                    </div>
+                    <McpServerIcon name={s.name} target={s.target} />
                     <div className="ext-ref-row__body">
                       <div className="ext-ref-row__title">{s.name}</div>
                       <div className="ext-ref-row__desc">

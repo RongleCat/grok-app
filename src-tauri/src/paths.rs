@@ -53,6 +53,8 @@ pub fn ensure_app_dirs() -> std::io::Result<PathBuf> {
     std::fs::create_dir_all(root.join("cache").join("video-posters"))?;
     // Chat image thumbs (resized JPEG for virtual-list remounts).
     std::fs::create_dir_all(root.join("cache").join("image-thumbs"))?;
+    // MCP vendor icons (resolved from registrable domain, cached as JSON).
+    std::fs::create_dir_all(root.join("cache").join("mcp-icons"))?;
     // Appearance skin packs: local presets + inspect/upload staging.
     std::fs::create_dir_all(skin_staging_inspect_dir())?;
     std::fs::create_dir_all(skin_staging_upload_dir())?;
@@ -99,6 +101,15 @@ pub fn video_posters_dir() -> PathBuf {
 /// Disk cache for chat image thumbs: `{app_data}/cache/image-thumbs`.
 pub fn image_thumbs_dir() -> PathBuf {
     let dir = app_data_root().join("cache").join("image-thumbs");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
+/// Disk cache for MCP vendor icons: `{app_data}/cache/mcp-icons`.
+///
+/// 目录按注册域哈希命名，不落盘 Target 原文。
+pub fn mcp_icons_dir() -> PathBuf {
+    let dir = app_data_root().join("cache").join("mcp-icons");
     let _ = fs::create_dir_all(&dir);
     dir
 }

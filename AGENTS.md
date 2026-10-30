@@ -4,6 +4,7 @@
 
 1. **`docs/llm-wiki/`** — product rules for agents (i18n, Grok Build catalog).  
    - [media-delivery.md](docs/llm-wiki/media-delivery.md) — local file previews: loopback HTTP + path resolve (not raw `media://` in product paths)  
+   - [mcp-icons.md](docs/llm-wiki/mcp-icons.md) — **MCP 厂商标识**: registrable domain → vendor site icon → monogram; host cache; no third-party favicon services  
    - [i18n.md](docs/llm-wiki/i18n.md) — all UI strings via `src/i18n/`  
    - [settings-ia.md](docs/llm-wiki/settings-ia.md) — **settings IA**: tabs, search registry (`settingsCatalog`), deep links; every new setting must be registered  
    - [ssh-remote.md](docs/llm-wiki/ssh-remote.md) — **SSH remote hosts** (wave 1: list/test/probe; no tmux; later waves open folders / remote agent)  

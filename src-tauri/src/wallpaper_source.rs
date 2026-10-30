@@ -3002,12 +3002,14 @@ mod tests {
             std::fs::set_permissions(&fake_cli, permissions).expect("make fake CLI executable");
         }
 
+        // Windows 上这个假 CLI 是 PowerShell：冷启动 + 逐段写 2 MiB 管道，
+        // 在负载高的 CI runner 上会超过 15 秒。这里验证的是排空不死锁，给足余量。
         let stdout = run_grok_headless(
             &fake_cli.to_string_lossy(),
             "large output",
             r#"{"type":"object"}"#,
             1,
-            Duration::from_secs(15),
+            Duration::from_secs(45),
             None,
         )
         .expect("large stdout/stderr must be drained without deadlock");

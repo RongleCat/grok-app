@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use bytes::Bytes;
-use http_body_util::{BodyExt, Empty};
+use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::header::{HeaderMap, HeaderValue, ACCEPT_ENCODING, HOST, PROXY_AUTHORIZATION};
 use hyper::{Request, StatusCode, Uri};
@@ -171,7 +171,7 @@ impl Service<Uri> for SafeHttpsConnector {
 
 #[derive(Clone)]
 pub struct SafeHttpsClient {
-    inner: Client<SafeHttpsConnector, Empty<Bytes>>,
+    inner: Client<SafeHttpsConnector, Full<Bytes>>,
 }
 
 impl Default for SafeHttpsClient {
@@ -274,7 +274,35 @@ impl SafeHttpsClient {
     pub async fn get(
         &self,
         url: &Url,
+        headers: HeaderMap,
+        timeout: Duration,
+    ) -> Result<SafeHttpsResponse, SafeHttpsError> {
+        self.request(hyper::Method::GET, url, headers, Bytes::new(), timeout)
+            .await
+    }
+
+    /// POST a small JSON payload to a public https endpoint.
+    ///
+    /// Used for the MCP `initialize` handshake. Redirects are not followed: the
+    /// caller's endpoint is authoritative, and a hop would escape the policy the
+    /// caller validated before the call.
+    pub async fn post_json(
+        &self,
+        url: &Url,
+        headers: HeaderMap,
+        body: Bytes,
+        timeout: Duration,
+    ) -> Result<SafeHttpsResponse, SafeHttpsError> {
+        self.request(hyper::Method::POST, url, headers, body, timeout)
+            .await
+    }
+
+    async fn request(
+        &self,
+        method: hyper::Method,
+        url: &Url,
         mut headers: HeaderMap,
+        body: Bytes,
         timeout: Duration,
     ) -> Result<SafeHttpsResponse, SafeHttpsError> {
         if url.scheme() != "https"
@@ -291,7 +319,7 @@ impl SafeHttpsClient {
             .as_str()
             .parse::<Uri>()
             .map_err(|_| SafeHttpsError::new(SafeHttpsErrorKind::Blocked))?;
-        let request = build_get_request(uri, headers)?;
+        let request = build_request(method, uri, headers, body)?;
         let deadline = Instant::now() + timeout;
         let response = tokio::time::timeout_at(deadline.into(), self.inner.request(request))
             .await
@@ -316,10 +344,12 @@ impl SafeHttpsClient {
     }
 }
 
-fn build_get_request(
+fn build_request(
+    method: hyper::Method,
     uri: Uri,
     mut headers: HeaderMap,
-) -> Result<Request<Empty<Bytes>>, SafeHttpsError> {
+    body: Bytes,
+) -> Result<Request<Full<Bytes>>, SafeHttpsError> {
     // Proxy credentials belong only to the connector's CONNECT/SOCKS
     // handshake. Forwarding a caller-supplied value here would send it through
     // the encrypted tunnel to the destination origin.
@@ -332,8 +362,10 @@ fn build_get_request(
     let host = HeaderValue::from_str(authority.as_str())
         .map_err(|_| SafeHttpsError::new(SafeHttpsErrorKind::Blocked))?;
     headers.insert(HOST, host);
-    let request = Request::get(uri)
-        .body(Empty::new())
+    let request = Request::builder()
+        .method(method)
+        .uri(uri)
+        .body(Full::new(body))
         .map_err(|_| SafeHttpsError::new(SafeHttpsErrorKind::Blocked))?;
     let (mut parts, body) = request.into_parts();
     parts.headers = headers;
