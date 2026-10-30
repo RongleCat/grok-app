@@ -295,7 +295,9 @@ export function isPlainTextPasteKey(
   event: KeyboardEvent,
   platform: AppPlatform,
 ): boolean {
-  if (event.key.toLowerCase() !== "v") return false;
+  // 物理按键优先：非拉丁布局下 `key` 不是 "v"，macOS 的 Option 还会把它映射成 "√"。
+  const isVKey = event.code === "KeyV" || event.key.toLowerCase() === "v";
+  if (!isVKey) return false;
   if (!event.altKey) return false;
   if (event.getModifierState?.("AltGraph")) return false;
   if (platform === "mac") {
@@ -325,9 +327,10 @@ function literalInlineNodes(
  * 分开，撤销一步即可回到粘贴前。
  *
  * 粘贴落点所在的块是代码块时，插入含 `\n` 的单个文本节点——代码块没有
- * `hardBreak` 槽位，而 `whitespace: "pre"` 会原样渲染换行。
+ * `hardBreak` 槽位，而 `whitespace: "pre"` 会原样渲染换行。选区跨进 / 跨出
+ * 代码块时没有统一的换行形态，放弃这次落笔。
  */
-export function insertLiteralText(
+function insertLiteralText(
   editor: Editor,
   raw: string,
   range?: { from: number; to: number },
@@ -336,16 +339,23 @@ export function insertLiteralText(
   if (!text) return false;
   const { doc, schema, selection } = editor.state;
   // 节点选择（整块被选中）没有可落笔的文本位置；选区与全选都按行内替换处理。
-  if (!(selection instanceof TextSelection) && !(selection instanceof AllSelection)) {
+  if (
+    !(selection instanceof TextSelection) &&
+    !(selection instanceof AllSelection)
+  ) {
     return false;
   }
   const target = range ?? selection;
   const $from = doc.resolve(target.from);
-  const container = $from.parent.isTextblock ? $from.parent : $from.nodeAfter;
-  const nodes = container?.type.spec.code
+  const $to = doc.resolve(target.to);
+  const startsInCode = $from.parent.type.spec.code;
+  const endsInCode = $to.parent.type.spec.code;
+  if ((startsInCode || endsInCode) && !(startsInCode && endsInCode && $from.parent === $to.parent)) {
+    return false;
+  }
+  const nodes = startsInCode
     ? [schema.text(text)]
     : literalInlineNodes(schema, text);
-  if (!nodes.length) return false;
   const tr = closeHistory(
     editor.state.tr.replaceWith(
       target.from,
@@ -354,7 +364,7 @@ export function insertLiteralText(
     ),
   );
   if (tr.selection.$from.parent.isTextblock) tr.setStoredMarks([]);
-  editor.view.dispatch(tr);
+  editor.view.dispatch(tr.scrollIntoView());
   return true;
 }
 
@@ -379,9 +389,14 @@ function handlePlainTextPaste(
         );
         return;
       }
-      // 剪贴板走 IPC：等待期间文档被替换或编辑时不落笔，避免写进另一个草稿。
-      if (!editor.state.doc.eq(doc)) return;
-      insertLiteralText(editor, text, range);
+      // 剪贴板走 IPC：身份比较能挡住“内容相同的另一份草稿”替换了文档的情况。
+      if (editor.state.doc !== doc) return;
+      // 等待期间光标被移动时，落到当前选区，而不是 keydown 时的旧位置。
+      const current = editor.state.selection;
+      const target = current.eq(selection)
+        ? range
+        : { from: current.from, to: current.to };
+      insertLiteralText(editor, text, target);
     })
     .catch((error: unknown) => {
       // 不记录剪贴板内容；只留定位信息。
@@ -392,7 +407,8 @@ function handlePlainTextPaste(
 /**
  * ProseMirror 把 Shift 状态记在内部 `input` 上（`ClipboardEvent` 没有修饰键），
  * 自己处理粘贴时也用它判断 `preferPlain`；`lastKeyCode` 45 是 Insert 键。
- * 类型没有公开这个字段，按结构读取。
+ * 与 prosemirror-view 1.42.3 的 `editHandlers.paste` 一致；类型没有公开这个字段，
+ * 按结构读取，升级时对照 `view.input` 的实现。
  */
 function isShiftPaste(view: EditorView): boolean {
   const input = (

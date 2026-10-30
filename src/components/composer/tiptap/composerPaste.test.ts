@@ -60,14 +60,22 @@ function makeLiteralEditor(
   });
 }
 
-/** 按下 Ctrl+Alt+V（jsdom 的 `Mod` 解析为 Ctrl），等异步剪贴板读完。 */
-async function pressPlainPaste(ed: Editor, repeat = false): Promise<void> {
+/** 按下纯文本粘贴和弦，等异步剪贴板读完。 */
+async function pressPlainPaste(
+  ed: Editor,
+  opts: { repeat?: boolean; mac?: boolean } = {},
+): Promise<void> {
+  const mac = opts.mac ?? false;
   ed.view.dom.dispatchEvent(
     new KeyboardEvent("keydown", {
-      key: "v",
-      ctrlKey: true,
+      // macOS 的 Option 会把 key 映射成 "√"，物理键仍靠 code 识别。
+      key: mac ? "√" : "v",
+      code: "KeyV",
+      ctrlKey: !mac,
+      metaKey: mac,
       altKey: true,
-      repeat,
+      shiftKey: mac,
+      repeat: opts.repeat ?? false,
       bubbles: true,
       cancelable: true,
     }),
@@ -645,33 +653,62 @@ describe("isPlainTextPasteKey", () => {
   it("macOS 只认 ⌥⇧⌘V", () => {
     expect(
       isPlainTextPasteKey(
-        key({ key: "v", metaKey: true, altKey: true, shiftKey: true }),
+        key({ key: "v", code: "KeyV", metaKey: true, altKey: true, shiftKey: true }),
+        "mac",
+      ),
+    ).toBe(true);
+    // Option 把 key 映射成 "√" 时仍按物理键识别。
+    expect(
+      isPlainTextPasteKey(
+        key({ key: "√", code: "KeyV", metaKey: true, altKey: true, shiftKey: true }),
         "mac",
       ),
     ).toBe(true);
     expect(
-      isPlainTextPasteKey(key({ key: "v", metaKey: true, altKey: true }), "mac"),
+      isPlainTextPasteKey(
+        key({ key: "v", code: "KeyV", metaKey: true, altKey: true }),
+        "mac",
+      ),
     ).toBe(false);
     expect(
-      isPlainTextPasteKey(key({ key: "v", ctrlKey: true, altKey: true }), "mac"),
+      isPlainTextPasteKey(
+        key({ key: "v", code: "KeyV", ctrlKey: true, altKey: true }),
+        "mac",
+      ),
     ).toBe(false);
   });
 
   it("Windows / Linux 只认 Ctrl+Alt+V", () => {
     expect(
-      isPlainTextPasteKey(key({ key: "v", ctrlKey: true, altKey: true }), "win"),
+      isPlainTextPasteKey(
+        key({ key: "v", code: "KeyV", ctrlKey: true, altKey: true }),
+        "win",
+      ),
+    ).toBe(true);
+    // 非拉丁布局上 key 可能是别的字符，物理键仍是 V。
+    expect(
+      isPlainTextPasteKey(
+        key({ key: "м", code: "KeyV", ctrlKey: true, altKey: true }),
+        "win",
+      ),
     ).toBe(true);
     expect(
       isPlainTextPasteKey(
-        key({ key: "v", ctrlKey: true, altKey: true, shiftKey: true }),
+        key({ key: "v", code: "KeyV", ctrlKey: true, altKey: true, shiftKey: true }),
         "linux",
       ),
     ).toBe(true);
     expect(
-      isPlainTextPasteKey(key({ key: "v", metaKey: true, altKey: true }), "win"),
+      isPlainTextPasteKey(
+        key({ key: "v", code: "KeyV", metaKey: true, altKey: true }),
+        "win",
+      ),
     ).toBe(false);
     expect(
-      isPlainTextPasteKey(key({ key: "c", ctrlKey: true, altKey: true }), "win"),
+      isPlainTextPasteKey(
+        key({ key: "c", code: "KeyC", ctrlKey: true, altKey: true }),
+        "win",
+      ),
     ).toBe(false);
   });
 });
@@ -831,10 +868,26 @@ describe("纯文本粘贴（字面量）", () => {
     caretAtEnd(ed);
 
     // Act
-    await pressPlainPaste(ed, true);
+    await pressPlainPaste(ed, { repeat: true });
 
     // Assert
     expect(ed.state.doc.textContent).toBe("abc");
+  });
+
+  it("macOS 上的 ⌥⇧⌘V 走同一条落笔路径", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      { platform: "mac", readClipboardText: async () => "**测试**" },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed, { mac: true });
+
+    // Assert
+    expect(ed.state.doc.textContent).toBe("abc**测试**");
   });
 
   it("等待剪贴板期间文档被替换则不落笔", async () => {
@@ -857,6 +910,52 @@ describe("纯文本粘贴（字面量）", () => {
 
     // Assert
     expect(ed.state.doc.textContent).toBe("换了");
+  });
+
+  it("等待剪贴板期间光标移动则落到当前选区", async () => {
+    // Arrange
+    let ed: Editor;
+    ed = makeLiteralEditor(
+      {
+        platform: "win",
+        readClipboardText: async () => {
+          ed.commands.setTextSelection(1);
+          return "X";
+        },
+      },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(ed.state.doc.textContent).toBe("Xabc");
+  });
+
+  it("选区跨进代码块时不落笔", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      { platform: "win", readClipboardText: async () => "X\nY" },
+      {
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "abc" }] },
+          { type: "codeBlock", content: [{ type: "text", text: "code" }] },
+        ],
+      },
+    );
+    editor = ed;
+    ed.commands.setTextSelection({ from: 2, to: 7 });
+    const before = ed.state.doc;
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(ed.state.doc.eq(before)).toBe(true);
   });
 
   it("整段 URL 保持文本，不生成引用 chip", async () => {
@@ -1017,5 +1116,20 @@ describe("Shift+粘贴", () => {
     expect(blockTypes(editor)).not.toContain("heading");
     expect(editor.state.doc.textContent).toContain("## 标题");
     expect(editor.state.doc.textContent).toContain("正文");
+  });
+
+  it("Shift+Insert 不当作纯文本粘贴", () => {
+    // Arrange
+    editor = makeEditor();
+    setShiftPaste(editor);
+    (
+      editor.view as unknown as { input: { lastKeyCode: number } }
+    ).input.lastKeyCode = 45;
+
+    // Act
+    const handled = dispatchPaste(editor, "## 标题\n", "<div>## 标题</div>");
+
+    // Assert
+    expect(handled).toBe(true);
   });
 });
