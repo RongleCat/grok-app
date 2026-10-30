@@ -10,6 +10,7 @@ Agent 与贡献者的**可执行知识库**。改产品行为或 UI 文案前，
 | [catalog.md](./catalog.md) | 与 Grok Build CLI 对齐的模型 / 推理强度 / 权限（含 YOLO） |
 | [automations.md](./automations.md) | 自动化任务设计（Build `/loop` / scheduler；不阻塞 P0） |
 | [slash-composer.md](./slash-composer.md) | 斜杠面板、技能标签、Goal 模式、Doctor |
+| [composer-markdown.md](./composer-markdown.md) | **Markdown 档输入框**：粘贴判定、闭合记号、首尾换行 |
 | [session-continuity.md](./session-continuity.md) | Agent 续会话（load/bootstrap）、自动压缩归属 |
 | [session-api.md](./session-api.md) | **本机会话接口**：列表 + session id 续跑（#626）；已信任项目内新建 + 单条状态 + 可选已有 worktree（#1356，无 badge） |
 | [ssh-remote.md](./ssh-remote.md) | **SSH 远端工作区**：OpenSSH Host、Watch、远端会话/文件/终端/Skills/localhost 转发；远端路径不当本地盘 |

@@ -14,6 +14,8 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { skillTokenStoredText } from "@/components/composer/tiptap/composerSkillNode";
 import { refTokenStoredText } from "@/components/composer/tiptap/composerRefNode";
 import { stripComposerGhostChars } from "@/lib/composerGhostChars";
+import { escapeMarkdownLineStart } from "@/lib/markdownLineStart";
+import { transformOutsideCode } from "@/lib/markdownSource";
 
 /**
  * 内联原子节点的 token 文本（存储空间 = 编辑器文本空间）。
@@ -211,88 +213,31 @@ export function markdownOffsetForDocPos(
 }
 
 /**
+ * 段内硬换行之后的行首转义见 `@/lib/markdownLineStart`：序列化器的
+ * `atBlockStart` 只在文本块开头为真，`\\\n` 之后的行仍属于同一段，`#` / `-` /
+ * `1.` / `===` / `|` 不会被转义。规则与粘贴判定共用一份，避免两侧漂移。
+ */
+
+/**
  * 归一化 tiptap-markdown 序列化输出：
  * - hard break 被序列化为 `\\\n`（Markdown 转义换行），还原为普通 `\n`
  *   （`breaks: true` 下 `\n` 反解析回硬换行，draft 保持旧格式的纯换行约定）；
- * - 反向转义 prosemirror-markdown 对 `` ` * _ [ ] ~ `` 的防御性转义——
- *   这些转义只会污染 draft 存储（用户字面文本应原样保留），此处还原后
- *   再解析仍是字面文本，round-trip 稳定；
- * - 围栏代码块和行内代码按原文保留：序列化器不会给它们加防御性转义，
- *   全局反转义会吃掉代码里的反斜杠；
+ *   `\\\n` 之后的行属于同一段，行首块级记号在这里补转义；
+ * - **保留**序列化器的防御性转义（`\*` / `\_` / `\#` / `1\.` / `&gt;`）：
+ *   draft 再解析回编辑器、用户气泡渲染 Markdown 时都靠它区分字面文本与真实记号；
+ * - 围栏代码块和行内代码按原文保留：序列化器不会给它们加防御性转义；
  * - 去掉尾随换行（draft 存储约定）。
  */
 export function normalizeSerializedMarkdown(md: string): string {
-  let i = 0;
-  let out = "";
-  let plain = "";
-  const flush = () => {
-    if (!plain) return;
-    out += plain
-      .replace(/\\([\\`*_[\]~])/g, "$1")
-      .replace(/\\\n/g, "\n");
-    plain = "";
-  };
-  while (i < md.length) {
-    const fence = fenceCharAt(md, i);
-    if (fence) {
-      flush();
-      const end = consumeFence(md, i, fence);
-      out += md.slice(i, end);
-      i = end;
-      continue;
-    }
-    const inlineEnd = md[i] === "`" ? consumeInlineCode(md, i) : null;
-    if (inlineEnd != null) {
-      flush();
-      out += md.slice(i, inlineEnd);
-      i = inlineEnd;
-      continue;
-    }
-    plain += md[i];
-    i += 1;
-  }
-  flush();
+  const out = transformOutsideCode(md, (plain) =>
+    plain.replace(
+      // 行内容不能吞掉下一个硬换行的反斜杠，否则连续硬换行会隔一个漏转义。
+      /\\\n((?:(?!\\\n)[^\n])*)/g,
+      (_match, line: string) => `\n${escapeMarkdownLineStart(line)}`,
+    ),
+  );
   // WebKit 的方向键垫片可能先进入 ProseMirror 文档再被序列化；草稿边界统一剔除。
   return stripComposerGhostChars(out).replace(/\n+$/, "");
-}
-
-/** 行首的围栏记号。序列化器只产出顶格 ``` / ~~~。 */
-function fenceCharAt(md: string, i: number): "`" | "~" | null {
-  if (i > 0 && md[i - 1] !== "\n") return null;
-  if (md.startsWith("```", i)) return "`";
-  if (md.startsWith("~~~", i)) return "~";
-  return null;
-}
-
-function consumeFence(md: string, i: number, ch: "`" | "~"): number {
-  const fence = ch.repeat(3);
-  const lineEnd = md.indexOf("\n", i);
-  if (lineEnd === -1) return md.length;
-  let j = lineEnd + 1;
-  while (j < md.length) {
-    if ((j === 0 || md[j - 1] === "\n") && md.startsWith(fence, j)) {
-      let k = j + fence.length;
-      while (k < md.length && (md[k] === " " || md[k] === "\t")) k += 1;
-      if (k === md.length || md[k] === "\n") {
-        return md[k] === "\n" ? k + 1 : k;
-      }
-    }
-    const next = md.indexOf("\n", j);
-    if (next === -1) return md.length;
-    j = next + 1;
-  }
-  return md.length;
-}
-
-/** 成对的行内反引号（含 `` ` `` 的多反引号形式）。未闭合则返回 null。 */
-function consumeInlineCode(md: string, i: number): number | null {
-  let n = 0;
-  while (i + n < md.length && md[i + n] === "`") n += 1;
-  if (n === 0) return null;
-  const closer = "`".repeat(n);
-  const close = md.indexOf(closer, i + n);
-  if (close === -1) return null;
-  return close + n;
 }
 
 /** draft（Markdown 源码 + token）是否为空（仅空白且无 token）。 */

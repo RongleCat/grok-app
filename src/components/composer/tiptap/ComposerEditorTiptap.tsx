@@ -64,8 +64,23 @@ import {
 const COMPOSER_LINE_PX = 22;
 const COMPOSER_MAX_LINES = 10;
 
-/** 编辑器 DOM → Editor 实例注册表（serializeDom / caret 换算入口）。 */
-const editorsByDom = new WeakMap<HTMLElement, Editor>();
+/**
+ * 编辑器 DOM → Editor 实例注册表（serializeDom / caret 换算入口）。
+ *
+ * 挂在 `globalThis` 上而不是模块作用域：Vite HMR 会重新执行本模块，模块级
+ * WeakMap 会变成空表，而挂载中的编辑器不会重建——发送 / 回退时就会认不出它，
+ * 退化成 textContent（丢 Markdown 记号与防御性转义）。键名带命名空间避免冲突。
+ */
+type ComposerRegistryHost = typeof globalThis & {
+  __grokComposerEditorRegistry?: WeakMap<HTMLElement, Editor>;
+};
+const composerRegistryHost = globalThis as ComposerRegistryHost;
+const editorsByDom =
+  composerRegistryHost.__grokComposerEditorRegistry ??
+  (composerRegistryHost.__grokComposerEditorRegistry = new WeakMap<
+    HTMLElement,
+    Editor
+  >());
 
 /**
  * tiptap-markdown 在运行时往 `storage.markdown` 上挂 `getMarkdown`，而 tiptap 把
@@ -126,13 +141,16 @@ function takePendingStoredCaret(): number | "end" | null {
 
 /**
  * Contenteditable → stored draft (Markdown source + tokens).
- * `el` must be the live TipTap editor DOM; falls back to textContent when the
- * editor is already unmounted (callers wrap in try/catch).
+ *
+ * `el` must be the live TipTap editor DOM. Throws when the instance is gone:
+ * callers (send / queue) keep `getDraft()` then. Falling back to `textContent`
+ * would silently drop Markdown marks and defensive escapes, turning literal
+ * `#` / `-` into headings and lists on the next render.
  */
 export function serializeDom(el: HTMLElement): string {
   const editor = editorsByDom.get(el);
   if (!editor || editor.isDestroyed) {
-    return el.textContent ?? "";
+    throw new Error("composer editor is not mounted");
   }
   return normalizedMarkdown(editor);
 }

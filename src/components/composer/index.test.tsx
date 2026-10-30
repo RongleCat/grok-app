@@ -80,6 +80,20 @@ describe("composer 编辑器分发器", () => {
     expect(typeof serializeDom(el)).toBe("string");
   });
 
+  it("Markdown 档下实例暂时查不到时不会退化成 textContent", () => {
+    // Arrange —— HMR 重执行模块 / 编辑器正在重挂载时，注册表可能暂时查不到 DOM
+    const { container } = mount();
+    act(() => setComposerEditorKind("tiptap"));
+    const pm = container.querySelector(".ProseMirror") as HTMLElement;
+    expect(typeof serializeDom(pm)).toBe("string");
+
+    const orphan = document.createElement("div");
+    orphan.textContent = "# 字面量标题";
+
+    // Act + Assert —— 抛错让调用方回退 getDraft()，而不是把纯文本当草稿
+    expect(() => serializeDom(orphan)).toThrow();
+  });
+
   it("命令式引用接口在内置档返回 false（引用 chip 是 Markdown 档独占）", () => {
     const { container } = mount();
     const el = container.querySelector(".composer-editor-wrap") as HTMLElement;

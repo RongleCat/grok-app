@@ -53,7 +53,12 @@ export function ComposerEditor(props: ComposerEditorProps) {
 
 /** 草稿 → 存储态文本（发送 / 落盘用）。 */
 export function serializeDom(el: HTMLElement): string {
-  return owns(el) ? tiptap.serializeDom(el) : legacy.serializeDom(el);
+  // 档位是 Markdown 时，实例暂时查不到（销毁 / 重挂载窗口）也走 Markdown 序列化：
+  // 它会抛错，调用方回退到 `getDraft()`。内置编辑器的 textContent 不含 Markdown，
+  // 拿它落盘会让字面量 `#` 在气泡与回退后变成标题。
+  return owns(el) || composerEditorKind() === "tiptap"
+    ? tiptap.serializeDom(el)
+    : legacy.serializeDom(el);
 }
 
 /** 光标在「编辑器文本空间」的偏移（听写用）。 */

@@ -53,6 +53,41 @@ describe("Markdown serialization (TipTap composer)", () => {
     expect(out).toBe(source);
   });
 
+  it("段内硬换行的字面块记号在存储态被转义", () => {
+    // Arrange —— Shift+Enter 换行后逐行粘进来的字面文本
+    editor = makeEditor("");
+    const { schema } = editor.state;
+    const lines = [
+      "# trending topic",
+      "1. 这不是清单",
+      "- 今天去超市买菜",
+      "---",
+      "===",
+      "| a | b |",
+    ];
+    const children = lines.flatMap((line, i) =>
+      i === 0
+        ? [schema.text(line)]
+        : [schema.nodes.hardBreak.create(), schema.text(line)],
+    );
+    editor.view.dispatch(editor.state.tr.replaceWith(1, 1, children));
+
+    // Act
+    const out = markdownOf(editor);
+
+    // Assert —— 气泡再解析时保持字面量，不会变成标题 / 列表 / 表格
+    expect(out).toBe(
+      [
+        "\\# trending topic",
+        "1\\. 这不是清单",
+        "\\- 今天去超市买菜",
+        "\\---",
+        "\\===",
+        "\\| a | b |",
+      ].join("\n"),
+    );
+  });
+
   it("代码块带上语言栏属性，且不影响 markdown 往返", () => {
     // Arrange
     const source = "```ts\nconst a = 1;\n```";
@@ -116,14 +151,14 @@ describe("Markdown serialization (TipTap composer)", () => {
     expect(out).toBe(stored);
   });
 
-  it("keeps malformed token-looking text as plain text", () => {
-    // Arrange：名字含空格 → 不构成合法 token，必须保持字面文本
+  it("keeps malformed token-looking text as escaped plain text", () => {
+    // Arrange：名字含空格 → 不构成合法 token，按字面量保留并转义
     const stored = "look at [[skill:bro ken]]";
     // Act
     editor = makeEditor(stored);
     const out = markdownOf(editor);
     // Assert
-    expect(out).toBe(stored);
+    expect(out).toBe("look at \\[\\[skill:bro ken\\]\\]");
   });
 });
 
@@ -194,8 +229,11 @@ describe("editor-text space mapping", () => {
 });
 
 describe("normalizeSerializedMarkdown", () => {
-  it("unescapes marks in prose and keeps code backslashes", () => {
-    expect(normalizeSerializedMarkdown("say \\*star\\*")).toBe("say *star*");
+  it("keeps defensive escapes and normalizes hard breaks", () => {
+    expect(normalizeSerializedMarkdown("say \\*star\\*")).toBe("say \\*star\\*");
+    expect(normalizeSerializedMarkdown("\\# trending topic")).toBe(
+      "\\# trending topic",
+    );
     expect(normalizeSerializedMarkdown("line1\\\nline2")).toBe("line1\nline2");
     const fenced = "```js\nconst r = /\\\\/;\n```";
     expect(normalizeSerializedMarkdown(fenced)).toBe(fenced);
@@ -211,6 +249,45 @@ describe("normalizeSerializedMarkdown", () => {
 
     // Act / Assert
     expect(normalizeSerializedMarkdown(raw)).toBe("hello");
+  });
+
+  it("硬换行后的行首块级记号补转义", () => {
+    // Arrange —— 序列化器只在文本块开头转义，`\\\n` 之后的行原样输出
+    const raw = [
+      "\\# trending topic",
+      "1. 这不是清单",
+      "- 今天去超市买菜",
+      "> 不是引用",
+      "a \\_b\\_ c",
+      "## \\*\\*标题\\*\\*",
+      "---",
+      "===",
+      "| a | b |",
+    ].join("\\\n");
+
+    // Act
+    const out = normalizeSerializedMarkdown(raw);
+
+    // Assert —— 再解析（气泡 / agent / 回退）仍是字面文本
+    expect(out).toBe(
+      [
+        "\\# trending topic",
+        "1\\. 这不是清单",
+        "\\- 今天去超市买菜",
+        "\\> 不是引用",
+        "a \\_b\\_ c",
+        "\\## \\*\\*标题\\*\\*",
+        "\\---",
+        "\\===",
+        "\\| a | b |",
+      ].join("\n"),
+    );
+  });
+
+  it("硬换行后的普通文字与序号数字不受影响", () => {
+    expect(normalizeSerializedMarkdown("line1\\\nline2")).toBe("line1\nline2");
+    expect(normalizeSerializedMarkdown("x\\\n1.5 倍")).toBe("x\n1.5 倍");
+    expect(normalizeSerializedMarkdown("x\\\n+5 元")).toBe("x\n+5 元");
   });
 });
 
@@ -286,26 +363,29 @@ describe("reference tokens", () => {
     );
   });
 
-  it("round-trips a path containing spaces and brackets", () => {
-    // Arrange — 空格与 `]` 是最容易破坏 `[[kind:value]]` 语法的两种字符
+  it("keeps a bracket-broken reference as escaped literal text", () => {
+    // Arrange — `]` 出现在值里，无法构成 `[[kind:value]]`；按字面量保留并转义，
+    // 重新解析时仍是普通文本，不会被误认成引用 token。
     const stored = "[[file:/repo/my dir/a]b.ts]]";
 
     // Act
     editor = makeEditor(stored);
 
     // Assert
-    expect(markdownOf(editor)).toBe(stored);
+    expect(markdownOf(editor)).toBe(
+      "\\[\\[file:/repo/my dir/a\\]b.ts\\]\\]",
+    );
   });
 
-  it("keeps a malformed reference as literal text", () => {
-    // Arrange — 换行会跨段落，无法构成 token，必须原样保留而不是解析成节点
+  it("keeps a malformed reference as escaped literal text", () => {
+    // Arrange — 缺少闭合，无法构成 token，必须原样保留而不是解析成节点
     const stored = "[[file:/repo/a.ts";
 
     // Act
     editor = makeEditor(stored);
 
     // Assert
-    expect(markdownOf(editor)).toBe(stored);
+    expect(markdownOf(editor)).toBe("\\[\\[file:/repo/a.ts");
   });
 
   it("counts the token at its stored length in editor-text space", () => {
