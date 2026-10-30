@@ -9,13 +9,16 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { Editor } from "@tiptap/react";
+import type { Content } from "@tiptap/react";
 import { Slice } from "@tiptap/pm/model";
 import { buildComposerExtensions } from "@/components/composer/tiptap/composerExtensions";
 import { normalizeSerializedMarkdown } from "@/lib/composerMarkdown";
 import {
   normalizePastedMarkdown,
   planPastedMarkdown,
+  plainTextPasteChords,
 } from "@/components/composer/tiptap/composerPaste";
+import type { ComposerPasteOptions } from "@/components/composer/tiptap/composerPaste";
 
 let editor: Editor | null = null;
 let host: HTMLDivElement | null = null;
@@ -36,6 +39,43 @@ function makeEditor(content = ""): Editor {
     content,
     editable: true,
   });
+}
+
+/** 纯文本粘贴用：注入平台与剪贴板读取器。 */
+function makeLiteralEditor(
+  options: ComposerPasteOptions,
+  content: Content = "",
+): Editor {
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  return new Editor({
+    element: host,
+    extensions: buildComposerExtensions({
+      showPlaceholderWhenEditable: false,
+      plainTextPaste: options,
+    }),
+    content,
+    editable: true,
+  });
+}
+
+/** 按下 Ctrl+Alt+V（jsdom 的 `Mod` 解析为 Ctrl），等异步剪贴板读完。 */
+async function pressPlainPaste(ed: Editor): Promise<void> {
+  ed.view.dom.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "v",
+      ctrlKey: true,
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** 光标放到文档末尾；不走 `focus` 以免 jsdom 缺布局 API。 */
+function caretAtEnd(ed: Editor): void {
+  ed.commands.setTextSelection(ed.state.doc.content.size);
 }
 
 /** 最小剪贴板事件：只实现粘贴路径实际读取的两个 MIME。 */
@@ -585,5 +625,159 @@ describe("transformPastedText", () => {
 
     // Assert
     expect(text).toBe("`code`");
+  });
+});
+
+describe("plainTextPasteChords", () => {
+  it("macOS 用 ⌥⇧⌘V，其他平台用 Ctrl+Alt+V", () => {
+    expect(plainTextPasteChords("mac")).toEqual(["Mod-Alt-Shift-v"]);
+    expect(plainTextPasteChords("win")).toEqual(["Mod-Alt-v"]);
+    expect(plainTextPasteChords("linux")).toEqual(["Mod-Alt-v"]);
+  });
+});
+
+describe("纯文本粘贴（字面量）", () => {
+  /** 文档里的行内节点顺序，用于断言硬换行。 */
+  function inlineTypes(ed: Editor): string[] {
+    const names: string[] = [];
+    ed.state.doc.descendants((node) => {
+      if (node.isInline) names.push(node.type.name);
+      return true;
+    });
+    return names;
+  }
+
+  it("Markdown 记号按字面量插入，粘贴后输入不带标记", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      {
+        platform: "win",
+        readClipboardText: async () => "**测试**\n## 标题\n- 项",
+      },
+      "开头",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(ed.state.doc.textContent).toContain("**测试**");
+    expect(ed.state.doc.textContent).toContain("## 标题");
+    expect(ed.state.doc.textContent).toContain("- 项");
+    expect(hasHardBreak(ed)).toBe(true);
+    expect(blockTypes(ed)).toEqual(["paragraph"]);
+    expect(inlineTypes(ed)).toEqual([
+      "text",
+      "hardBreak",
+      "text",
+      "hardBreak",
+      "text",
+    ]);
+
+    const { from } = ed.state.selection;
+    ed.view.dispatch(ed.state.tr.insertText("X", from, from));
+    const lastText = ed.state.doc.lastChild?.lastChild;
+    expect(lastText?.text).toContain("X");
+    expect(lastText?.marks ?? []).toEqual([]);
+  });
+
+  it("多行与空行都按硬换行落位", async () => {
+    // Arrange
+    const ed = makeLiteralEditor({
+      platform: "win",
+      readClipboardText: async () => "a\n\nb\n",
+    });
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(inlineTypes(ed)).toEqual([
+      "text",
+      "hardBreak",
+      "hardBreak",
+      "text",
+    ]);
+    expect(markdownOf(ed)).toContain("a\\\n\\\nb");
+  });
+
+  it("选中文本被替换，撤销一步回到粘贴前", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      { platform: "win", readClipboardText: async () => "X\nY" },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+    ed.commands.selectAll();
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(ed.state.doc.textContent).toBe("XY");
+    ed.commands.undo();
+    expect(ed.state.doc.textContent).toBe("abc");
+  });
+
+  it("代码块内按含换行的文本插入，不使用 hardBreak", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      { platform: "win", readClipboardText: async () => "a\nb" },
+      {
+        type: "doc",
+        content: [{ type: "codeBlock", content: [{ type: "text", text: "c" }] }],
+      },
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(hasHardBreak(ed)).toBe(false);
+    expect(ed.state.doc.textContent).toBe("ca\nb");
+    expect(markdownOf(ed)).toContain("a\nb");
+  });
+
+  it("空剪贴板不产生事务", async () => {
+    // Arrange
+    const ed = makeLiteralEditor(
+      { platform: "win", readClipboardText: async () => "  \n\t" },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+    const before = ed.state.doc;
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(ed.state.doc.eq(before)).toBe(true);
+  });
+
+  it("字面量粘贴在草稿里保留行首转义", async () => {
+    // Arrange
+    const ed = makeLiteralEditor({
+      platform: "win",
+      readClipboardText: async () => "intro\n## 标题\n**测试**",
+    });
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(markdownOf(ed)).toContain("\\*\\*测试\\*\\*");
+    expect(normalizeSerializedMarkdown(markdownOf(ed))).toContain(
+      "intro\n\\## 标题",
+    );
   });
 });

@@ -19,6 +19,7 @@ import { SkillTokenNode } from "@/components/composer/tiptap/composerSkillNode";
 import { RefTokenNode } from "@/components/composer/tiptap/composerRefNode";
 import { ComposerGhostGuard } from "@/components/composer/tiptap/composerGhostGuard";
 import { ComposerMarkdownPaste } from "@/components/composer/tiptap/composerPaste";
+import type { ComposerPasteOptions } from "@/components/composer/tiptap/composerPaste";
 
 /**
  * 列表项内的换行语义。
@@ -251,6 +252,8 @@ export type ComposerExtensionOptions = {
   placeholder?: string;
   /** 是否在可编辑时显示占位符（测试用 headless 编辑器通常为 false）。 */
   showPlaceholderWhenEditable?: boolean;
+  /** 纯文本粘贴：和弦所在平台、剪贴板读取与超大文本出口。 */
+  plainTextPaste?: ComposerPasteOptions;
 };
 /**
  * 代码块的语言栏数据源：把节点的 `language` 镜像成 DOM 上的 `data-language`。
@@ -303,7 +306,7 @@ export function buildComposerExtensions(opts: ComposerExtensionOptions = {}) {
     ListLineBreak,
     BlockAfterBreak,
     ComposerGhostGuard,
-    ComposerMarkdownPaste,
+    ComposerMarkdownPaste.configure(opts.plainTextPaste ?? {}),
     CodeBlockLanguageLabel,
     Placeholder.configure({
       placeholder: opts.placeholder ?? "",

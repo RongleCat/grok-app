@@ -15,10 +15,17 @@
 
 import { Extension } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
-import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
+import {
+  DOMParser as ProseMirrorDOMParser,
+  Fragment,
+} from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { detectAppPlatform } from "@/lib/appPlatform";
+import type { AppPlatform } from "@/lib/appPlatform";
+import { clipboardReadText } from "@/lib/api/fs";
 import { looksLikeMarkdownBlockSource } from "@/lib/markdownLineStart";
 
 /** `doc.body` 内不携带语义的标签。 */
@@ -260,9 +267,109 @@ function insertInlineMarkdown(editor: Editor, markdown: string): boolean {
   return true;
 }
 
+/** 纯文本粘贴的扩展选项。 */
+export type ComposerPasteOptions = {
+  /** 当前平台：决定和弦。默认按 UA 探测。 */
+  platform?: AppPlatform;
+  /** 读取剪贴板纯文本；默认走 Tauri 的 `clipboard_read_text`。 */
+  readClipboardText?: () => Promise<string>;
+};
+
+/**
+ * 纯文本粘贴的和弦。
+ *
+ * macOS 用系统的「粘贴并匹配样式」键 `⌥⇧⌘V`；其他平台用 `Ctrl+Alt+V`。
+ * `⇧⌘V` 不能复用：它属于 Live Voice，且 WebKit 不为它派发 `paste` 事件。
+ */
+export function plainTextPasteChords(platform: AppPlatform): string[] {
+  return platform === "mac" ? ["Mod-Alt-Shift-v"] : ["Mod-Alt-v"];
+}
+
+/**
+ * 字面量粘贴的节点：逐行插入，行间用硬换行；代码块内保留含 `\n` 的单个文本节点。
+ *
+ * 代码块没有 `hardBreak` 槽位，而 `whitespace: "pre"` 会原样渲染换行。
+ */
+function literalPasteNodes(
+  editor: Editor,
+  text: string,
+): ProseMirrorNode[] {
+  const { schema, selection } = editor.state;
+  if (
+    selection.$from.parent.type.spec.code ||
+    selection.$to.parent.type.spec.code
+  ) {
+    return [schema.text(text)];
+  }
+  return text.split("\n").flatMap((line, index) => {
+    const nodes: ProseMirrorNode[] =
+      index > 0 ? [schema.nodes.hardBreak.create()] : [];
+    if (line) nodes.push(schema.text(line));
+    return nodes;
+  });
+}
+
+/**
+ * 按字面量替换当前选区。
+ *
+ * 只插入无标记文本：不解析 Markdown、不生成 URL chip。替换、插入与清空
+ * `storedMarks` 在同一个 transaction 里完成，撤销一步即可回到粘贴前。
+ */
+export function insertLiteralText(editor: Editor, raw: string): boolean {
+  const text = normalizePastedMarkdown(raw);
+  const nodes = literalPasteNodes(editor, text);
+  if (!nodes.length) return false;
+  const { state } = editor;
+  const tr = state.tr.replaceWith(
+    state.selection.from,
+    state.selection.to,
+    Fragment.fromArray(nodes),
+  );
+  if (tr.selection.$from.parent.isTextblock) tr.setStoredMarks([]);
+  editor.view.dispatch(tr);
+  return true;
+}
+
+/** 读剪贴板后按字面量粘贴。 */
+async function pasteLiteralFromClipboard(
+  editor: Editor,
+  options: ComposerPasteOptions,
+): Promise<void> {
+  const read = options.readClipboardText ?? clipboardReadText;
+  const text = await read();
+  if (!text || editor.isDestroyed) return;
+  insertLiteralText(editor, text);
+}
+
+/**
+ * ProseMirror 把 Shift 状态记在内部 `input` 上（`ClipboardEvent` 没有修饰键），
+ * 自己处理粘贴时也用它判断 `preferPlain`。类型没有公开这个字段，按结构读取。
+ */
+function isPlainTextPaste(view: EditorView): boolean {
+  return (
+    (view as unknown as { input?: { shiftKey?: boolean } }).input?.shiftKey ===
+    true
+  );
+}
+
 /** 剪贴板粘贴：按来源决定解析粒度；所有纯文本粘贴先归一化。 */
-export const ComposerMarkdownPaste = Extension.create({
+export const ComposerMarkdownPaste = Extension.create<ComposerPasteOptions>({
   name: "composerMarkdownPaste",
+
+  addOptions() {
+    return {};
+  },
+
+  addKeyboardShortcuts() {
+    const platform = this.options.platform ?? detectAppPlatform();
+    const handler = () => {
+      void pasteLiteralFromClipboard(this.editor, this.options);
+      return true;
+    };
+    return Object.fromEntries(
+      plainTextPasteChords(platform).map((chord) => [chord, handler]),
+    );
+  },
 
   addProseMirrorPlugins() {
     const editor = this.editor;
