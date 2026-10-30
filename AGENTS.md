@@ -8,6 +8,7 @@
    - [settings-ia.md](docs/llm-wiki/settings-ia.md) — **settings IA**: tabs, search registry (`settingsCatalog`), deep links; every new setting must be registered  
    - [ssh-remote.md](docs/llm-wiki/ssh-remote.md) — **SSH remote hosts** (wave 1: list/test/probe; no tmux; later waves open folders / remote agent)  
    - [dialogs.md](docs/llm-wiki/dialogs.md) — **no `window.confirm` / `prompt` / `alert`**; **no OS-default controls**; reuse `Select` / `ContextMenu` / panel CSS; **no transparent menus**; **no stacking bugs**
+   - [composer-markdown.md](docs/llm-wiki/composer-markdown.md) — **Markdown composer**: paste decision (HTML vs Markdown source), closing markers, leading/trailing newlines
    - [catalog.md](docs/llm-wiki/catalog.md) — models / effort / YOLO  
    - [automations.md](docs/llm-wiki/automations.md) — automation design (Build `/loop` / scheduler; non-blocking)  
    - [account.md](docs/llm-wiki/account.md) — official login, membership, quota, heatmap  
@@ -44,7 +45,7 @@
 
 4. Prefer real Grok Build CLI behavior (`grok models`, `--always-approve`, `--effort`).
 
-5. Assistant messages: render markdown (`MarkdownBody`); user messages: gray bubble, no role labels.
+5. Assistant messages: render markdown (`MarkdownBody`); user messages: gray bubble, no role labels, and render Markdown the same way the composer showed it (defensive escapes decoded, typed newlines kept as line breaks).
 
 6. **Branch hygiene** — after work lands on `main` (merge, squash, or batch integrate), promptly and safely delete finished remote/local branches and idle worktrees. Confirm with `git fetch --prune`, ancestor / `gh pr` / feature-on-main checks; never delete open-PR heads, unique WIP, or worktree-checked-out branches without removing the worktree first. Details: [docs/llm-wiki/maintain.md](docs/llm-wiki/maintain.md#branch-hygiene-merged--finished-work).
 
