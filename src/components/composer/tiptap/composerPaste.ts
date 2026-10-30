@@ -21,7 +21,9 @@ import {
 } from "@tiptap/pm/model";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { AllSelection, TextSelection } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
+import { closeHistory } from "@tiptap/pm/history";
 import type { EditorView } from "@tiptap/pm/view";
 import { detectAppPlatform } from "@/lib/appPlatform";
 import type { AppPlatform } from "@/lib/appPlatform";
@@ -269,38 +271,37 @@ function insertInlineMarkdown(editor: Editor, markdown: string): boolean {
 
 /** 纯文本粘贴的扩展选项。 */
 export type ComposerPasteOptions = {
-  /** 当前平台：决定和弦。默认按 UA 探测。 */
+  /** 当前平台：决定和弦；缺省按 UA 探测。 */
   platform?: AppPlatform;
   /** 读取剪贴板纯文本；默认走 Tauri 的 `clipboard_read_text`。 */
   readClipboardText?: () => Promise<string>;
 };
 
 /**
- * 纯文本粘贴的和弦。
+ * 这次 keydown 是否为纯文本粘贴。
  *
  * macOS 用系统的「粘贴并匹配样式」键 `⌥⇧⌘V`；其他平台用 `Ctrl+Alt+V`。
  * `⇧⌘V` 不能复用：它属于 Live Voice，且 WebKit 不为它派发 `paste` 事件。
+ * AltGr 布局上 Ctrl+Alt 会产出字符，这种组合必须放行。
  */
-export function plainTextPasteChords(platform: AppPlatform): string[] {
-  return platform === "mac" ? ["Mod-Alt-Shift-v"] : ["Mod-Alt-v"];
+export function isPlainTextPasteKey(
+  event: KeyboardEvent,
+  platform: AppPlatform,
+): boolean {
+  if (event.key.toLowerCase() !== "v") return false;
+  if (!event.altKey) return false;
+  if (event.getModifierState?.("AltGraph")) return false;
+  if (platform === "mac") {
+    return event.metaKey && event.shiftKey && !event.ctrlKey;
+  }
+  return event.ctrlKey && !event.metaKey;
 }
 
-/**
- * 字面量粘贴的节点：逐行插入，行间用硬换行；代码块内保留含 `\n` 的单个文本节点。
- *
- * 代码块没有 `hardBreak` 槽位，而 `whitespace: "pre"` 会原样渲染换行。
- */
-function literalPasteNodes(
-  editor: Editor,
+/** 逐行节点：行间用硬换行，空行保留为连续硬换行。 */
+function literalInlineNodes(
+  schema: EditorState["schema"],
   text: string,
 ): ProseMirrorNode[] {
-  const { schema, selection } = editor.state;
-  if (
-    selection.$from.parent.type.spec.code ||
-    selection.$to.parent.type.spec.code
-  ) {
-    return [schema.text(text)];
-  }
   return text.split("\n").flatMap((line, index) => {
     const nodes: ProseMirrorNode[] =
       index > 0 ? [schema.nodes.hardBreak.create()] : [];
@@ -310,20 +311,40 @@ function literalPasteNodes(
 }
 
 /**
- * 按字面量替换当前选区。
+ * 按字面量替换给定范围（缺省为当前选区）。
  *
  * 只插入无标记文本：不解析 Markdown、不生成 URL chip。替换、插入与清空
- * `storedMarks` 在同一个 transaction 里完成，撤销一步即可回到粘贴前。
+ * `storedMarks` 在同一个 transaction 里完成，并用 `closeHistory` 与上一段输入
+ * 分开，撤销一步即可回到粘贴前。
+ *
+ * 粘贴落点所在的块是代码块时，插入含 `\n` 的单个文本节点——代码块没有
+ * `hardBreak` 槽位，而 `whitespace: "pre"` 会原样渲染换行。
  */
-export function insertLiteralText(editor: Editor, raw: string): boolean {
+export function insertLiteralText(
+  editor: Editor,
+  raw: string,
+  range?: { from: number; to: number },
+): boolean {
   const text = normalizePastedMarkdown(raw);
-  const nodes = literalPasteNodes(editor, text);
+  if (!text) return false;
+  const { doc, schema, selection } = editor.state;
+  // 节点选择（整块被选中）没有可落笔的文本位置；选区与全选都按行内替换处理。
+  if (!(selection instanceof TextSelection) && !(selection instanceof AllSelection)) {
+    return false;
+  }
+  const target = range ?? selection;
+  const $from = doc.resolve(target.from);
+  const container = $from.parent.isTextblock ? $from.parent : $from.nodeAfter;
+  const nodes = container?.type.spec.code
+    ? [schema.text(text)]
+    : literalInlineNodes(schema, text);
   if (!nodes.length) return false;
-  const { state } = editor;
-  const tr = state.tr.replaceWith(
-    state.selection.from,
-    state.selection.to,
-    Fragment.fromArray(nodes),
+  const tr = closeHistory(
+    editor.state.tr.replaceWith(
+      target.from,
+      target.to,
+      Fragment.fromArray(nodes),
+    ),
   );
   if (tr.selection.$from.parent.isTextblock) tr.setStoredMarks([]);
   editor.view.dispatch(tr);
@@ -331,14 +352,24 @@ export function insertLiteralText(editor: Editor, raw: string): boolean {
 }
 
 /** 读剪贴板后按字面量粘贴。 */
-async function pasteLiteralFromClipboard(
+function handlePlainTextPaste(
   editor: Editor,
   options: ComposerPasteOptions,
-): Promise<void> {
+): void {
+  const { doc, selection } = editor.state;
+  const range = { from: selection.from, to: selection.to };
   const read = options.readClipboardText ?? clipboardReadText;
-  const text = await read();
-  if (!text || editor.isDestroyed) return;
-  insertLiteralText(editor, text);
+  void read()
+    .then((text) => {
+      if (!text || editor.isDestroyed) return;
+      // 剪贴板走 IPC：等待期间文档被替换或编辑时不落笔，避免写进另一个草稿。
+      if (!editor.state.doc.eq(doc)) return;
+      insertLiteralText(editor, text, range);
+    })
+    .catch((error: unknown) => {
+      // 不记录剪贴板内容；只留定位信息。
+      console.warn("[composer] plain-text paste failed", error);
+    });
 }
 
 /**
@@ -356,23 +387,9 @@ function isPlainTextPaste(view: EditorView): boolean {
 export const ComposerMarkdownPaste = Extension.create<ComposerPasteOptions>({
   name: "composerMarkdownPaste",
 
-  addOptions() {
-    return {};
-  },
-
-  addKeyboardShortcuts() {
-    const platform = this.options.platform ?? detectAppPlatform();
-    const handler = () => {
-      void pasteLiteralFromClipboard(this.editor, this.options);
-      return true;
-    };
-    return Object.fromEntries(
-      plainTextPasteChords(platform).map((chord) => [chord, handler]),
-    );
-  },
-
   addProseMirrorPlugins() {
     const editor = this.editor;
+    const options = this.options;
     return [
       new Plugin({
         key: new PluginKey("composerMarkdownPaste"),
@@ -382,6 +399,15 @@ export const ComposerMarkdownPaste = Extension.create<ComposerPasteOptions>({
           return trailingMarksReset(newState);
         },
         props: {
+          handleKeyDown(_view: EditorView, event: KeyboardEvent) {
+            // 长按会重复触发；只认第一次。
+            if (event.repeat) return false;
+            const platform = options.platform ?? detectAppPlatform();
+            if (!isPlainTextPasteKey(event, platform)) return false;
+            event.preventDefault();
+            handlePlainTextPaste(editor, options);
+            return true;
+          },
           transformPastedText(text: string) {
             return normalizePastedMarkdown(text);
           },
