@@ -108,6 +108,11 @@ function dispatchRealPaste(ed: Editor, plain: string, html?: string): void {
   ed.view.dom.dispatchEvent(pasteEvent(plain, html));
 }
 
+/** ProseMirror 的 `preferPlain` 来自内部 input 状态，类型里没有暴露。 */
+function setShiftPaste(ed: Editor): void {
+  (ed.view as unknown as { input: { shiftKey: boolean } }).input.shiftKey = true;
+}
+
 function blockTypes(ed: Editor): string[] {
   const names: string[] = [];
   ed.state.doc.forEach((node) => names.push(node.type.name));
@@ -935,5 +940,33 @@ describe("纯文本粘贴（字面量）", () => {
     expect(normalizeSerializedMarkdown(markdownOf(ed))).toContain(
       "intro\n\\## 标题",
     );
+  });
+});
+
+describe("Shift+粘贴", () => {
+  it("交回 ProseMirror 的纯文本路径", () => {
+    // Arrange
+    editor = makeEditor();
+    setShiftPaste(editor);
+
+    // Act
+    const handled = dispatchPaste(editor, "## 标题\n", "<div>## 标题</div>");
+
+    // Assert
+    expect(handled).toBe(false);
+  });
+
+  it("真实管线按纯文本插入，不解析 Markdown", () => {
+    // Arrange
+    editor = makeEditor();
+    setShiftPaste(editor);
+
+    // Act —— 普通粘贴会拆成标题，Shift 粘贴不应解析块级记号
+    dispatchRealPaste(editor, "## 标题\n\n正文", "<div>## 标题<br><br>正文</div>");
+
+    // Assert
+    expect(blockTypes(editor)).not.toContain("heading");
+    expect(editor.state.doc.textContent).toContain("## 标题");
+    expect(editor.state.doc.textContent).toContain("正文");
   });
 });

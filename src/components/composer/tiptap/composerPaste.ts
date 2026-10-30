@@ -374,13 +374,16 @@ function handlePlainTextPaste(
 
 /**
  * ProseMirror 把 Shift 状态记在内部 `input` 上（`ClipboardEvent` 没有修饰键），
- * 自己处理粘贴时也用它判断 `preferPlain`。类型没有公开这个字段，按结构读取。
+ * 自己处理粘贴时也用它判断 `preferPlain`；`lastKeyCode` 45 是 Insert 键。
+ * 类型没有公开这个字段，按结构读取。
  */
-function isPlainTextPaste(view: EditorView): boolean {
-  return (
-    (view as unknown as { input?: { shiftKey?: boolean } }).input?.shiftKey ===
-    true
-  );
+function isShiftPaste(view: EditorView): boolean {
+  const input = (
+    view as unknown as {
+      input?: { shiftKey?: boolean; lastKeyCode?: number };
+    }
+  ).input;
+  return input?.shiftKey === true && input.lastKeyCode !== 45;
 }
 
 /** 剪贴板粘贴：按来源决定解析粒度；所有纯文本粘贴先归一化。 */
@@ -412,6 +415,9 @@ export const ComposerMarkdownPaste = Extension.create<ComposerPasteOptions>({
             return normalizePastedMarkdown(text);
           },
           handlePaste(view: EditorView, event: ClipboardEvent) {
+            // Shift+粘贴是 ProseMirror 的“纯文本粘贴”（`preferPlain`）：不接管，
+            // 让库的 `clipboardTextParser` 返回 null 后走默认纯文本解析。
+            if (isShiftPaste(view)) return false;
             const { selection } = view.state;
             if (
               selection.$from.parent.type.spec.code ||
