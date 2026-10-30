@@ -383,6 +383,9 @@ export const ComposerEditor = memo(function ComposerEditor({
     immediatelyRender: false,
     extensions: buildComposerExtensions({
       placeholder: placeholder ?? "",
+      plainTextPaste: {
+        spillPlainText: (file) => pasteProps.current.onPasteFiles?.([file]),
+      },
     }),
     content: value,
     editable: !disabled,

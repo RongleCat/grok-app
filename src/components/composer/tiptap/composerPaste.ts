@@ -28,6 +28,11 @@ import type { EditorView } from "@tiptap/pm/view";
 import { detectAppPlatform } from "@/lib/appPlatform";
 import type { AppPlatform } from "@/lib/appPlatform";
 import { clipboardReadText } from "@/lib/api/fs";
+import {
+  hugePlainTextFileName,
+  hugePlainTextToFile,
+  shouldSpillHugePlainText,
+} from "@/lib/longAssistantSpill";
 import { looksLikeMarkdownBlockSource } from "@/lib/markdownLineStart";
 
 /** `doc.body` 内不携带语义的标签。 */
@@ -275,6 +280,8 @@ export type ComposerPasteOptions = {
   platform?: AppPlatform;
   /** 读取剪贴板纯文本；默认走 Tauri 的 `clipboard_read_text`。 */
   readClipboardText?: () => Promise<string>;
+  /** Windows 超大文本的附件出口；缺省时按普通文本插入。 */
+  spillPlainText?: (file: File) => void;
 };
 
 /**
@@ -351,17 +358,27 @@ export function insertLiteralText(
   return true;
 }
 
-/** 读剪贴板后按字面量粘贴。 */
+/** 读剪贴板后按字面量粘贴；Windows 超大文本交给附件出口。 */
 function handlePlainTextPaste(
   editor: Editor,
   options: ComposerPasteOptions,
 ): void {
   const { doc, selection } = editor.state;
   const range = { from: selection.from, to: selection.to };
+  const platform = options.platform ?? detectAppPlatform();
   const read = options.readClipboardText ?? clipboardReadText;
   void read()
     .then((text) => {
       if (!text || editor.isDestroyed) return;
+      if (
+        options.spillPlainText &&
+        shouldSpillHugePlainText(text.length, platform)
+      ) {
+        options.spillPlainText(
+          hugePlainTextToFile(text, hugePlainTextFileName(text)),
+        );
+        return;
+      }
       // 剪贴板走 IPC：等待期间文档被替换或编辑时不落笔，避免写进另一个草稿。
       if (!editor.state.doc.eq(doc)) return;
       insertLiteralText(editor, text, range);

@@ -13,6 +13,7 @@ import type { Content } from "@tiptap/react";
 import { Slice } from "@tiptap/pm/model";
 import { buildComposerExtensions } from "@/components/composer/tiptap/composerExtensions";
 import { normalizeSerializedMarkdown } from "@/lib/composerMarkdown";
+import { LONG_ASSISTANT_SPILL_CHARS } from "@/lib/longAssistantSpill";
 import {
   isPlainTextPasteKey,
   normalizePastedMarkdown,
@@ -921,6 +922,54 @@ describe("纯文本粘贴（字面量）", () => {
     expect(ed.state.doc.textContent).toBe("abcdX");
     ed.commands.undo();
     expect(ed.state.doc.textContent).toBe("abcd");
+  });
+
+  it("Windows 超大文本交给附件出口，不插入编辑器", async () => {
+    // Arrange
+    const spilled: File[] = [];
+    const big = "x".repeat(LONG_ASSISTANT_SPILL_CHARS + 1);
+    const ed = makeLiteralEditor(
+      {
+        platform: "win",
+        readClipboardText: async () => big,
+        spillPlainText: (file) => spilled.push(file),
+      },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(spilled).toHaveLength(1);
+    expect(spilled[0].name.endsWith(".txt")).toBe(true);
+    expect(ed.state.doc.textContent).toBe("abc");
+  });
+
+  it("非 Windows 的超大文本正常插入", async () => {
+    // Arrange
+    const spilled: File[] = [];
+    const big = "x".repeat(LONG_ASSISTANT_SPILL_CHARS + 1);
+    const ed = makeLiteralEditor(
+      {
+        platform: "linux",
+        readClipboardText: async () => big,
+        spillPlainText: (file) => spilled.push(file),
+      },
+      "abc",
+    );
+    editor = ed;
+    caretAtEnd(ed);
+
+    // Act
+    await pressPlainPaste(ed);
+
+    // Assert
+    expect(spilled).toHaveLength(0);
+    expect(ed.state.doc.textContent.startsWith("abc")).toBe(true);
+    expect(ed.state.doc.textContent.length).toBeGreaterThan(big.length);
   });
 
   it("字面量粘贴在草稿里保留行首转义", async () => {
