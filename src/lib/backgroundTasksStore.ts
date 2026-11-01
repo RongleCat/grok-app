@@ -25,8 +25,9 @@ let chatStreaming = false;
 const openBySession = new Map<string, boolean>();
 const eventsBySession = new Map<string, FleetWireEvent[]>();
 /**
- * Row ids already shown for a chat. Lives here, not in the pane, so closing
- * the pane still sticks if the chat view remounts. A later new id reopens it.
+ * Row ids already shown for a chat, including finished ones. Lives here, not
+ * in the pane, so closing the pane still sticks if the chat view remounts.
+ * Only a later running row that is not already here reopens it.
  */
 const seenRowsBySession = new Map<string, Set<string>>();
 const listeners = new Set<Listener>();
@@ -100,10 +101,11 @@ function rowKeys(row: {
 }
 
 /**
- * Remember the rows on screen. Returns true when this chat should open the
- * pane: a row is running the first time we look, or a row shows up that was
- * not already on screen. Finished history stays closed. The same task
- * changing id (tool call → task id) does not count as a new row.
+ * Remember the rows on screen. Returns true only when a row is not already
+ * remembered and it is running. A finished row, or one that omits `running`,
+ * stays closed. An empty list does not remember anything, so a later finished
+ * row is still a cold look. The same task changing id (tool call → task id)
+ * does not count as a new row.
  */
 export function noteFleetRowsForAutoOpen(
   sessionId: string,
@@ -115,23 +117,21 @@ export function noteFleetRowsForAutoOpen(
   }[],
 ): boolean {
   const sid = sessionId.trim();
-  if (!sid) return false;
+  if (!sid || rows.length === 0) return false;
   let seen = seenRowsBySession.get(sid);
-  const first = !seen;
   if (!seen) {
     seen = new Set();
     seenRowsBySession.set(sid, seen);
   }
   const bag = seen;
-  let hasNew = false;
+  let open = false;
   for (const row of rows) {
     const keys = rowKeys(row);
     if (keys.length === 0) continue;
-    if (!keys.some((key) => bag.has(key))) hasNew = true;
+    if (!keys.some((key) => bag.has(key)) && row.running === true) open = true;
     for (const key of keys) bag.add(key);
   }
-  if (first) return rows.some((row) => row.running === true);
-  return hasNew;
+  return open;
 }
 
 /** Forget remembered row ids. Tests use this so auto-open starts clean. */

@@ -68,21 +68,38 @@ describe("backgroundTasksStore", () => {
   it("opens for a task, stays closed after dismiss, and reopens for the next task", () => {
     setFleetChatContext("chat", false);
     expect(noteFleetRowsForAutoOpen("chat", [])).toBe(false);
-    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-1" }])).toBe(true);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-1" }])).toBe(false);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "run-1", running: true }])).toBe(true);
     setBackgroundTasksOpen(true);
     setBackgroundTasksOpen(false);
-    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-1", toolCallId: "call-1" }])).toBe(false);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "run-1", running: true }])).toBe(false);
     expect(getBackgroundTasksSnapshot().open).toBe(false);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-1", toolCallId: "call-1" }])).toBe(false);
     expect(
       noteFleetRowsForAutoOpen("chat", [
-        { id: "bg-1", toolCallId: "call-1" },
+        { id: "bg-1", toolCallId: "call-1", running: true },
       ]),
     ).toBe(false);
-    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-2" }])).toBe(true);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "task-2" }])).toBe(false);
+    expect(noteFleetRowsForAutoOpen("chat", [{ id: "run-2", running: true }])).toBe(true);
     setBackgroundTasksOpen(true);
     expect(getBackgroundTasksSnapshot().open).toBe(true);
     toggleBackgroundTasks();
     expect(getBackgroundTasksSnapshot().open).toBe(false);
+  });
+
+  it("stays closed for an empty snapshot followed by a finished row", () => {
+    forgetFleetAutoOpen();
+    expect(noteFleetRowsForAutoOpen("cold", [])).toBe(false);
+    expect(
+      noteFleetRowsForAutoOpen("cold", [{ id: "done-1", running: false }]),
+    ).toBe(false);
+    expect(
+      noteFleetRowsForAutoOpen("cold", [
+        { id: "done-1", running: false },
+        { id: "run-1", running: true },
+      ]),
+    ).toBe(true);
   });
 
   it("leaves a chat closed when every task is already finished", () => {
