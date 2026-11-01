@@ -102,21 +102,3 @@ export function decodeMarkdownDisplayText(text: string): string {
       .replace(/&gt;/g, ">"),
   );
 }
-
-/**
- * 用户气泡的换行还原：输入框里每个 `\n` 都是硬换行（编辑器 `breaks: true`）。
- *
- * react-markdown 按 CommonMark 把段内单个换行当软换行，HTML 里会并成一行，气泡
- * 因此和编辑器不一致。这里在渲染前给正文行尾补两个空格，把段内换行变成 CommonMark
- * 硬换行；空行不补，围栏与行内代码保持原样。
- */
-export function hardenUserLineBreaks(markdown: string): string {
-  return transformOutsideCode(markdown, (plain) =>
-    plain
-      .split("\n")
-      .map((line, index, lines) =>
-        index < lines.length - 1 && line.trim() ? `${line}  ` : line,
-      )
-      .join("\n"),
-  );
-}

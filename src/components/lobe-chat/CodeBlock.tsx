@@ -35,7 +35,6 @@ export const CodeBlock = memo(function CodeBlock({
   unwrapLabel = "No wrap",
   copyLabel = "Copy",
   showLineNumbers: showLineNumbersProp,
-  showCopy = true,
 }: {
   language?: string;
   children: ReactNode;
@@ -44,8 +43,6 @@ export const CodeBlock = memo(function CodeBlock({
   copyLabel?: string;
   /** Override global line-numbers pref when set. */
   showLineNumbers?: boolean;
-  /** Default true. User bubbles pass false to hide the copy button. */
-  showCopy?: boolean;
 }) {
   const [wrap, setWrap] = useState(() => loadCodeWrapPref());
   const [prefLineNumbers, setPrefLineNumbers] = useState(() =>
@@ -111,18 +108,16 @@ export const CodeBlock = memo(function CodeBlock({
               </span>
             </button>
           </Tip>
-          {showCopy ? (
-            <Tip label={copied ? "OK" : copyLabel}>
-              <button
-                type="button"
-                className={cn("chat-code__btn", copied && "is-copied")}
-                aria-label={copyLabel}
-                onClick={() => void onCopy()}
-              >
-                {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-              </button>
-            </Tip>
-          ) : null}
+          <Tip label={copied ? "OK" : copyLabel}>
+            <button
+              type="button"
+              className={cn("chat-code__btn", copied && "is-copied")}
+              aria-label={copyLabel}
+              onClick={() => void onCopy()}
+            >
+              {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+            </button>
+          </Tip>
         </div>
       </div>
       <div className="chat-code__body">
