@@ -22,15 +22,20 @@ GitHub 这类不同的 MCP 服务器。MCP Target 里已经有远程服务器的
 
 1. 从 MCP Target 提取主机名，用 Public Suffix List 求**注册域**；只访问该注册域及其子域
    （含原始主机）的 `https` 地址，第三方 CDN 一律不取。
-2. 先问服务器自己要：对 https Target 发一次 `initialize`（带配置里的鉴权头），读取
-   `result.serverInfo.icons`（MCP 2025-11-25）；服务器没声明或请求失败时，再读站点根文档的
-   `<link rel="icon">` / `<link rel="apple-touch-icon">`（SVG 优先、其次按声明尺寸），
-   最后试 `/favicon.ico`。
-3. 下载走既有的安全 HTTPS 客户端（DNS 校验 + 防 SSRF），限制体积与超时；解码后统一转成
-   最长边 ≤64 px 的 PNG（只缩不放；SVG 原样保留），以 data URL 交给前端渲染。
+2. 先问服务器自己要：对**已启用**的 https Target 发一次 `initialize`，读取
+   `result.serverInfo.icons`（MCP 2025-11-25）。鉴权头只在该 Target 与该服务器**配置的 URL**
+   完全一致（协议/主机/端口/路径）时附带，防止调用方借服务器名把凭据送到其他主机。
+   服务器没声明或请求失败时，再读站点根文档的 `<link rel="icon">` /
+   `<link rel="apple-touch-icon">`（SVG 优先、其次按声明尺寸），最后试 `/favicon.ico`。
+   服务器自报的图标无论是 `data:` 还是 URL，都必须落在该注册域及子域内。
+3. 下载走既有的安全 HTTPS 客户端（DNS 校验 + 防 SSRF），限制体积与超时；`post_json` 不跟随
+   重定向（3xx 判为阻断，避免重发凭据）。解码后统一转成最长边 ≤64 px 的 PNG（只缩不放；
+   SVG 原样保留），前端只接受 PNG / SVG 的 data URL。
 4. 结果按「注册域 + 服务器名」缓存在 App 数据目录，正常结果 30 天、失败结果 7 天；过期后
    重新解析，失败时继续使用旧缓存。
 5. 拿不到图标时回落到**字母徽标**，不请求任何第三方图标服务。
+6. 打开 MCP 设置会对每个未缓存的已启用 https 服务器各握手一次（4 秒超时，没有单独开关）；
+   禁用的服务器不发起任何图标请求。
 
 ## 考虑过的选项
 

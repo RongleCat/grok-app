@@ -57,6 +57,21 @@ describe("McpServerIcon", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
+  it("does not handshake for a disabled server", () => {
+    const { container } = render(
+      <McpServerIcon
+        name="linear"
+        target="https://linear.app/mcp"
+        enabled={false}
+      />,
+    );
+
+    expect(container.querySelector(".ext-ref-row__icon-mono")).toHaveTextContent(
+      "L",
+    );
+    expect(mcpIconResolve).not.toHaveBeenCalled();
+  });
+
   it("falls back to the monogram for local servers", () => {
     const { container } = render(<McpServerIcon name="files" target="npx fs-mcp" />);
 

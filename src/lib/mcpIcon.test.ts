@@ -111,6 +111,18 @@ describe("normalizeMcpIconResult", () => {
     ).toEqual({ ...ICON, dataUrl: null, source: "none" });
   });
 
+  it("only accepts the png/svg data URLs the host emits", () => {
+    expect(
+      normalizeMcpIconResult({
+        ...ICON,
+        dataUrl: "data:image/svg+xml;base64,AAAA",
+      }),
+    ).toMatchObject({ dataUrl: "data:image/svg+xml;base64,AAAA" });
+    expect(
+      normalizeMcpIconResult({ ...ICON, dataUrl: "data:image/gif;base64,AAAA" }),
+    ).toEqual({ ...ICON, dataUrl: null, source: "none" });
+  });
+
   it("downgrades a missing data URL to none", () => {
     expect(normalizeMcpIconResult({ ...ICON, dataUrl: null })).toEqual({
       ...ICON,

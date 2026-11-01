@@ -2654,7 +2654,11 @@ export function ExtensionsPanel({
                   }
                 >
                   <div className="ext-ref-row__main">
-                    <McpServerIcon name={s.name} target={s.target} />
+                    <McpServerIcon
+                      name={s.name}
+                      target={s.target}
+                      enabled={on}
+                    />
                     <div className="ext-ref-row__body">
                       <div className="ext-ref-row__title">{s.name}</div>
                       <div className="ext-ref-row__desc">

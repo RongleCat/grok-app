@@ -91,9 +91,11 @@ export function normalizeMcpIconResult(value: unknown): McpIconResult | null {
   ) {
     return null;
   }
+  // 宿主只会产出这两种：位图统一重编码为 PNG，矢量原样保留 SVG。
   const dataUrl =
     typeof raw.dataUrl === "string" &&
-    raw.dataUrl.startsWith("data:image/") &&
+    (raw.dataUrl.startsWith("data:image/png;base64,") ||
+      raw.dataUrl.startsWith("data:image/svg+xml;base64,")) &&
     raw.dataUrl.length <= 1_000_000
       ? raw.dataUrl
       : null;

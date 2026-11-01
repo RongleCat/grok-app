@@ -281,22 +281,6 @@ impl SafeHttpsClient {
             .await
     }
 
-    /// POST a small JSON payload to a public https endpoint.
-    ///
-    /// Used for the MCP `initialize` handshake. Redirects are not followed: the
-    /// caller's endpoint is authoritative, and a hop would escape the policy the
-    /// caller validated before the call.
-    pub async fn post_json(
-        &self,
-        url: &Url,
-        headers: HeaderMap,
-        body: Bytes,
-        timeout: Duration,
-    ) -> Result<SafeHttpsResponse, SafeHttpsError> {
-        self.request(hyper::Method::POST, url, headers, body, timeout)
-            .await
-    }
-
     async fn request(
         &self,
         method: hyper::Method,
@@ -993,6 +977,8 @@ fn socket_authority(address: SocketAddr) -> String {
 fn io_error(kind: io::ErrorKind, message: &'static str) -> BoxError {
     Box::new(io::Error::new(kind, message))
 }
+
+mod post;
 
 #[cfg(test)]
 mod tests;

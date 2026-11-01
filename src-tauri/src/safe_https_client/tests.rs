@@ -1,3 +1,4 @@
+use super::post::reject_redirect;
 use super::*;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
@@ -215,6 +216,26 @@ fn no_proxy_matches_domains_ips_cidr_and_optional_ports() {
         &addresses,
         "cdn.example.com:443"
     ));
+}
+
+#[test]
+fn post_json_treats_redirects_as_blocked() {
+    for status in [
+        StatusCode::MOVED_PERMANENTLY,
+        StatusCode::FOUND,
+        StatusCode::SEE_OTHER,
+        StatusCode::TEMPORARY_REDIRECT,
+        StatusCode::PERMANENT_REDIRECT,
+    ] {
+        assert!(
+            reject_redirect(status).is_err(),
+            "{status} must not be followed with caller credentials"
+        );
+    }
+    assert_eq!(
+        reject_redirect(StatusCode::OK).expect("200 passes"),
+        StatusCode::OK
+    );
 }
 
 #[test]

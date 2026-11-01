@@ -19,9 +19,18 @@ export interface McpServerIconProps {
   name: string;
   /** MCP Target；远程服务器是 URL，本地服务器是启动命令。 */
   target?: string | null;
+  /**
+   * 服务器是否启用。禁用的服务器只展示已有缓存或字母徽标：
+   * 打开设置不应为一个被关掉的服务器发 `initialize` 或抓站点图标。
+   */
+  enabled?: boolean;
 }
 
-export function McpServerIcon({ name, target }: McpServerIconProps) {
+export function McpServerIcon({
+  name,
+  target,
+  enabled = true,
+}: McpServerIconProps) {
   const [icon, setIcon] = useState<McpIconResult | null>(() =>
     peekMcpIcon(target, name),
   );
@@ -29,7 +38,7 @@ export function McpServerIcon({ name, target }: McpServerIconProps) {
   useEffect(() => {
     const cached = peekMcpIcon(target, name);
     setIcon(cached);
-    if (cached) return;
+    if (cached || !enabled) return;
     let cancelled = false;
     void loadMcpIcon(target, name).then((result) => {
       if (!cancelled && result) setIcon(result);
@@ -37,7 +46,7 @@ export function McpServerIcon({ name, target }: McpServerIconProps) {
     return () => {
       cancelled = true;
     };
-  }, [name, target]);
+  }, [enabled, name, target]);
 
   const dataUrl = icon?.dataUrl ?? null;
   const tone = mcpMonogramTone(name);

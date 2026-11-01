@@ -49,19 +49,24 @@ MCP 列表里每个远程服务器显示它所属厂商的方形标识，来源�
   `foo.github.io` 误判成 `github.io`。
 - **候选顺序**：MCP 服务器 `initialize` 回复里的 `serverInfo.icons`（带配置鉴权头，
   厂商自报，优先级最高）→ 注册域根文档的 `<link rel="icon">` / `<link rel="apple-touch-icon">`
-  （按声明尺寸与格式优选）→ 注册域 `/favicon.ico` → 原始主机 `/favicon.ico`。
+  （SVG 优先、再按声明尺寸）→ 注册域 `/favicon.ico` → 原始主机 `/favicon.ico`。
+- **`initialize` 的边界**：只对**已启用**的 https 服务器发一次，4 秒超时；鉴权头只在该
+  Target 与服务器配置的 URL 完全一致（协议/主机/端口/路径）时附带，避免调用方借服务器名
+  把凭据送到其他主机。自报图标的 `data:` 内容或 URL 也必须落在 Target 的注册域及子域内。
 - **安全边界**：只接受 `https`；拒绝带 userinfo 的 URL；DNS 解析结果必须为公网地址；
   单次响应体上限 512 KiB、总超时 8 秒；错误信息不回传原始 Target（可能含密钥）。
 - **输出格式**：位图缩到最长边 ≤64 px 的 PNG（只缩不放，保留透明通道）；SVG 原样保留并限制体积；以
-  `data:image/...;base64,` 返回，前端 `<img>` 直接渲染。CSP 已允许 `data:`。
+  `data:image/png;base64,` 或 `data:image/svg+xml;base64,` 返回，前端 `<img>` 直接渲染；
+  前端只接受这两种前缀。CSP 已允许 `data:`。
 - **缓存**：App 数据目录 `cache/mcp-icons/`，按「注册域 + 服务器名」哈希命名；成功 30 天、失败 7 天；
   过期后重新解析，失败则继续用旧值。缓存条目只存域名与图标，不存 Target 原文。
 - **接口**：宿主命令 `mcp_icon_resolve(target, serverName)` 返回
-  `{ dataUrl, domain, source: "site" | "favicon" | "none", fromCache }`；
+  `{ dataUrl, domain, source: "server" | "site" | "favicon" | "none", fromCache }`；
   前端遇到 `none` 或命令失败时渲染字母徽标。
 - **前端边界**：新增纯函数模块承载「Target → 可解析 URL」「字母与配色」「请求去重缓存」，
   新增一个只负责展示的图标组件；MCP 行只替换图标节点。
-- **并发**：前端按主机去重，同一主机只发一次请求；同时最多 4 个在途请求。
+- **并发**：前端按「主机 + 服务器名」去重，同一服务器只发一次请求；同时最多 4 个在途请求。
+  禁用行只展示已有缓存或字母徽标，不发起任何请求。
 - **范围**：本期只改设置 → 扩展 → MCP 列表行；MCP 状态弹窗、Doctor 报告、插件卡片不在范围内。
 - **不新增用户可见文案**：图标是装饰性元素，`alt=""` + `aria-hidden`，服务器名仍是唯一可读标签。
 
@@ -71,7 +76,8 @@ MCP 列表里每个远程服务器显示它所属厂商的方形标识，来源�
 时间，是否命中。测试不 mock 内部私有函数。
 
 - **宿主**：注册域计算（含多段后缀）、候选 URL 选取与优先级、缓存新鲜度、图标解码与
-  data URL 生成、私网/非 https Target 被拒绝。与 `wallpaper_web_page.rs`、
+  data URL 生成、私网/非 https Target 被拒绝、鉴权头只绑定到配置 URL、自报图标不得离开
+  注册域、`post_json` 把 3xx 判为阻断。与 `wallpaper_web_page.rs`、
   `image_thumb.rs` 的现有单测同风格。
 - **前端纯函数**：Target 提取、字母徽标（首字母、确定性配色）、去重缓存命中。
 - **组件**：用 `@testing-library/react` 断言三种状态——有图标时渲染 `<img>`；`none` 或命令
@@ -88,7 +94,9 @@ MCP 列表里每个远程服务器显示它所属厂商的方形标识，来源�
 
 ## Further Notes
 
-- 远程 MCP 的 Target 可能是 OAuth 回调地址或带查询参数；缓存键与请求都只用注册域和服务器名，
-  避免把查询参数写进磁盘。
+- 远程 MCP 的 Target 可能是 OAuth 回调地址或带查询参数；缓存键只用注册域和服务器名，
+  磁盘上不出现查询参数。`initialize` 会把完整的 Target（含查询串）作为请求地址发给该服务器本身；
+  打开 MCP 设置即对已启用且未缓存的 https 服务器各握手一次，没有单独开关，行为记录在
+  `docs/llm-wiki/mcp-icons.md`。
 - 图标只是识别辅助；用户重命名服务器不会改变图标来源（来源是 Target）。
 - 失败结果也缓存，避免每次打开设置都重复请求 404 的厂商。

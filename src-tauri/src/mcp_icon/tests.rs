@@ -5,7 +5,122 @@
 
 use super::*;
 
+use std::collections::HashMap;
+
+use crate::extensions::McpServerDef;
+
 const DAY: u64 = 24 * 60 * 60;
+
+fn server_def(url: Option<&str>, headers: &[(&str, &str)]) -> McpServerDef {
+    McpServerDef {
+        name: "context7".into(),
+        command: None,
+        args: None,
+        env: None,
+        url: url.map(str::to_string),
+        headers: Some(
+            headers
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect::<HashMap<_, _>>(),
+        ),
+        transport: Some("http".into()),
+        enabled: Some(true),
+        scope: None,
+    }
+}
+
+fn public_dns(_: &str) -> Result<Vec<std::net::IpAddr>, String> {
+    Ok(vec![std::net::IpAddr::V4(std::net::Ipv4Addr::new(
+        93, 184, 216, 34,
+    ))])
+}
+
+#[test]
+fn auth_headers_only_attach_to_the_configured_endpoint() {
+    let def = server_def(
+        Some("https://mcp.example.com/mcp"),
+        &[("authorization", "Bearer secret"), ("x-api-key", "k")],
+    );
+
+    assert_eq!(
+        server_headers_for_target(&def, "https://mcp.example.com/mcp").len(),
+        2
+    );
+    // 查询串不参与端点绑定；协议/主机/端口/路径任一不同都不附带凭据。
+    assert_eq!(
+        server_headers_for_target(&def, "https://mcp.example.com/mcp?key=1").len(),
+        2
+    );
+    for other in [
+        "https://other.example.com/mcp",
+        "http://mcp.example.com/mcp",
+        "https://mcp.example.com:8443/mcp",
+        "https://mcp.example.com/other",
+    ] {
+        assert!(
+            server_headers_for_target(&def, other).is_empty(),
+            "must not attach credentials to {other}"
+        );
+    }
+}
+
+#[test]
+fn stdio_servers_never_contribute_headers() {
+    let def = server_def(None, &[("authorization", "Bearer secret")]);
+    assert!(server_headers_for_target(&def, "https://mcp.example.com/mcp").is_empty());
+}
+
+#[test]
+fn declared_icon_urls_must_stay_on_the_vendor_domain() {
+    let policy = OriginPolicy::SameRegistrableDomain {
+        domain: "context7.com".into(),
+    };
+    assert!(skin_net::check_hop("https://cdn.context7.com/icon.png", &policy, public_dns).is_ok());
+    assert!(
+        skin_net::check_hop("https://evil.example/icon.png", &policy, public_dns).is_err(),
+        "a compromised server must not make the app fetch a third party"
+    );
+}
+
+#[test]
+fn server_data_urls_are_limited_to_supported_image_types() {
+    assert!(is_supported_server_data_url("data:image/png;base64,AAAA"));
+    assert!(is_supported_server_data_url(
+        "data:image/svg+xml;base64,AAAA"
+    ));
+    assert!(!is_supported_server_data_url("data:image/gif;base64,AAAA"));
+    assert!(!is_supported_server_data_url("data:text/html;base64,AAAA"));
+    let oversized = format!(
+        "data:image/png;base64,{}",
+        "A".repeat(SERVER_ICON_DATA_URL_MAX_BYTES)
+    );
+    assert!(!is_supported_server_data_url(&oversized));
+}
+
+#[tokio::test]
+async fn server_data_url_bitmaps_are_reencoded_as_png() {
+    let src = format!("data:image/png;base64,{}", BASE64.encode(tiny_png(16, 16)));
+    let out = server_icon_data_url(&src, "context7.com")
+        .await
+        .expect("inline png");
+    assert!(out.starts_with("data:image/png;base64,"));
+}
+
+#[tokio::test]
+async fn server_data_url_svg_is_kept_and_validated() {
+    let src = format!(
+        "data:image/svg+xml;base64,{}",
+        BASE64.encode(r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#)
+    );
+    assert_eq!(
+        server_icon_data_url(&src, "context7.com").await.as_deref(),
+        Some(src.as_str())
+    );
+
+    let broken = "data:image/svg+xml;base64,not base64";
+    assert!(server_icon_data_url(broken, "context7.com").await.is_none());
+}
 
 fn tiny_png(width: u32, height: u32) -> Vec<u8> {
     let image = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(

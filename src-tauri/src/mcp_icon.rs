@@ -1,10 +1,18 @@
-//! MCP 厂商标识：从 Target 的注册域抓取站点图标，统一成最长边 ≤64 px 的 PNG / SVG data URL。
+//! MCP 厂商标识：优先读服务器自报图标，再回落到 Target 注册域的站点图标，
+//! 统一成最长边 ≤64 px 的 PNG / SVG data URL。
+//!
+//! 网络行为只有两类，且都有限额与超时：
+//! - 对**已启用**的 https 服务器发一次 `initialize`，读取 `serverInfo.icons`；
+//!   请求地址就是该服务器自己的 Target（含查询串），鉴权头只在它与服务器配置的
+//!   URL 完全一致时附带。
+//! - 其余请求（站点文档、图标、`/favicon.ico`）只访问 Target 的注册域及其子域。
 //!
 //! 图标只是识别辅助，因此所有失败都收敛成 [`McpIconSource::None`]，不向上抛错。
-//! Target 可能带 OAuth 回调参数或密钥，所以缓存键与网络请求都只用注册域，
-//! 任何日志、缓存文件、返回值都不出现 Target 原文。
+//! Target 可能带 OAuth 回调参数或密钥，所以缓存键只用注册域（加服务器名），
+//! 日志、缓存文件、返回值都不出现 Target 原文。
 //!
-//! 下载统一走 [`crate::skin_net`] 的安全 HTTPS 客户端（DNS 校验 + 私网拦截）。
+//! 下载统一走 [`crate::skin_net`] / [`crate::safe_https_client`] 的安全客户端
+//! （DNS 校验 + 私网拦截）。
 
 use std::collections::HashSet;
 use std::fs;
@@ -463,7 +471,9 @@ async fn download_icon_data_url(url: &str, domain: &str) -> Option<String> {
     icon_data_url(None, &bytes)
 }
 
-fn is_allowed_server_icon_data_url(value: &str) -> bool {
+/// 服务器可以直接用 `data:` 内联图标；只接受位图与 SVG 的 base64 形式。
+/// 输出统一收敛成 PNG / SVG（见 [`server_icon_data_url`]），前端只认这两种。
+fn is_supported_server_data_url(value: &str) -> bool {
     const PREFIXES: &[&str] = &[
         "data:image/png;base64,",
         "data:image/jpeg;base64,",
@@ -491,7 +501,7 @@ fn icon_sources_from_json(value: &serde_json::Value) -> Vec<String> {
             continue;
         };
         let allowed = if src.starts_with("data:image/") {
-            is_allowed_server_icon_data_url(src)
+            is_supported_server_data_url(src)
         } else {
             Url::parse(src)
                 .map(|url| {
@@ -533,18 +543,31 @@ fn parse_server_icon_sources(body: &[u8]) -> Vec<String> {
     Vec::new()
 }
 
-/// 从已保存的 MCP 配置里取该服务器的请求头（Authorization / x-api-key 等）。
+/// 两个 URL 是否指向同一个端点：协议、主机、端口、路径都相同（查询串与片段不参与）。
+///
+/// 用于把保存的鉴权头绑定到服务器**配置的** URL；只看服务器名会让任何 IPC 调用方
+/// 借一个已配置名字把 `Authorization` / `x-api-key` 发到别的主机。
+fn same_endpoint(left: &str, right: &str) -> bool {
+    let (Ok(left), Ok(right)) = (Url::parse(left), Url::parse(right)) else {
+        return false;
+    };
+    left.scheme() == right.scheme()
+        && left.host_str().map(str::to_ascii_lowercase)
+            == right.host_str().map(str::to_ascii_lowercase)
+        && left.port_or_known_default() == right.port_or_known_default()
+        && left.path() == right.path()
+}
+
+/// 该服务器配置里的请求头，仅在 Target 与其配置 URL 一致时返回。
 /// 这些头只放在这一次 initialize 请求里，不进入缓存或返回值。
-fn server_initialize_headers(server_name: Option<&str>) -> HeaderMap {
+fn server_headers_for_target(def: &crate::extensions::McpServerDef, target_url: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    let name = server_name.map(str::trim).filter(|name| !name.is_empty());
-    let Some(name) = name else {
+    let Some(configured) = def.url.as_deref() else {
         return headers;
     };
-    let defs = list_mcp_server_defs(None);
-    let Some(def) = defs.iter().find(|def| def.name == name) else {
+    if !same_endpoint(configured, target_url) {
         return headers;
-    };
+    }
     for (key, value) in def.headers.iter().flatten() {
         let Ok(header_name) = HeaderName::from_bytes(key.trim().as_bytes()) else {
             continue;
@@ -557,6 +580,18 @@ fn server_initialize_headers(server_name: Option<&str>) -> HeaderMap {
     headers
 }
 
+/// 按服务器名找到配置，再把它绑定到具体 Target URL 上取头。
+fn server_initialize_headers(server_name: Option<&str>, target_url: &str) -> HeaderMap {
+    let Some(name) = server_name.map(str::trim).filter(|name| !name.is_empty()) else {
+        return HeaderMap::new();
+    };
+    let defs = list_mcp_server_defs(None);
+    let Some(def) = defs.iter().find(|def| def.name == name) else {
+        return HeaderMap::new();
+    };
+    server_headers_for_target(def, target_url)
+}
+
 /// 问 MCP 服务器自己要图标：`initialize` → `result.serverInfo.icons`。
 ///
 /// 只对 https Target 生效（stdio 服务器需要真正启动进程，设置页不做这件事）。
@@ -567,10 +602,12 @@ async fn declared_server_icons(server_name: Option<&str>, target: &IconTarget) -
     };
     // 配置读取可能触发 `grok mcp list`，放到阻塞线程池，避免占住异步 worker。
     let name = server_name.map(str::to_string);
-    let mut headers =
-        tokio::task::spawn_blocking(move || server_initialize_headers(name.as_deref()))
-            .await
-            .unwrap_or_default();
+    let target_url = target.url.clone();
+    let mut headers = tokio::task::spawn_blocking(move || {
+        server_initialize_headers(name.as_deref(), &target_url)
+    })
+    .await
+    .unwrap_or_default();
     headers
         .entry(CONTENT_TYPE)
         .or_insert(HeaderValue::from_static("application/json"));
@@ -621,14 +658,34 @@ async fn declared_server_icons(server_name: Option<&str>, target: &IconTarget) -
     parse_server_icon_sources(&bytes)
 }
 
-/// 服务器自报的图标可能是 `data:` 内联，也可能在厂商 CDN 上。
-async fn server_icon_data_url(src: &str) -> Option<String> {
-    if src.starts_with("data:image/") {
-        return is_allowed_server_icon_data_url(src).then(|| src.to_string());
+/// 服务器自报的图标可能是 `data:` 内联，也可能是一个 https 地址。
+///
+/// 地址同样限制在厂商注册域及子域内：被控的 MCP 服务器不能借 `serverInfo.icons`
+/// 让本机去请求任意第三方。内联位图统一转成 PNG，SVG 原样保留。
+async fn server_icon_data_url(src: &str, domain: &str) -> Option<String> {
+    if src.starts_with("data:") {
+        if !is_supported_server_data_url(src) {
+            return None;
+        }
+        if src.starts_with("data:image/svg+xml;base64,") {
+            let (_, payload) = src.split_once(',')?;
+            BASE64.decode(payload).ok()?;
+            return Some(src.to_string());
+        }
+        let (_, payload) = src.split_once(',')?;
+        let bytes = BASE64.decode(payload).ok()?;
+        return icon_data_url(None, &bytes);
     }
-    let bytes = skin_net::safe_https_get(src, OriginPolicy::AnyHttps, ICON_MAX_BYTES, None)
-        .await
-        .ok()?;
+    let bytes = skin_net::safe_https_get(
+        src,
+        OriginPolicy::SameRegistrableDomain {
+            domain: domain.to_string(),
+        },
+        ICON_MAX_BYTES,
+        None,
+    )
+    .await
+    .ok()?;
     icon_data_url(None, &bytes)
 }
 
@@ -640,7 +697,7 @@ async fn resolve_remote(
     server_name: Option<&str>,
 ) -> Option<(String, McpIconSource)> {
     for src in declared_server_icons(server_name, target).await {
-        if let Some(data_url) = server_icon_data_url(&src).await {
+        if let Some(data_url) = server_icon_data_url(&src, &target.domain).await {
             return Some((data_url, McpIconSource::Server));
         }
     }
