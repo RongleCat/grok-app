@@ -45,7 +45,7 @@
 
 4. Prefer real Grok Build CLI behavior (`grok models`, `--always-approve`, `--effort`).
 
-5. Assistant messages: render markdown (`MarkdownBody`); user messages: gray bubble, no role labels.
+5. Assistant messages: render markdown (`MarkdownBody`); user messages: gray bubble, no role labels, and render Markdown the same way the composer showed it (defensive escapes decoded, typed newlines kept as line breaks).
 
 6. **Branch hygiene** — after work lands on `main` (merge, squash, or batch integrate), promptly and safely delete finished remote/local branches and idle worktrees. Confirm with `git fetch --prune`, ancestor / `gh pr` / feature-on-main checks; never delete open-PR heads, unique WIP, or worktree-checked-out branches without removing the worktree first. Details: [docs/llm-wiki/maintain.md](docs/llm-wiki/maintain.md#branch-hygiene-merged--finished-work).
 

@@ -14,7 +14,7 @@
 | `src/components/composer/tiptap/composerPaste.ts` | 粘贴归一化 + 来源判定 + 行内 / 块级插入 |
 | `src/lib/markdownLineStart.ts` | 行首块级记号的识别与转义（粘贴判定与序列化共用） |
 | `src/lib/composerMarkdown.ts` | 序列化归一化（防御性转义、硬换行、caret 换算） |
-| `src/lib/markdownSource.ts` | 代码感知扫描、展示态还原 |
+| `src/lib/markdownSource.ts` | 代码感知扫描、展示态还原、气泡硬换行 |
 
 ## 粘贴判定
 
@@ -51,20 +51,33 @@
 
 多行普通段落保留换行（`breaks: true` 下是软换行），不做块级提升。
 
-## 草稿与存储态
+## 用户气泡的展示
 
 存储态与提示词保留 Markdown 源码：字面文本会被序列化器转义（`\*` / `\#` / `1\.`），
 `<` `>` 写成 `&gt;` / `&lt;`。`normalizeSerializedMarkdown()` **保留**这些转义：
-draft 再解析回编辑器时靠它区分字面文本与真实记号；去掉转义会让字面 `#` 变成标题、
-字面 `*` 变成斜体。
+draft 再解析回编辑器、气泡渲染 Markdown 时都靠它区分字面文本与真实记号；
+去掉转义会让字面 `#` 变成标题、字面 `*` 变成斜体。
 
 **段内硬换行**（Shift+Enter）的行需要额外补转义：序列化器只在文本块开头把
 `atBlockStart` 置为 true，`hardBreak` 序列化成 `\\\n` 之后仍属于同一段，`#` / `-` /
-`1.` / `=` / `|` 不会被转义。草稿再解析时（agent、回退后的编辑器）会把这类行
-当成标题 / 列表 / 分隔线 / 表格，编辑器所见因此改变。
+`1.` / `=` / `|` 不会被转义。草稿再解析时（气泡、agent、回退后的编辑器）会把这类行
+当成标题 / 列表 / 分隔线 / 表格，编辑器与气泡因此显示不一致。
 `normalizeSerializedMarkdown()` 对 `\\\n` 之后的行补行首转义（`\#` / `\-` / `\>` /
 `1\.` / `\===` / `\|`）；记号判定与转义共用 `src/lib/markdownLineStart.ts`，围栏与
 行内代码不受影响。
+
+用户气泡与编辑器一致，按 Markdown 渲染：无 token 的消息直接走 `MarkdownChat`，
+标题、粗体、围栏、列表都会渲染，转义由渲染器还原。带 skill / 引用 token 的消息
+仍走纯文本 + chip 路径，文本段用 `decodeMarkdownDisplayText()` 还原转义。
+折叠预览先经 `softCloseMarkdown()` 补齐被截断的记号 / 围栏。
+
+输入框里的每个换行都是硬换行（编辑器 `breaks: true`），而 CommonMark 把段内单个
+换行当软换行，HTML 里会并成一行。气泡渲染前 `hardenUserLineBreaks()` 给正文行尾补
+两个空格，把这些换行变成 CommonMark 硬换行；空行不补，围栏与行内代码不动。
+`hr` 在气泡里按设计隐藏（`MdHr` 返回 null）。
+
+用户气泡与编辑器所见一致：`renderMermaid={false}` 让 ```mermaid 围栏保持代码块，
+`showCodeCopy={false}` 隐藏代码块复制按钮（短代码多为手动输入，长代码来自剪贴板）。
 
 ## 粘贴后的标记状态
 

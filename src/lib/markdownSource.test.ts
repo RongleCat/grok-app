@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decodeMarkdownDisplayText,
+  hardenUserLineBreaks,
   transformOutsideCode,
 } from "./markdownSource";
 
@@ -66,3 +67,23 @@ describe("decodeMarkdownDisplayText", () => {
   });
 });
 
+describe("hardenUserLineBreaks", () => {
+  it("段内换行补成 CommonMark 硬换行", () => {
+    // Arrange / Act / Assert
+    expect(hardenUserLineBreaks("a\nb")).toBe("a  \nb");
+  });
+
+  it("空行分隔保持为空行", () => {
+    expect(hardenUserLineBreaks("a\n\nb")).toBe("a  \n\nb");
+  });
+
+  it("围栏与行内代码保持原样", () => {
+    // Arrange
+    const fenced = "```js\na\nb\n```";
+    const inline = "run `a\nb` now";
+
+    // Act / Assert
+    expect(hardenUserLineBreaks(fenced)).toBe(fenced);
+    expect(hardenUserLineBreaks(inline)).toBe(inline);
+  });
+});

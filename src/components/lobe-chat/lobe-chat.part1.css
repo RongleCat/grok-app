@@ -365,6 +365,19 @@ html[data-chat-width="full"] .lobe-chat__inner,
   white-space: pre-wrap;
 }
 
+/* Markdown-rendered user body: block structure owns whitespace, not the
+   bubble's pre-wrap text policy. The bubble already pads its content, so the
+   first block must not add its own top margin. */
+.lobe-chat-bubble .user-msg-body--markdown,
+.lobe-chat-user-msg__body .user-msg-body--markdown {
+  white-space: normal;
+  width: 100%;
+}
+
+.lobe-chat-bubble .user-msg-body--markdown .chat-md > *:first-child {
+  margin-top: 0;
+}
+
 
 .lobe-chat-bubble--interjection {
   border: 1px solid color-mix(in srgb, var(--chat-link) 24%, transparent);
