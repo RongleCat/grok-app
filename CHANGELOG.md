@@ -13,6 +13,12 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+### Fixed
+- Feishu remote control downloads the images and files you send, so the agent can read them.
+
+**中文 · 修复**
+- 飞书远程控制会下载你发送的图片和文件，agent 能真正读到内容。
+
 ## [0.2.50] - 2026-10-28
 
 > **Highlight:** Every model of a custom provider is selectable again, and the chosen one is the one used.

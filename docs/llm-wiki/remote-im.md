@@ -613,8 +613,19 @@ Callout：社区桥、风险自负。
 | 侧栏同步 | 写盘后 emit `session://index_changed`，App 刷新会话列表 |
 | 权限 | 受「允许远程 YOLO」总闸 |
 | 飞书渲染 | 含 Markdown 时用 interactive 卡片 `schema 2.0` markdown 元素（非 plain text） |
-| 媒体 | 按渠道能力入站/出站；路径防穿越 |
+| 媒体 | 飞书入站图片/文件先下载落盘，再以 `@/绝对路径` 行（`buildAgentPrompt` 同款约定）交给 agent；同时写入 App 会话 `attachments`。单文件上限 50 MB；路径组件白名单，绝不使用飞书 key 拼路径 |
 | 并发 | 复用 App maxConcurrentAgents |
+
+飞书入站媒体细节：
+
+- 事件里的 `image_key` / `file_key` 只是资源标识，agent 无法解析；必须调用 `GET /open-apis/im/v1/messages/{message_id}/resources/{file_key}?type=image|file` 取回字节。
+- 落盘位置 `~/.grok-app/remote/media/<instance>/`，文件名用 UUID 前缀；`file` 消息保留原文件名（去除路径分隔符与控制字符）；缺少扩展名时按 magic bytes 与 `Content-Type` 补齐。
+- 支持 `image`、`file`、`audio`、`media`（视频）、`sticker` 消息，以及 `post` 富文本（含 `zh_cn` / `en_us` locale 包裹）中的 `img` / `media` 节点；同一条消息内同一 key 只下载一次，最多 16 个附件。
+- 下载在每实例一个 worker 中执行，不阻塞飞书 WebSocket 心跳；`allow_from` 或群 @ 门槛不通过时不写盘。
+- 入站媒体按 30 天保留，写入新附件时顺带清理过期文件；「重置应用数据」会删除 `remote/media`。
+- 每个聊天每 60 秒最多下载 200 MB 媒体，避免绕过 agent 限流把磁盘写满。
+- 下载失败时在提示词中写入失败状态（HTTP 状态码 / 超限），让 agent 诚实告知用户，不得再回「请查看附件」占位。
+- 应用需在开放平台具备「获取单聊、群组消息」或「获取与发送单聊、群组消息」权限；未发布版本时下载会失败。
 
 ---
 

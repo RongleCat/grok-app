@@ -682,6 +682,16 @@ pub fn reset_app_data(keep_secrets: bool) -> Result<serde_json::Value, String> {
         }
     }
 
+    // Remote IM inbound media is user data, not a bridge credential. Clear it
+    // on reset while keeping channels.json / bindings / secrets.
+    let remote_media = root.join("remote").join("media");
+    if remote_media.exists() {
+        match remove_dir_all_retry(&remote_media) {
+            Ok(()) => removed.push("remote/media".into()),
+            Err(e) => errors.push(format!("remote/media: {e}")),
+        }
+    }
+
     if !keep_secrets {
         let accounts = root.join("accounts");
         if accounts.exists() {

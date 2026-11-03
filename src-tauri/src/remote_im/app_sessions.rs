@@ -2,7 +2,7 @@
 
 use super::context::ContextCompactSnapshot;
 use super::control_plane::{AppSessionEntry, PendingMode, ScopeBinding};
-use crate::store::{self, ChatMessageStored, SessionMeta};
+use crate::store::{self, ChatMessageStored, MessageAttachmentStored, SessionMeta};
 use chrono::Utc;
 use std::sync::OnceLock;
 use tauri::{AppHandle, Emitter};
@@ -206,6 +206,9 @@ pub fn sync_turn_to_app(
 
     // Journal: user + assistant rows (App UI reads messages.json)
     let now = Utc::now();
+    // Remote inbound media is handed to the agent as `@/abs/path` prompt lines;
+    // the same lines become structured attachment cards in the App history.
+    let inbound_attachments = inbound_attachments_from_prompt(user_prompt);
     let user_msg = ChatMessageStored {
         id: uuid::Uuid::new_v4().to_string(),
         role: "user".into(),
@@ -213,7 +216,7 @@ pub fn sync_turn_to_app(
         thought: None,
         created_at: now,
         is_error: false,
-        attachments: None,
+        attachments: inbound_attachments,
         marker: None,
     };
     let asst_msg = ChatMessageStored {
@@ -258,6 +261,21 @@ fn find_app_session_id(local_id: &str, agent_id: Option<&str>) -> Option<String>
     None
 }
 
+/// Journal cards for media the Bridge downloaded for this IM turn.
+///
+/// Only paths under the Bridge media dir qualify: a user typing `@/abs/path`
+/// in the IM text must not turn into a local attachment card.
+fn inbound_attachments_from_prompt(prompt: &str) -> Option<Vec<MessageAttachmentStored>> {
+    let (_body, mut attachments) = crate::cli_sessions::parse_at_path_attachments(prompt);
+    let media_root = crate::paths::app_data_root().join("remote").join("media");
+    attachments.retain(|a| std::path::Path::new(&a.path).starts_with(&media_root));
+    if attachments.is_empty() {
+        None
+    } else {
+        Some(attachments)
+    }
+}
+
 fn is_placeholder_title(t: &str) -> bool {
     // Remote IM adds one default of its own on top of the app-wide names.
     // The shared matcher covers every shipped locale; this copy knew only
@@ -269,6 +287,17 @@ fn is_placeholder_title(t: &str) -> bool {
 
 fn title_from_prompt(prompt: &str, channel: &str) -> String {
     let one_line = prompt.lines().next().unwrap_or(prompt).trim();
+    // Media-only turns would all share the same "attachment" lead; use the
+    // first downloaded file name so the sidebar stays distinguishable.
+    if one_line == "请查看附件" {
+        if let Some(name) = inbound_attachments_from_prompt(prompt)
+            .and_then(|list| list.into_iter().next())
+            .map(|a| a.name)
+            .filter(|n| !n.trim().is_empty())
+        {
+            return name.chars().take(48).collect();
+        }
+    }
     let clipped: String = one_line.chars().take(48).collect();
     if clipped.is_empty() {
         format!("Remote IM · {channel}")
@@ -327,5 +356,34 @@ mod tests {
         let f = map_and_filter(&list, Some("p1"));
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].agent_session_id.as_deref(), Some("ag1"));
+    }
+
+    #[test]
+    fn prompt_media_lines_become_journal_attachments() {
+        let path = crate::paths::app_data_root().join("remote/media/feishu-1/a.png");
+        let prompt = format!("请查看附件\n@{}", path.display());
+        let attachments = inbound_attachments_from_prompt(&prompt).expect("attachments");
+        assert_eq!(attachments.len(), 1);
+        assert!(attachments[0].path.ends_with("/a.png"));
+        assert_eq!(attachments[0].name, "a.png");
+        assert!(!attachments[0].is_dir);
+    }
+
+    #[test]
+    fn user_typed_abs_path_is_not_a_journal_attachment() {
+        let prompt = "请查看附件\n@/Users/me/Desktop/not_from_bridge.png";
+        assert!(inbound_attachments_from_prompt(prompt).is_none());
+    }
+
+    #[test]
+    fn plain_prompt_has_no_journal_attachments() {
+        assert!(inbound_attachments_from_prompt("hello").is_none());
+    }
+
+    #[test]
+    fn media_only_title_uses_the_downloaded_file_name() {
+        let path = crate::paths::app_data_root().join("remote/media/feishu-1/screenshot.png");
+        let prompt = format!("请查看附件\n@{}", path.display());
+        assert_eq!(title_from_prompt(&prompt, "feishu"), "screenshot.png");
     }
 }
