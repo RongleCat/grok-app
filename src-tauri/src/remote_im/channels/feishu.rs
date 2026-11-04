@@ -1351,11 +1351,7 @@ pub async fn send_media(
     if !meta.is_file() {
         return Err("media source is not a file".into());
     }
-    let max = if kind == AttachmentKind::Image {
-        10 * 1024 * 1024
-    } else {
-        30 * 1024 * 1024
-    };
+    let max = 30 * 1024 * 1024;
     if meta.len() > max {
         return Err(format!(
             "文件超过 Feishu 上传上限（{:.0} MB）",
@@ -1372,7 +1368,8 @@ pub async fn send_media(
         .map_err(|e| format!("media read task: {e}"))?
         .map_err(|e| format!("media read: {e}"))?;
 
-    let (msg_type, content) = if kind == AttachmentKind::Image {
+    // Feishu images cap at 10 MB; larger images are uploaded as files.
+    let (msg_type, content) = if kind == AttachmentKind::Image && meta.len() <= 10 * 1024 * 1024 {
         match upload_image(&client, &base, &token, &bytes, name).await {
             Ok(image_key) => ("image", json!({ "image_key": image_key })),
             Err(err) => {

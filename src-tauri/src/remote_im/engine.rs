@@ -1588,11 +1588,8 @@ impl Engine {
             };
             let is_feishu = matches!(msg.channel.as_str(), "feishu" | "lark");
             let max = if is_feishu {
-                if candidate.kind == crate::attachments::AttachmentKind::Image {
-                    10 * 1024 * 1024
-                } else {
-                    30 * 1024 * 1024
-                }
+                // Images over 10 MB fall back to a Feishu file message (30 MB).
+                30 * 1024 * 1024
             } else {
                 crate::attachments::MAX_FILE_BYTES
             };
