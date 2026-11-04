@@ -626,7 +626,9 @@ Callout：社区桥、风险自负。
 - 下载在每实例一个 worker 中执行，不阻塞飞书 WebSocket 心跳；`allow_from` 或群 @ 门槛不通过时不落盘。
 - 新 journal 的 user/assistant 行只保存展示文本 + 附件引用；旧 `@path` 行继续可读，不再作为新数据通道。
 - 出站：远程 prompt 追加一条约定，agent 把要回传的文件绝对路径单独写一行；Host 校验允许根与渠道大小后入库，再从 store 上传，成功后删除展示文本中的路径行并写入 assistant 引用。Feishu 图片 ≤10 MB、文件 ≤30 MB，其他渠道按适配器定义。
-- 引用驱动 GC：只 Mark `remoteIm` 会话（含归档），24h 宽限期后删除无引用的 attachment 行，再删除没有别名的 blob；删除会话/rewind 后防抖执行，启动时最多每 24h 一次，也可调用 Host 命令 `attachments_gc`。
+- 引用驱动 GC：只 Mark `remoteIm` 会话（含归档），24h 宽限期后删除无引用的 attachment 行，再删除没有别名的 blob；任一远程 journal 读取/解析失败时中止整次 GC，并清扫崩溃遗留的 blob 目录与 staging 文件。删除会话/rewind 后防抖合并执行，启动时最多每 24h 一次，也可调用 Host 命令 `attachments_gc`。
+- 同一 turn 的入站与出站附件共用一份会话预算；失败/截断说明只进入 agent prompt，不写入 journal 的 user content。
+- 用户可见的桥接文案走 `remote_im/i18n.rs`；技术错误（HTTP 状态、大小上限）保持英文细节。
 - 归档不等于删除：归档会话的引用继续参与 Mark；取消归档或 Fork 不会丢失引用。
 - 附件内容按原样保存，不做脱敏、转码或内容改写；store 文件 0600、目录 0700。
 - 预览：`GET /v1/attachment/<id>?variant=thumb|original`，Host 内部解析 UUID，不向 WebView 暴露 store 绝对路径；缺失对象返回 404，历史加载时按缺失附件处理。

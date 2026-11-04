@@ -19,12 +19,13 @@
    - `attachments(id UUIDv7 PRIMARY KEY, sha256 FK, name, kind, origin, session_id, message_id, created_at)` 记录每次上传；
    - 相同内容多次上传共享 blob，但保留不同 UUID，删除一个引用不影响其他引用。
 2. **journal 只保存引用**：`attachments: [{id, name, kind, size}]`；给 Grok CLI 的 `@/abs/path` 在发送时物化，不落库。
-3. **引用驱动 GC**：Mark 只扫描 `remoteIm` 非空的会话（包含归档），收集 attachment id；Sweep 先删超过 24h 宽限期的无引用 attachment 行，再删没有任何 alias 的 blob。journal 是唯一真相源，不维护增量 refcount。
+3. **引用驱动 GC**：Mark 只扫描 `remoteIm` 非空的会话（包含归档），收集 attachment id；Sweep 先删超过 24h 宽限期的无引用 attachment 行，再删没有任何 alias 的 blob。journal 是唯一真相源，不维护增量 refcount。任一远程 journal 读取/解析失败时 GC 中止，避免把读取失败的会话误判为无引用；同时清扫崩溃遗留的 blob 目录与 staging 文件。
 4. **归档不是删除**：归档会话继续参与 Mark；永久删除会话/rewind 后由 GC 收敛。
 5. **出站以 store 为唯一交付来源**：agent 回复中的独立绝对路径先入库，再由渠道从 store 读取并上传；assistant 行保存成功上传的引用。
 6. **预览按 UUID**：`/v1/attachment/<id>` 由 Host 解析，不向 WebView 暴露 store 路径。
-7. **限额**：单文件 100 MB；单会话唯一 blob 总量 512 MB；Feishu 出站仍受平台 10 MB（图片）/30 MB（文件）限制。
+7. **限额**：单文件 100 MB；单会话唯一 blob 总量 512 MB；同一 turn 的入站与出站增量合并计算。Feishu 出站仍受平台 10 MB（图片）/30 MB（文件）限制。
 8. **不做附件脱敏/转码**：内容原样保存，避免破坏用户上传内容。
+9. **失败说明只进 agent prompt**：journal 的 user content 只保留用户真正输入的文字；工具/系统失败由 agent 回复或 assistant 行表达。
 
 ## 影响
 
