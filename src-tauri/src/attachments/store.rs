@@ -564,7 +564,7 @@ fn validate_session_id(session_id: &str) -> Result<(), String> {
 
 fn ensure_file_size(size: u64) -> Result<(), String> {
     if size > MAX_FILE_BYTES {
-        return Err("附件超过 100 MB 单文件上限".into());
+        return Err("attachment exceeds the 100 MB per-file limit".into());
     }
     Ok(())
 }

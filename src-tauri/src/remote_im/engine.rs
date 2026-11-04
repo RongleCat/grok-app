@@ -1507,7 +1507,7 @@ impl Engine {
         let mut attachments = Vec::new();
         for item in staged.as_slice() {
             if !budget.can_add(&item.sha256, item.size) {
-                push_prompt_note(&mut notes, "超过单会话 512 MB 附件上限");
+                push_prompt_note(&mut notes, "exceeds the 512 MB session limit");
                 continue;
             }
             let staged_attachment = StagedAttachment {
@@ -1548,7 +1548,7 @@ impl Engine {
         let mut prompt = build_prompt_text(&display, &notes);
         if !attachments.is_empty() {
             if prompt.trim().is_empty() {
-                prompt = "请查看附件".into();
+                prompt = "Please check the attachment.".into();
             }
             for attachment in &attachments {
                 match store.materialize(&attachment.id) {
@@ -1562,7 +1562,7 @@ impl Engine {
             }
         }
         if prompt.trim().is_empty() {
-            prompt = "附件处理失败，请让用户重新发送。".into();
+            prompt = i18n::t(&self.lang(), MessageKey::AttachmentProcessingFailed).to_string();
         }
         (prompt, attachments, display)
     }
@@ -1601,13 +1601,13 @@ impl Engine {
             let allowed = crate::path_scope::is_allowed(&canonical)
                 || canonical.starts_with(std::path::Path::new(&binding.work_dir));
             if !allowed {
-                errors.push(format!("{}：路径不在允许范围内", candidate.name));
+                errors.push(format!("{}: path is outside allowed roots", candidate.name));
                 continue;
             }
             let meta = match std::fs::symlink_metadata(&canonical) {
                 Ok(meta) if meta.is_file() && !meta.file_type().is_symlink() => meta,
                 _ => {
-                    errors.push(format!("{}：不是普通文件", candidate.name));
+                    errors.push(format!("{}: not a regular file", candidate.name));
                     continue;
                 }
             };
@@ -1619,7 +1619,10 @@ impl Engine {
                 crate::attachments::MAX_FILE_BYTES
             };
             if meta.len() > max {
-                errors.push(format!("{}：超过渠道上传上限", candidate.name));
+                errors.push(format!(
+                    "{}: exceeds the channel upload limit",
+                    candidate.name
+                ));
                 continue;
             }
             let hash_path = canonical.clone();
@@ -1635,7 +1638,10 @@ impl Engine {
                 }
             };
             if !budget.can_add(&sha, meta.len()) {
-                errors.push(format!("{}：超过单会话 512 MB 上限", candidate.name));
+                errors.push(format!(
+                    "{}: exceeds the 512 MB session limit",
+                    candidate.name
+                ));
                 continue;
             }
 
@@ -1679,7 +1685,11 @@ impl Engine {
             let path = match store.materialize(&attachment.id) {
                 Ok(path) => path,
                 Err(err) => {
-                    let note = format!("附件发送失败（{}）：{err}", attachment.name);
+                    let note = format!(
+                        "{}{}: {err}",
+                        i18n::t(&self.lang(), MessageKey::AttachmentSendFailed),
+                        attachment.name
+                    );
                     let _ = self.reply_msg(msg, &note).await;
                     notes.push(note);
                     continue;
@@ -1702,7 +1712,11 @@ impl Engine {
                     sent_lines.extend(candidate.lines.iter().copied());
                 }
                 Err(err) => {
-                    let note = format!("附件发送失败（{}）：{err}", attachment.name);
+                    let note = format!(
+                        "{}{}: {err}",
+                        i18n::t(&self.lang(), MessageKey::AttachmentSendFailed),
+                        attachment.name
+                    );
                     let _ = self.reply_msg(msg, &note).await;
                     notes.push(note);
                 }
@@ -1749,7 +1763,7 @@ impl Engine {
             .prepare_inbound_attachments(msg, user_text, staged, &mut attachment_budget)
             .await;
         prompt.push_str("\n\n");
-        prompt.push_str(outbound_rule(&self.lang()));
+        prompt.push_str(outbound_rule());
 
         let (mut active_turn, mut cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
@@ -1881,11 +1895,11 @@ impl Engine {
             let _ = self.reply_msg(msg, &outbound_errors.join("\n")).await;
         }
         if assistant_display.trim().is_empty() && !sent_refs.is_empty() {
-            assistant_display = if self.lang() == "en" {
-                format!("Sent {} attachment(s).", sent_refs.len())
-            } else {
-                format!("已发送 {} 个附件。", sent_refs.len())
-            };
+            assistant_display = format!(
+                "{} ({})",
+                i18n::t(&self.lang(), MessageKey::AttachmentsSent),
+                sent_refs.len()
+            );
         }
         // Sync into App sessions_index + messages.json so sidebar /r and App UI share state.
         next = app_sessions::sync_turn_to_app(
@@ -2013,12 +2027,8 @@ fn extract_card_action(msg: &IncomingMessage) -> Option<CardAction> {
     None
 }
 
-fn outbound_rule(lang: &str) -> &'static str {
-    if lang == "en" {
-        "(When you create a file for the user to receive, put its absolute path on its own line, e.g. /Users/me/chart.png.)"
-    } else {
-        "（如果你生成了需要发给用户的文件，请把该文件的绝对路径单独写一行，例如 /Users/me/chart.png。）"
-    }
+fn outbound_rule() -> &'static str {
+    "(When you create a file for the user to receive, put its absolute path on its own line, e.g. /Users/me/chart.png.)"
 }
 
 fn attachment_note_line(reason: &str) -> String {
@@ -2027,7 +2037,14 @@ fn attachment_note_line(reason: &str) -> String {
         .map(|c| if c.is_control() { ' ' } else { c })
         .take(120)
         .collect();
-    format!("[附件处理失败：{}] 请告诉用户重新发送。", reason.trim())
+    format!(
+        "{}{}",
+        i18n::t(
+            &i18n::resolve_engine_lang(),
+            MessageKey::AttachmentProcessingFailed
+        ),
+        reason.trim()
+    )
 }
 
 fn append_attachment_note(text: &mut String, reason: &str) {

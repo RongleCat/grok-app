@@ -6,6 +6,7 @@ use super::super::outbound::{
 use super::super::pb_frame::{decode_frame, encode_frame, Frame, Header};
 use super::super::types::{ChannelInstance, IncomingMessage, StagedRemoteAttachment};
 use crate::attachments::AttachmentKind;
+use crate::remote_im::i18n::MessageKey;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -252,7 +253,7 @@ async fn run_once(
                                             if !parsed.media.is_empty() {
                                                 push_media_failure(
                                                     &mut parsed.message.attachment_note,
-                                                    "附件处理队列已满，请稍后重新发送",
+                                                    bridge_copy(MessageKey::AttachmentQueueFull),
                                                 );
                                             }
                                             let message = parsed.message;
@@ -1049,7 +1050,7 @@ async fn run_media_worker(
             if media_truncated {
                 append_note(
                     &mut message.attachment_note,
-                    format!("[附件过多，仅处理前 {MAX_INBOUND_FILES} 个]"),
+                    bridge_copy(MessageKey::AttachmentTooMany).to_string(),
                 );
             }
             tracing::info!(
@@ -1091,7 +1092,7 @@ async fn attach_inbound_media(
     if budget.remaining() == 0 {
         push_media_failure(
             &mut incoming.attachment_note,
-            "本聊天附件下载额度已用完，请稍后再试",
+            bridge_copy(MessageKey::AttachmentQuotaExhausted),
         );
         return;
     }
@@ -1122,7 +1123,7 @@ async fn attach_inbound_media(
         if budget.remaining() == 0 {
             push_media_failure(
                 &mut incoming.attachment_note,
-                "本聊天附件下载额度已用完，请稍后再试",
+                bridge_copy(MessageKey::AttachmentQuotaExhausted),
             );
             break;
         }
@@ -1190,8 +1191,16 @@ fn push_media_failure(note: &mut Option<String>, reason: &str) {
         .collect();
     append_note(
         note,
-        format!("[附件处理失败：{}] 请告诉用户重新发送。", reason.trim()),
+        format!(
+            "{}{}",
+            bridge_copy(MessageKey::AttachmentProcessingFailed),
+            reason.trim()
+        ),
     );
+}
+
+fn bridge_copy(key: MessageKey) -> &'static str {
+    crate::remote_im::i18n::t(&crate::remote_im::i18n::resolve_engine_lang(), key)
 }
 
 fn media_display_name(item: &InboundMedia, content_type: Option<&str>) -> String {
@@ -1319,7 +1328,7 @@ async fn fetch_message_to_staging(
             drop(file);
             let _ = std::fs::remove_file(temp_path);
             return Err(format!(
-                "附件超过 {:.1} MB 上限",
+                "attachment exceeds the {:.1} MB limit",
                 max_bytes as f64 / (1024.0 * 1024.0)
             ));
         }
@@ -1366,7 +1375,7 @@ pub async fn send_media(
     let max = 30 * 1024 * 1024;
     if meta.len() > max {
         return Err(format!(
-            "文件超过 Feishu 上传上限（{:.0} MB）",
+            "file exceeds the Feishu upload limit ({:.0} MB)",
             max as f64 / (1024.0 * 1024.0)
         ));
     }
@@ -1986,7 +1995,6 @@ mod inbound_media_tests {
         push_media_failure(&mut note, "HTTP 403\n<script>");
         let note = note.expect("note");
         let last = note.lines().last().unwrap();
-        assert!(last.contains("附件处理失败"), "{last}");
         assert!(last.contains("HTTP 403"), "{last}");
         assert!(!last.contains('\n'), "{last}");
         assert!(last.chars().count() < 200, "{last}");
@@ -2081,7 +2089,7 @@ mod inbound_media_tests {
             .await
             .expect_err("must be capped");
 
-        assert!(err.contains("上限"), "{err}");
+        assert!(err.contains("limit"), "{err}");
         assert!(!temp.exists());
         let _ = std::fs::remove_dir_all(&dir);
     }
