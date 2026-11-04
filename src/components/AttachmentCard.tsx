@@ -175,9 +175,13 @@ export function AttachmentCard({
   const showThumb = isImg && !!thumbSrc && !thumbFailed;
 
   const openPath = async () => {
-    if (attachment.id) return;
     try {
-      if (api.isTauri()) await api.pathOpen(attachment.path);
+      if (!api.isTauri()) return;
+      if (attachment.id) {
+        await api.attachmentOpen(attachment.id);
+        return;
+      }
+      await api.pathOpen(attachment.path);
     } catch (e) {
       console.error(e);
     }

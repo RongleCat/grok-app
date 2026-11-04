@@ -98,6 +98,10 @@ export async function pathsClassify(paths: string[]) {
 }
 
 /** Open with OS default app. */
+export async function attachmentOpen(id: string) {
+  return invoke<void>("attachment_open", { id });
+}
+
 export async function pathOpen(path: string) {
   return invoke<void>("path_open", { path });
 }
