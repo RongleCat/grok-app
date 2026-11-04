@@ -15,6 +15,7 @@ mod fixture_http;
 mod grok_agent;
 mod i18n;
 mod outbound;
+mod outbound_media;
 mod pb_frame;
 mod projects;
 #[cfg(test)]

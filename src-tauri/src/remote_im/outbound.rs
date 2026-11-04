@@ -3,7 +3,10 @@
 use parking_lot::RwLock;
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
+
+use crate::attachments::AttachmentKind;
 
 #[derive(Clone, Default)]
 pub struct OutboundRouter {
@@ -108,6 +111,43 @@ impl OutboundRouter {
                 tracing::warn!(channel = other, "outbound reply not implemented; dropping");
                 Ok(())
             }
+        }
+    }
+
+    /// Send one local file as a native channel attachment.
+    ///
+    /// Feishu is the first adapter; other channels report unsupported so the
+    /// caller can send a visible text fallback.
+    pub async fn send_media(
+        &self,
+        instance_id: &str,
+        chat_id: &str,
+        reply_to: Option<&str>,
+        path: &Path,
+        kind: AttachmentKind,
+        name: &str,
+    ) -> Result<(), String> {
+        let cred = self
+            .creds
+            .read()
+            .get(instance_id)
+            .cloned()
+            .ok_or_else(|| format!("no outbound creds for {instance_id}"))?;
+        match cred.channel.as_str() {
+            "feishu" | "lark" => {
+                super::channels::feishu::send_media(
+                    &cred.channel,
+                    &cred.secrets,
+                    &cred.options,
+                    chat_id,
+                    reply_to,
+                    path,
+                    kind,
+                    name,
+                )
+                .await
+            }
+            other => Err(format!("channel {other} does not support media")),
         }
     }
 

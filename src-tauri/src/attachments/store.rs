@@ -673,6 +673,11 @@ fn hash_bytes(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+/// SHA-256 of a local file, used for outbound budget/dedupe before import.
+pub fn file_sha256(path: &Path) -> Result<String, String> {
+    hash_file(path)
+}
+
 fn hash_file(path: &Path) -> Result<String, String> {
     let mut file =
         fs::File::open(path).map_err(|e| format!("attachment store: open for hash: {e}"))?;

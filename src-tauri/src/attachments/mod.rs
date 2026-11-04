@@ -9,8 +9,8 @@ mod store;
 use std::sync::OnceLock;
 
 pub use store::{
-    AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentMeta, StagedAttachment,
-    MAX_SESSION_BYTES,
+    file_sha256, AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentFile,
+    NewAttachmentMeta, StagedAttachment, MAX_FILE_BYTES, MAX_SESSION_BYTES,
 };
 
 /// Process-wide store used by the remote-control bridge. The first caller

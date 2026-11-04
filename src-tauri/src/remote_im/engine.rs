@@ -14,6 +14,7 @@ use super::control_plane::{
 use super::grok_agent;
 use super::i18n::{self, MessageKey};
 use super::outbound::{self, OutboundRouter};
+use super::outbound_media;
 use super::projects;
 use super::resilience::{
     agent_error_user_message, classify_rim_error, rate_limit_user_message, InboundRateLimiter,
@@ -22,7 +23,9 @@ use super::session::SessionStore;
 use super::slash::{self, BuiltinCommand};
 use super::types::{ChannelInstance, IncomingMessage, StagedGuard, TrustedProject};
 use crate::account_profiles::{self, SavedAccount};
-use crate::attachments::{AttachmentRef, NewAttachmentMeta, StagedAttachment};
+use crate::attachments::{
+    file_sha256, AttachmentRef, NewAttachmentFile, NewAttachmentMeta, StagedAttachment,
+};
 use parking_lot::Mutex;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -1535,6 +1538,159 @@ impl Engine {
         (prompt, attachments, display)
     }
 
+    /// Validate, import and budget outbound files the agent wants to send.
+    async fn prepare_outbound_media(
+        &self,
+        msg: &IncomingMessage,
+        binding: &ScopeBinding,
+        candidates: Vec<super::outbound_media::OutboundCandidate>,
+    ) -> (Vec<AttachmentRef>, Vec<String>) {
+        if candidates.is_empty() {
+            return (Vec::new(), Vec::new());
+        }
+        let store = match crate::attachments::shared() {
+            Ok(store) => store,
+            Err(err) => return (Vec::new(), vec![err]),
+        };
+        let session_id = app_sessions::resolve_app_session_id(binding);
+        let mut existing = match session_id.as_deref() {
+            Some(sid) => store.session_sha_set(sid).unwrap_or_default(),
+            None => HashSet::new(),
+        };
+        let mut used = session_id
+            .as_deref()
+            .and_then(|sid| store.session_usage(sid).ok())
+            .unwrap_or(0);
+        let origin = format!("outbound:{}", msg.channel);
+        let mut refs = Vec::new();
+        let mut errors = Vec::new();
+
+        for candidate in candidates {
+            let canonical = match std::fs::canonicalize(&candidate.path) {
+                Ok(path) => path,
+                Err(err) => {
+                    errors.push(format!("{}：{err}", candidate.name));
+                    continue;
+                }
+            };
+            let allowed = crate::path_scope::is_allowed(&canonical)
+                || canonical.starts_with(std::path::Path::new(&binding.work_dir));
+            if !allowed {
+                errors.push(format!("{}：路径不在允许范围内", candidate.name));
+                continue;
+            }
+            let meta = match std::fs::symlink_metadata(&canonical) {
+                Ok(meta) if meta.is_file() && !meta.file_type().is_symlink() => meta,
+                _ => {
+                    errors.push(format!("{}：不是普通文件", candidate.name));
+                    continue;
+                }
+            };
+            let is_feishu = matches!(msg.channel.as_str(), "feishu" | "lark");
+            let max = if is_feishu {
+                if candidate.kind == crate::attachments::AttachmentKind::Image {
+                    10 * 1024 * 1024
+                } else {
+                    30 * 1024 * 1024
+                }
+            } else {
+                crate::attachments::MAX_FILE_BYTES
+            };
+            if meta.len() > max {
+                errors.push(format!("{}：超过渠道上传上限", candidate.name));
+                continue;
+            }
+            let hash_path = canonical.clone();
+            let sha = match tokio::task::spawn_blocking(move || file_sha256(&hash_path)).await {
+                Ok(Ok(sha)) => sha,
+                Ok(Err(err)) => {
+                    errors.push(format!("{}：{err}", candidate.name));
+                    continue;
+                }
+                Err(err) => {
+                    errors.push(format!("{}：{err}", candidate.name));
+                    continue;
+                }
+            };
+            let additional = if existing.contains(&sha) {
+                0
+            } else {
+                meta.len()
+            };
+            if used.saturating_add(additional) > crate::attachments::MAX_SESSION_BYTES {
+                errors.push(format!("{}：超过单会话 512 MB 上限", candidate.name));
+                continue;
+            }
+            used = used.saturating_add(additional);
+
+            let input = NewAttachmentFile {
+                name: candidate.name.clone(),
+                kind: candidate.kind,
+                origin: origin.clone(),
+                session_id: session_id.clone(),
+                source: canonical,
+            };
+            let store_for_put = store.clone();
+            match tokio::task::spawn_blocking(move || store_for_put.put_file(input)).await {
+                Ok(Ok(attachment)) => {
+                    existing.insert(sha);
+                    refs.push(attachment);
+                }
+                Ok(Err(err)) => errors.push(format!("{}：{err}", candidate.name)),
+                Err(err) => errors.push(format!("{}：{err}", candidate.name)),
+            }
+        }
+        (refs, errors)
+    }
+
+    /// Upload prepared refs from the store; failures become visible notes.
+    async fn send_outbound_media(
+        &self,
+        msg: &IncomingMessage,
+        refs: &[AttachmentRef],
+    ) -> (Vec<AttachmentRef>, Vec<String>) {
+        if refs.is_empty() {
+            return (Vec::new(), Vec::new());
+        }
+        let store = match crate::attachments::shared() {
+            Ok(store) => store,
+            Err(err) => return (Vec::new(), vec![err]),
+        };
+        let mut sent = Vec::new();
+        let mut notes = Vec::new();
+        for attachment in refs {
+            let path = match store.materialize(&attachment.id) {
+                Ok(path) => path,
+                Err(err) => {
+                    let note = format!("附件发送失败（{}）：{err}", attachment.name);
+                    let _ = self.reply_msg(msg, &note).await;
+                    notes.push(note);
+                    continue;
+                }
+            };
+            match self
+                .outbound
+                .send_media(
+                    &msg.instance_id,
+                    &msg.chat_id,
+                    Some(&msg.message_id),
+                    &path,
+                    attachment.kind,
+                    &attachment.name,
+                )
+                .await
+            {
+                Ok(()) => sent.push(attachment.clone()),
+                Err(err) => {
+                    let note = format!("附件发送失败（{}）：{err}", attachment.name);
+                    let _ = self.reply_msg(msg, &note).await;
+                    notes.push(note);
+                }
+            }
+        }
+        (sent, notes)
+    }
+
     async fn run_agent_turn(
         &self,
         msg: &IncomingMessage,
@@ -1568,9 +1724,11 @@ impl Engine {
             return;
         }
 
-        let (prompt, attachments, display_text) = self
+        let (mut prompt, attachments, user_display_text) = self
             .prepare_inbound_attachments(msg, &binding, user_text, staged)
             .await;
+        prompt.push_str("\n\n");
+        prompt.push_str(outbound_rule(&self.lang()));
 
         let (mut active_turn, mut cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
@@ -1671,23 +1829,45 @@ impl Engine {
         };
 
         let is_error = had_error || text.starts_with("Error:");
+        let (mut assistant_display, candidates) = if is_error {
+            (text.clone(), Vec::new())
+        } else {
+            outbound_media::extract(&text)
+        };
+        let (outbound_refs, outbound_errors) =
+            self.prepare_outbound_media(msg, &binding, candidates).await;
+        for error in outbound_errors {
+            append_attachment_note(&mut assistant_display, &error);
+        }
+        // Text first, then native media, matching the legacy bridge contract.
+        for chunk in chunk_text(&assistant_display, 3500) {
+            let _ = self.reply_msg(msg, &chunk).await;
+        }
+        let (sent_refs, send_notes) = self.send_outbound_media(msg, &outbound_refs).await;
+        for note in send_notes {
+            append_attachment_note(&mut assistant_display, &note);
+        }
+        if assistant_display.trim().is_empty() && !sent_refs.is_empty() {
+            assistant_display = if self.lang() == "en" {
+                format!("Sent {} attachment(s).", sent_refs.len())
+            } else {
+                format!("已发送 {} 个附件。", sent_refs.len())
+            };
+        }
         // Sync into App sessions_index + messages.json so sidebar /r and App UI share state.
         next = app_sessions::sync_turn_to_app(
             &next,
-            &display_text,
-            &text,
+            &user_display_text,
+            &assistant_display,
             is_error,
             &msg.channel,
             &attachments,
+            &sent_refs,
         );
         if let Some(compact) = compact.as_ref() {
             app_sessions::sync_compact_to_app(&next, compact);
         }
         self.store.set(scope, next);
-
-        for chunk in chunk_text(&text, 3500) {
-            let _ = self.reply_msg(msg, &chunk).await;
-        }
     }
 
     async fn reply_msg(&self, msg: &IncomingMessage, text: &str) -> Result<(), String> {
@@ -1798,6 +1978,14 @@ fn extract_card_action(msg: &IncomingMessage) -> Option<CardAction> {
         return parse_card_action(c);
     }
     None
+}
+
+fn outbound_rule(lang: &str) -> &'static str {
+    if lang == "en" {
+        "(When you create a file for the user to receive, put its absolute path on its own line, e.g. /Users/me/chart.png.)"
+    } else {
+        "（如果你生成了需要发给用户的文件，请把该文件的绝对路径单独写一行，例如 /Users/me/chart.png。）"
+    }
 }
 
 fn append_attachment_note(text: &mut String, reason: &str) {

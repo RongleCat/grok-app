@@ -142,6 +142,7 @@ pub fn sync_turn_to_app(
     is_error: bool,
     channel: &str,
     attachments: &[AttachmentRef],
+    assistant_attachments: &[AttachmentRef],
 ) -> ScopeBinding {
     let agent_id = binding
         .agent_session_id
@@ -211,23 +212,7 @@ pub fn sync_turn_to_app(
 
     // Journal: user + assistant rows (App UI reads messages.json)
     let now = Utc::now();
-    let stored_attachments: Option<Vec<MessageAttachmentStored>> = if attachments.is_empty() {
-        None
-    } else {
-        Some(
-            attachments
-                .iter()
-                .map(|attachment| MessageAttachmentStored {
-                    id: Some(attachment.id.clone()),
-                    path: String::new(),
-                    name: attachment.name.clone(),
-                    is_dir: false,
-                    kind: Some(attachment.kind.as_str().to_string()),
-                    size: Some(attachment.size),
-                })
-                .collect(),
-        )
-    };
+    let stored_attachments = attachment_rows(attachments);
     let content = if user_prompt.trim().is_empty() {
         format!("[Remote IM · {channel}]")
     } else {
@@ -250,7 +235,7 @@ pub fn sync_turn_to_app(
         thought: None,
         created_at: Utc::now(),
         is_error,
-        attachments: None,
+        attachments: attachment_rows(assistant_attachments),
         marker: None,
     };
     if let Err(e) = store::append_message(&sid, user_msg) {
@@ -283,6 +268,25 @@ fn find_app_session_id(local_id: &str, agent_id: Option<&str>) -> Option<String>
         }
     }
     None
+}
+
+fn attachment_rows(attachments: &[AttachmentRef]) -> Option<Vec<MessageAttachmentStored>> {
+    if attachments.is_empty() {
+        return None;
+    }
+    Some(
+        attachments
+            .iter()
+            .map(|attachment| MessageAttachmentStored {
+                id: Some(attachment.id.clone()),
+                path: String::new(),
+                name: attachment.name.clone(),
+                is_dir: false,
+                kind: Some(attachment.kind.as_str().to_string()),
+                size: Some(attachment.size),
+            })
+            .collect(),
+    )
 }
 
 /// Resolve the App session id for an existing binding without creating one.
