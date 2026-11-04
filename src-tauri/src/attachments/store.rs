@@ -579,11 +579,19 @@ impl AttachmentStore {
         Ok(())
     }
 
-    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
+    pub(super) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
         self.inner
             .state
             .lock()
             .map_err(|_| "attachment store: index lock poisoned".to_string())
+    }
+
+    pub(super) fn root_dir(&self) -> &Path {
+        &self.inner.root
+    }
+
+    pub(super) fn sessions_dir(&self) -> &Path {
+        &self.inner.sessions_root
     }
 }
 

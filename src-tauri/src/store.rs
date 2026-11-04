@@ -2177,6 +2177,7 @@ pub fn delete_session(id: &str) -> Result<(), String> {
     })?;
     let dir = session_dir(id);
     let _ = fs::remove_dir_all(dir);
+    crate::attachments::schedule_gc();
     Ok(())
 }
 

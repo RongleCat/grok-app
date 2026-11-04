@@ -636,6 +636,13 @@ pub async fn media_image_thumb(
     crate::image_thumb::ensure_image_thumb(&path_or_url).await
 }
 
+#[tauri::command]
+pub async fn attachments_gc() -> Result<crate::attachments::GcReport, String> {
+    tokio::task::spawn_blocking(crate::attachments::gc_now)
+        .await
+        .map_err(|e| format!("attachment gc task: {e}"))?
+}
+
 /// Open a file or folder with the OS default application.
 ///
 /// Spawn is fully detached (null stdio, no wait). Holding a pipe or waiting on

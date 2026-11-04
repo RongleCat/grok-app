@@ -588,6 +588,11 @@ pub fn run() {
 
             crate::path_scope::refresh_from_store();
 
+            tauri::async_runtime::spawn(async {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                crate::attachments::gc_if_due().await;
+            });
+
             use tauri::Manager;
 
             // ── 1) Main window first so the WebView starts loading the UI while

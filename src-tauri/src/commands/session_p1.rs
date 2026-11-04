@@ -128,13 +128,16 @@ pub async fn session_rewind_execute(
     restore_files: Option<bool>,
     session_id: Option<String>,
 ) -> Result<crate::session_manager::RewindExecuteResult, String> {
-    mgr.rewind_to_prompt_index(
-        app,
-        target_prompt_index,
-        restore_files.unwrap_or(false),
-        session_id,
-    )
-    .await
+    let result = mgr
+        .rewind_to_prompt_index(
+            app,
+            target_prompt_index,
+            restore_files.unwrap_or(false),
+            session_id,
+        )
+        .await?;
+    crate::attachments::schedule_gc();
+    Ok(result)
 }
 
 /// Fork a session into a new chat (same project, messages up to optional cut).

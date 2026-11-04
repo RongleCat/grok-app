@@ -4,18 +4,70 @@
 //! attachment row, so duplicate content shares one file while sessions keep
 //! distinct references.
 
+mod gc;
 mod store;
 
 use std::sync::OnceLock;
+use std::time::{Duration, SystemTime};
 
+pub use gc::GcReport;
+#[cfg(test)]
+pub use store::NewAttachment;
 pub use store::{
     file_sha256, AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentFile,
     NewAttachmentMeta, StagedAttachment, MAX_FILE_BYTES, MAX_SESSION_BYTES,
 };
+
+const GC_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Process-wide store used by the remote-control bridge. The first caller
 /// initializes the app-data root; later callers share the same SQLite handle.
 pub fn shared() -> Result<AttachmentStore, String> {
     static STORE: OnceLock<Result<AttachmentStore, String>> = OnceLock::new();
     STORE.get_or_init(AttachmentStore::open_default).clone()
+}
+
+/// Run GC now (Host command / tests).
+pub fn gc_now() -> Result<GcReport, String> {
+    shared()?.gc(SystemTime::now())
+}
+
+/// Debounced GC after session deletion / rewind.
+pub fn schedule_gc() {
+    let Ok(handle) = tokio::runtime::Handle::try_current() else {
+        return;
+    };
+    handle.spawn(async {
+        tokio::time::sleep(Duration::from_secs(30)).await;
+        let _ = tokio::task::spawn_blocking(gc_now).await;
+    });
+}
+
+/// Startup/idle GC, at most once per 24h.
+pub async fn gc_if_due() {
+    let Ok(store) = shared() else {
+        return;
+    };
+    let marker = store.root_dir().join("last_gc");
+    if let Ok(meta) = std::fs::metadata(&marker) {
+        if let Ok(modified) = meta.modified() {
+            if modified.elapsed().unwrap_or_default() < GC_INTERVAL {
+                return;
+            }
+        }
+    }
+    let store_for_gc = store.clone();
+    let result = tokio::task::spawn_blocking(move || store_for_gc.gc(SystemTime::now())).await;
+    if let Ok(Ok(report)) = result {
+        tracing::info!(
+            sessions = report.sessions_scanned,
+            marked = report.attachments_marked,
+            deleted = report.attachments_deleted,
+            blobs = report.blobs_deleted,
+            bytes = report.bytes_freed,
+            errors = report.errors.len(),
+            "attachment gc complete"
+        );
+        let _ = std::fs::write(store.root_dir().join("last_gc"), b"");
+    }
 }
