@@ -254,10 +254,10 @@ impl AttachmentStore {
             .optional()
             .map_err(|e| format!("attachment store: lookup blob: {e}"))?;
 
-        let (rel_path, blob_size) = match existing {
+        let (rel_path, blob_size, created_blob) = match existing {
             Some(found) => {
                 remove_file_best_effort(&staged.temp_path);
-                found
+                (found.0, found.1, false)
             }
             None => {
                 let rel_path = format!("blobs/{}/{}", staged.sha256, sanitize_name(&staged.name));
@@ -270,13 +270,14 @@ impl AttachmentStore {
                 if dest.exists() {
                     remove_file_best_effort(&staged.temp_path);
                     restrict_file(&dest);
+                    (rel_path, staged.size as i64, false)
                 } else if let Err(err) = fs::rename(&staged.temp_path, &dest) {
                     remove_file_best_effort(&staged.temp_path);
                     return Err(format!("attachment store: commit blob: {err}"));
                 } else {
                     restrict_file(&dest);
+                    (rel_path, staged.size as i64, true)
                 }
-                (rel_path, staged.size as i64)
             }
         };
 
@@ -319,9 +320,17 @@ impl AttachmentStore {
             Ok(())
         })();
 
-        // The blob may have just been created; on failure leave the file for GC
-        // instead of risking a delete of shared content.
-        write?;
+        // The blob may have just been created; on failure remove it so a DB
+        // error cannot leave an untracked file behind (GC scans the index).
+        if let Err(err) = write {
+            if created_blob {
+                let blob_dir = self.inner.root.join("blobs").join(&staged.sha256);
+                if blob_dir.starts_with(&self.inner.root) {
+                    let _ = fs::remove_dir_all(&blob_dir);
+                }
+            }
+            return Err(err);
+        }
 
         Ok(AttachmentRef {
             id,
