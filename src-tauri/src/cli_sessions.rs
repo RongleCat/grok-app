@@ -2072,12 +2072,24 @@ pub fn forget_app_linked_cli_session(
     session_data_mode: &str,
 ) -> Result<(), String> {
     let _ = remember_deleted_cli_id(agent_session_id);
-    if let Err(e) = delete_cli_session(agent_session_id, None, session_data_mode) {
-        tracing::warn!(
-            target: "session",
-            agent = %agent_session_id,
-            "cli session dir not removed after app delete: {e}"
-        );
+    // The session may have been created before the user switched data mode, so
+    // try both the current GROK_HOME and the other known home. Tombstoning
+    // already prevents re-import; this removes the on-disk history too.
+    let mut modes = vec![session_data_mode.to_string()];
+    for mode in ["shared", "independent"] {
+        if !modes.iter().any(|m| m == mode) {
+            modes.push(mode.to_string());
+        }
+    }
+    for mode in modes {
+        if let Err(e) = delete_cli_session(agent_session_id, None, &mode) {
+            tracing::debug!(
+                target: "session",
+                agent = %agent_session_id,
+                mode = %mode,
+                "cli session dir not present under this home: {e}"
+            );
+        }
     }
     Ok(())
 }
@@ -2869,6 +2881,29 @@ mod tests {
                 .all(|s| s.agent_session_id.as_deref() != Some(agent_id)),
             "index grew a new row for the deleted agent id"
         );
+
+        std::env::remove_var("GROK_APP_HOME");
+        let _ = fs::remove_dir_all(&app_home);
+    }
+
+    #[test]
+    fn forget_removes_agent_home_session_when_mode_is_shared() {
+        use crate::paths::APP_HOME_ENV_LOCK;
+
+        let _guard = APP_HOME_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let app_home = std::env::temp_dir().join(format!("cli-mode-switch-{}", Uuid::new_v4()));
+        let _ = fs::remove_dir_all(&app_home);
+        fs::create_dir_all(&app_home).unwrap();
+        std::env::set_var("GROK_APP_HOME", &app_home);
+        let _ = crate::paths::ensure_app_dirs();
+
+        let agent_home = crate::paths::agent_home_dir();
+        let agent_id = "agent-mode-switch-bbbb";
+        let dir = make_fake_cli_session(&agent_home, agent_id);
+        assert!(dir.exists());
+
+        forget_app_linked_cli_session(agent_id, "shared").expect("forget cli");
+        assert!(!dir.exists(), "agent-home CLI dir should be gone");
 
         std::env::remove_var("GROK_APP_HOME");
         let _ = fs::remove_dir_all(&app_home);
