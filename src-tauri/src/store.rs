@@ -331,6 +331,10 @@ pub struct SessionMeta {
     /// `[a-z0-9_-]`. Metadata only — no sidebar badge in this slice.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    /// Remote-control channel (`feishu`, `telegram`, …) that touched this chat.
+    /// Attachment GC marks only sessions with this marker.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_im: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2069,6 +2073,7 @@ pub fn create_session(
     let id = Uuid::new_v4().to_string();
     let now = Utc::now();
     let meta = SessionMeta {
+        remote_im: None,
         id: id.clone(),
         project_id,
         title: title.unwrap_or_else(|| "New chat".into()),
@@ -4606,6 +4611,7 @@ mod tests {
 
     fn sample_session(id: &str, pinned: bool, updated: DateTime<Utc>) -> SessionMeta {
         SessionMeta {
+            remote_im: None,
             id: id.into(),
             project_id: None,
             title: id.into(),
@@ -5126,6 +5132,7 @@ mod tests {
         sessions.insert(
             0,
             SessionMeta {
+                remote_im: None,
                 id: sid.clone(),
                 project_id: Some(GENERAL_PROJECT_ID.into()),
                 title: "legacy".into(),

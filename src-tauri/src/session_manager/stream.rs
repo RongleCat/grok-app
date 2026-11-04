@@ -1628,6 +1628,7 @@ mod stream_emit_lock_tests {
             app_session_id: "stream-emit-lock".into(),
             process_id: "process-emit-lock".into(),
             meta: SessionMeta {
+                remote_im: None,
                 id: "stream-emit-lock".into(),
                 project_id: None,
                 title: "Emit".into(),

@@ -155,6 +155,7 @@ fn parse_event(inst: &ChannelInstance, v: &Value) -> Option<IncomingMessage> {
         .unwrap_or(&sender)
         .to_string();
     Some(IncomingMessage {
+        staged_attachments: Vec::new(),
         channel: inst.channel.clone(),
         instance_id: inst.id.clone(),
         message_id: v

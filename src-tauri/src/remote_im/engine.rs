@@ -20,10 +20,11 @@ use super::resilience::{
 };
 use super::session::SessionStore;
 use super::slash::{self, BuiltinCommand};
-use super::types::{ChannelInstance, IncomingMessage, TrustedProject};
+use super::types::{ChannelInstance, IncomingMessage, StagedGuard, TrustedProject};
 use crate::account_profiles::{self, SavedAccount};
+use crate::attachments::{AttachmentRef, NewAttachmentMeta, StagedAttachment};
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -240,8 +241,11 @@ impl Engine {
         })
     }
 
-    async fn handle_inner(&self, msg: IncomingMessage, mut registered: Option<RegisteredTurn>) {
+    async fn handle_inner(&self, mut msg: IncomingMessage, mut registered: Option<RegisteredTurn>) {
         self.refresh_lang();
+        // Owns uncommitted staging files; every early return removes them.
+        let staged = std::mem::take(&mut msg.staged_attachments);
+        let mut staged_guard = StagedGuard::new(staged);
         tracing::info!(
             channel = %msg.channel,
             instance = %msg.instance_id,
@@ -287,7 +291,7 @@ impl Engine {
         };
 
         let content = msg.content.trim().to_string();
-        if content.is_empty() {
+        if content.is_empty() && staged_guard.is_empty() {
             return;
         }
 
@@ -339,7 +343,7 @@ impl Engine {
             return;
         }
 
-        if let Some(pending) = pending {
+        if let Some(pending) = pending.filter(|_| !content.is_empty()) {
             if content == "0" || content.eq_ignore_ascii_case("cancel") {
                 {
                     let mut g = self.pending.lock();
@@ -379,8 +383,15 @@ impl Engine {
             return;
         }
         tracing::info!("remote_im: agent turn");
-        self.run_agent_turn(&msg, &scope, &default_wd, &content, registered.take())
-            .await;
+        self.run_agent_turn(
+            &msg,
+            &scope,
+            &default_wd,
+            &content,
+            &mut staged_guard,
+            registered.take(),
+        )
+        .await;
         tracing::info!("remote_im: agent turn done");
     }
 
@@ -1414,12 +1425,123 @@ impl Engine {
         }
     }
 
+    /// Commit staged inbound media for this turn and build the agent prompt.
+    ///
+    /// The journal keeps the display text plus UUID refs; `@/abs/path` lines are
+    /// generated here and never persisted.
+    async fn prepare_inbound_attachments(
+        &self,
+        msg: &IncomingMessage,
+        binding: &ScopeBinding,
+        user_text: &str,
+        staged: &mut StagedGuard,
+    ) -> (String, Vec<AttachmentRef>, String) {
+        let mut display = user_text.trim().to_string();
+        if staged.is_empty() {
+            return (display.clone(), Vec::new(), display);
+        }
+        let store = match crate::attachments::shared() {
+            Ok(store) => store,
+            Err(err) => {
+                append_attachment_note(&mut display, &err);
+                staged.finish();
+                return (display.clone(), Vec::new(), display);
+            }
+        };
+        let session_id = app_sessions::resolve_app_session_id(binding);
+        let existing = match session_id.as_deref() {
+            Some(sid) => store.session_sha_set(sid).unwrap_or_else(|err| {
+                tracing::warn!(error = %err, "remote_im: session attachment index failed");
+                HashSet::new()
+            }),
+            None => HashSet::new(),
+        };
+        let mut unique: HashMap<String, u64> = HashMap::new();
+        for item in staged.as_slice() {
+            if !existing.contains(&item.sha256) {
+                unique.entry(item.sha256.clone()).or_insert(item.size);
+            }
+        }
+        let additional: u64 = unique.values().sum();
+        let used = session_id
+            .as_deref()
+            .and_then(|sid| store.session_usage(sid).ok())
+            .unwrap_or(0);
+        if used.saturating_add(additional) > crate::attachments::MAX_SESSION_BYTES {
+            append_attachment_note(&mut display, "超过单会话 512 MB 附件上限");
+            staged.finish();
+            let prompt = if display.trim().is_empty() {
+                "附件超过单会话 512 MB 上限".into()
+            } else {
+                display.clone()
+            };
+            return (prompt, Vec::new(), display);
+        }
+
+        let origin = format!("remote:{}", msg.channel);
+        let mut attachments = Vec::new();
+        for item in staged.as_slice() {
+            let staged_attachment = StagedAttachment {
+                temp_path: item.temp_path.clone(),
+                name: item.name.clone(),
+                kind: item.kind,
+                size: item.size,
+                sha256: item.sha256.clone(),
+            };
+            let meta = NewAttachmentMeta {
+                origin: origin.clone(),
+                instance_id: Some(msg.instance_id.clone()),
+                session_id: session_id.clone(),
+                message_id: Some(msg.message_id.clone()),
+            };
+            let store_for_commit = store.clone();
+            match tokio::task::spawn_blocking(move || {
+                store_for_commit.commit_staged(staged_attachment, meta)
+            })
+            .await
+            {
+                Ok(Ok(attachment)) => attachments.push(attachment),
+                Ok(Err(err)) => {
+                    tracing::warn!(error = %err, "remote_im: commit attachment failed");
+                    append_attachment_note(&mut display, &err);
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "remote_im: commit attachment task failed");
+                    append_attachment_note(&mut display, &format!("commit task: {err}"));
+                }
+            }
+        }
+        staged.finish();
+
+        let mut prompt = display.clone();
+        if !attachments.is_empty() {
+            if prompt.trim().is_empty() {
+                prompt = "请查看附件".into();
+            }
+            for attachment in &attachments {
+                match store.materialize(&attachment.id) {
+                    Ok(path) => {
+                        prompt.push('\n');
+                        prompt.push('@');
+                        prompt.push_str(&path.to_string_lossy());
+                    }
+                    Err(err) => append_attachment_note(&mut prompt, &err),
+                }
+            }
+        }
+        if prompt.trim().is_empty() {
+            prompt = "附件处理失败，请让用户重新发送。".into();
+        }
+        (prompt, attachments, display)
+    }
+
     async fn run_agent_turn(
         &self,
         msg: &IncomingMessage,
         scope: &str,
         default_wd: &str,
-        prompt: &str,
+        user_text: &str,
+        staged: &mut StagedGuard,
         registered: Option<RegisteredTurn>,
     ) {
         let scoped = self.scoped_projects_for(&msg.instance_id);
@@ -1446,6 +1568,10 @@ impl Engine {
             return;
         }
 
+        let (prompt, attachments, display_text) = self
+            .prepare_inbound_attachments(msg, &binding, user_text, staged)
+            .await;
+
         let (mut active_turn, mut cancel_rx) =
             registered.unwrap_or_else(|| self.register_active_turn(scope));
         if grok_agent::cancellation_signaled(&mut cancel_rx) {
@@ -1470,7 +1596,7 @@ impl Engine {
 
         let result = grok_agent::run_turn(
             &PathBuf::from(&wd),
-            prompt,
+            &prompt,
             resume_id.as_deref(),
             self.allow_remote_yolo,
             Some(cancel_rx),
@@ -1546,7 +1672,14 @@ impl Engine {
 
         let is_error = had_error || text.starts_with("Error:");
         // Sync into App sessions_index + messages.json so sidebar /r and App UI share state.
-        next = app_sessions::sync_turn_to_app(&next, prompt, &text, is_error, &msg.channel);
+        next = app_sessions::sync_turn_to_app(
+            &next,
+            &display_text,
+            &text,
+            is_error,
+            &msg.channel,
+            &attachments,
+        );
         if let Some(compact) = compact.as_ref() {
             app_sessions::sync_compact_to_app(&next, compact);
         }
@@ -1665,6 +1798,21 @@ fn extract_card_action(msg: &IncomingMessage) -> Option<CardAction> {
         return parse_card_action(c);
     }
     None
+}
+
+fn append_attachment_note(text: &mut String, reason: &str) {
+    let reason: String = reason
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .take(120)
+        .collect();
+    if !text.is_empty() {
+        text.push('\n');
+    }
+    text.push_str(&format!(
+        "[附件处理失败：{}] 请告诉用户重新发送。",
+        reason.trim()
+    ));
 }
 
 fn chunk_text(s: &str, max: usize) -> Vec<String> {
@@ -2001,6 +2149,7 @@ mod tests {
         let (_other, mut other_rx) = engine.register_active_turn("scope-b");
 
         let stop_message = IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: "test".into(),
             instance_id: "test-instance".into(),
             message_id: "stop-message".into(),
@@ -2184,6 +2333,7 @@ mod tests {
             project_scope: json!("all_trusted"),
         });
         let msg = IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: "weixin".into(),
             instance_id: "weixin-default".into(),
             message_id: "m1".into(),

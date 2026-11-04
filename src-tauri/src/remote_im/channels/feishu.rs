@@ -4,10 +4,14 @@ use super::super::outbound::{
     http_client, opt_str, require_mention, secret_or_opt, sender_allowed,
 };
 use super::super::pb_frame::{decode_frame, encode_frame, Frame, Header};
-use super::super::types::{ChannelInstance, IncomingMessage};
+use super::super::types::{ChannelInstance, IncomingMessage, StagedRemoteAttachment};
+use crate::attachments::AttachmentKind;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::Path;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -109,182 +113,183 @@ async fn run_once(
 
     loop {
         tokio::select! {
-            _ = cancel.changed() => {
-                if *cancel.borrow() {
-                    let _ = write.close().await;
-                    return Ok(());
+                _ = cancel.changed() => {
+                    if *cancel.borrow() {
+                        let _ = write.close().await;
+                        return Ok(());
+                    }
                 }
-            }
-            _ = ping_iv.tick() => {
-                let frame = Frame {
-                    seq_id: 0,
-                    log_id: 0,
-                    service: service_id,
-                    method: FRAME_CONTROL,
-                    headers: vec![Header { key: "type".into(), value: "ping".into() }],
-                    ..Default::default()
-                };
-                let bin = encode_frame(&frame);
-                if write.send(Message::Binary(bin.into())).await.is_err() {
-                    return Err("ws ping send failed".into());
+                _ = ping_iv.tick() => {
+                    let frame = Frame {
+                        seq_id: 0,
+                        log_id: 0,
+                        service: service_id,
+                        method: FRAME_CONTROL,
+                        headers: vec![Header { key: "type".into(), value: "ping".into() }],
+                        ..Default::default()
+                    };
+                    let bin = encode_frame(&frame);
+                    if write.send(Message::Binary(bin.into())).await.is_err() {
+                        return Err("ws ping send failed".into());
+                    }
                 }
-            }
-            msg = read.next() => {
-                match msg {
-                    Some(Ok(Message::Binary(b))) => {
-                        let frame = decode_frame(&b).map_err(|e| format!("frame decode: {e}"))?;
-                        let headers: HashMap<String, String> = frame
-                            .headers
-                            .iter()
-                            .map(|h| (h.key.clone(), h.value.clone()))
-                            .collect();
-                        let ty = headers.get("type").map(|s| s.as_str()).unwrap_or("");
-                        if frame.method == FRAME_CONTROL {
-                            continue;
-                        }
-                        if frame.method != FRAME_DATA || ty != "event" {
-                            continue;
-                        }
-                        let payload = frame.payload.clone().unwrap_or_default();
-                        let merged = merge_payload(&mut fragments, &headers, payload);
-                        // Peek event type before ACK so card.action.trigger gets a toast body
-                        // (Feishu client otherwise shows timeout / failed interaction).
-                        let peeked: Option<Value> = merged.as_ref().and_then(|b| {
-                            serde_json::from_str(&String::from_utf8_lossy(b)).ok()
-                        });
-                        let is_card = peeked
-                            .as_ref()
-                            .map(|e| {
-                                e.pointer("/header/event_type")
-                                    .and_then(|x| x.as_str())
-                                    .unwrap_or("")
-                                    .contains("card.action")
-                                    || e.pointer("/event/action").is_some()
-                            })
-                            .unwrap_or(false);
-                        let resp_bytes = if is_card {
-                            serde_json::to_vec(&json!({
-                                "toast": {
-                                    "type": "info",
-                                    "content": "已收到"
-                                }
-                            }))
-                            .unwrap_or_else(|_| br#"{"code":200}"#.to_vec())
-                        } else {
-                            serde_json::to_vec(&json!({ "code": 200 })).unwrap_or_default()
-                        };
-                        let mut ack_headers = frame.headers.clone();
-                        ack_headers.push(Header {
-                            key: "biz_rt".into(),
-                            value: "1".into(),
-                        });
-                        let ack = Frame {
-                            seq_id: frame.seq_id,
-                            log_id: frame.log_id,
-                            service: service_id,
-                            method: FRAME_DATA,
-                            headers: ack_headers,
-                            payload: Some(resp_bytes),
-                            ..Default::default()
-                        };
-                        let _ = write
-                            .send(Message::Binary(encode_frame(&ack).into()))
-                            .await;
-                        if let Some(bytes) = merged {
-                            let text = String::from_utf8_lossy(&bytes);
-                            let event: Value = serde_json::from_str(&text).unwrap_or(json!({}));
-                            // Card action callback (card.action.trigger)
-                            if let Some(content) = card_action_to_content(&event) {
-                                let (chat_id, sender) = card_action_ids(&event);
-                                let chat_id = if chat_id.is_empty() {
-                                    if !sender.is_empty() {
-                                        sender.clone()
+                msg = read.next() => {
+                    match msg {
+                        Some(Ok(Message::Binary(b))) => {
+                            let frame = decode_frame(&b).map_err(|e| format!("frame decode: {e}"))?;
+                            let headers: HashMap<String, String> = frame
+                                .headers
+                                .iter()
+                                .map(|h| (h.key.clone(), h.value.clone()))
+                                .collect();
+                            let ty = headers.get("type").map(|s| s.as_str()).unwrap_or("");
+                            if frame.method == FRAME_CONTROL {
+                                continue;
+                            }
+                            if frame.method != FRAME_DATA || ty != "event" {
+                                continue;
+                            }
+                            let payload = frame.payload.clone().unwrap_or_default();
+                            let merged = merge_payload(&mut fragments, &headers, payload);
+                            // Peek event type before ACK so card.action.trigger gets a toast body
+                            // (Feishu client otherwise shows timeout / failed interaction).
+                            let peeked: Option<Value> = merged.as_ref().and_then(|b| {
+                                serde_json::from_str(&String::from_utf8_lossy(b)).ok()
+                            });
+                            let is_card = peeked
+                                .as_ref()
+                                .map(|e| {
+                                    e.pointer("/header/event_type")
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("")
+                                        .contains("card.action")
+                                        || e.pointer("/event/action").is_some()
+                                })
+                                .unwrap_or(false);
+                            let resp_bytes = if is_card {
+                                serde_json::to_vec(&json!({
+                                    "toast": {
+                                        "type": "info",
+                                        "content": "已收到"
+                                    }
+                                }))
+                                .unwrap_or_else(|_| br#"{"code":200}"#.to_vec())
+                            } else {
+                                serde_json::to_vec(&json!({ "code": 200 })).unwrap_or_default()
+                            };
+                            let mut ack_headers = frame.headers.clone();
+                            ack_headers.push(Header {
+                                key: "biz_rt".into(),
+                                value: "1".into(),
+                            });
+                            let ack = Frame {
+                                seq_id: frame.seq_id,
+                                log_id: frame.log_id,
+                                service: service_id,
+                                method: FRAME_DATA,
+                                headers: ack_headers,
+                                payload: Some(resp_bytes),
+                                ..Default::default()
+                            };
+                            let _ = write
+                                .send(Message::Binary(encode_frame(&ack).into()))
+                                .await;
+                            if let Some(bytes) = merged {
+                                let text = String::from_utf8_lossy(&bytes);
+                                let event: Value = serde_json::from_str(&text).unwrap_or(json!({}));
+                                // Card action callback (card.action.trigger)
+                                if let Some(content) = card_action_to_content(&event) {
+                                    let (chat_id, sender) = card_action_ids(&event);
+                                    let chat_id = if chat_id.is_empty() {
+                                        if !sender.is_empty() {
+                                            sender.clone()
+                                        } else {
+                                            "card".into()
+                                        }
                                     } else {
-                                        "card".into()
-                                    }
-                                } else {
-                                    chat_id
-                                };
-                                tracing::info!(
-                                    instance = %inst.id,
-                                    %chat_id,
-                                    %sender,
-                                    %content,
-                                    "feishu card.action.trigger"
-                                );
-                                if let Err(e) = tx
-                                    .send(IncomingMessage {
-                                        channel: inst.channel.clone(),
-                                        instance_id: inst.id.clone(),
-                                        message_id: event
-                                            .pointer("/event/context/open_message_id")
-                                            .or_else(|| event.pointer("/header/event_id"))
-                                            .and_then(|x| x.as_str())
-                                            .unwrap_or("")
-                                            .into(),
-                                        chat_id,
-                                        chat_type: "p2p".into(),
-                                        sender_id: sender,
-                                        content,
-                                        mentioned_bot: true,
-                                        thread_id: None,                                    })
-                                    .await
-                                {
-                                    tracing::error!(
+                                        chat_id
+                                    };
+                                    tracing::info!(
                                         instance = %inst.id,
-                                        err = %e,
-                                        "feishu: engine channel closed — card action dropped"
+                                        %chat_id,
+                                        %sender,
+                                        %content,
+                                        "feishu card.action.trigger"
                                     );
-                                }
-                            } else if let Some(parsed) = parse_im_event(inst, &event) {
-                                // Hand off to the media worker; the WS loop keeps
-                                // reading heartbeats and the next events.
-                                match media_tx.try_send(parsed) {
-                                    Ok(()) => {}
-                                    Err(mpsc::error::TrySendError::Full(mut parsed)) => {
-                                        // Never stall the socket on a slow disk: forward
-                                        // the message without its attachments.
-                                        if !parsed.media.is_empty() {
-                                            push_media_failure(
-                                                &mut parsed.message.content,
-                                                "附件处理队列已满，请稍后重新发送",
-                                            );
-                                        }
-                                        let message = parsed.message;
-                                        tracing::warn!(
-                                            instance = %inst.id,
-                                            chat = %message.chat_id,
-                                            "feishu media queue full — forwarding without attachments"
-                                        );
-                                        if let Err(e) = tx.send(message).await {
-                                            tracing::error!(
-                                                instance = %inst.id,
-                                                err = %e,
-                                                "feishu: engine channel closed — message dropped"
-                                            );
-                                        }
-                                    }
-                                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                                    if let Err(e) = tx
+                                        .send(IncomingMessage {
+        staged_attachments: Vec::new(),
+                                            channel: inst.channel.clone(),
+                                            instance_id: inst.id.clone(),
+                                            message_id: event
+                                                .pointer("/event/context/open_message_id")
+                                                .or_else(|| event.pointer("/header/event_id"))
+                                                .and_then(|x| x.as_str())
+                                                .unwrap_or("")
+                                                .into(),
+                                            chat_id,
+                                            chat_type: "p2p".into(),
+                                            sender_id: sender,
+                                            content,
+                                            mentioned_bot: true,
+                                            thread_id: None,                                    })
+                                        .await
+                                    {
                                         tracing::error!(
                                             instance = %inst.id,
-                                            "feishu: media worker closed — message dropped"
+                                            err = %e,
+                                            "feishu: engine channel closed — card action dropped"
                                         );
+                                    }
+                                } else if let Some(parsed) = parse_im_event(inst, &event) {
+                                    // Hand off to the media worker; the WS loop keeps
+                                    // reading heartbeats and the next events.
+                                    match media_tx.try_send(parsed) {
+                                        Ok(()) => {}
+                                        Err(mpsc::error::TrySendError::Full(mut parsed)) => {
+                                            // Never stall the socket on a slow disk: forward
+                                            // the message without its attachments.
+                                            if !parsed.media.is_empty() {
+                                                push_media_failure(
+                                                    &mut parsed.message.content,
+                                                    "附件处理队列已满，请稍后重新发送",
+                                                );
+                                            }
+                                            let message = parsed.message;
+                                            tracing::warn!(
+                                                instance = %inst.id,
+                                                chat = %message.chat_id,
+                                                "feishu media queue full — forwarding without attachments"
+                                            );
+                                            if let Err(e) = tx.send(message).await {
+                                                tracing::error!(
+                                                    instance = %inst.id,
+                                                    err = %e,
+                                                    "feishu: engine channel closed — message dropped"
+                                                );
+                                            }
+                                        }
+                                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                                            tracing::error!(
+                                                instance = %inst.id,
+                                                "feishu: media worker closed — message dropped"
+                                            );
+                                        }
                                     }
                                 }
                             }
                         }
+                        Some(Ok(Message::Ping(p))) => {
+                            let _ = write.send(Message::Pong(p)).await;
+                        }
+                        Some(Ok(Message::Close(_))) | None => {
+                            return Ok(());
+                        }
+                        Some(Ok(_)) => {}
+                        Some(Err(e)) => return Err(format!("ws read: {e}")),
                     }
-                    Some(Ok(Message::Ping(p))) => {
-                        let _ = write.send(Message::Pong(p)).await;
-                    }
-                    Some(Ok(Message::Close(_))) | None => {
-                        return Ok(());
-                    }
-                    Some(Ok(_)) => {}
-                    Some(Err(e)) => return Err(format!("ws read: {e}")),
                 }
             }
-        }
     }
 }
 
@@ -334,6 +339,8 @@ struct InboundMedia {
     key: String,
     /// Feishu resource `type` query value: `image` or `file`.
     resource_type: &'static str,
+    /// Store kind used for journal/preview.
+    kind: AttachmentKind,
     /// Original name for file / video messages; images carry none.
     file_name: Option<String>,
 }
@@ -398,6 +405,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
                 "image_key",
                 "image",
                 None,
+                AttachmentKind::Image,
             ),
             "file" => push_media(
                 &mut media,
@@ -406,6 +414,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
                 "file_key",
                 "file",
                 content_json.get("file_name").and_then(|x| x.as_str()),
+                AttachmentKind::File,
             ),
             "audio" => push_media(
                 &mut media,
@@ -414,6 +423,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
                 "file_key",
                 "file",
                 None,
+                AttachmentKind::Audio,
             ),
             "media" => push_media(
                 &mut media,
@@ -422,9 +432,9 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
                 "file_key",
                 "file",
                 content_json.get("file_name").and_then(|x| x.as_str()),
+                AttachmentKind::Video,
             ),
-            // Feishu stickers carry a plain `file_key`; download them as files
-            // and let magic-byte sniffing name the extension.
+            // Feishu stickers carry a plain `file_key`; store them as images.
             "sticker" => push_media(
                 &mut media,
                 &mut media_truncated,
@@ -432,6 +442,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
                 "file_key",
                 "file",
                 None,
+                AttachmentKind::Image,
             ),
             _ => {}
         }
@@ -487,14 +498,11 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
     if re_clean.trim().is_empty() && media.is_empty() {
         return None;
     }
-    let content = if re_clean.trim().is_empty() {
-        "请查看附件".to_string()
-    } else {
-        re_clean
-    };
+    let content = re_clean;
 
     Some(ParsedInbound {
         message: IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: inst.channel.clone(),
             instance_id: inst.id.clone(),
             message_id,
@@ -573,7 +581,15 @@ fn collect_post_content(
                         line_text.push_str(name);
                     }
                 }
-                "img" => push_media(media, truncated, node, "image_key", "image", None),
+                "img" => push_media(
+                    media,
+                    truncated,
+                    node,
+                    "image_key",
+                    "image",
+                    None,
+                    AttachmentKind::Image,
+                ),
                 "media" => push_media(
                     media,
                     truncated,
@@ -581,6 +597,7 @@ fn collect_post_content(
                     "file_key",
                     "file",
                     node.get("file_name").and_then(|x| x.as_str()),
+                    AttachmentKind::Video,
                 ),
                 _ => {}
             }
@@ -602,6 +619,7 @@ fn push_media(
     key_field: &str,
     resource_type: &'static str,
     file_name: Option<&str>,
+    kind: AttachmentKind,
 ) {
     let Some(key) = node
         .get(key_field)
@@ -623,6 +641,7 @@ fn push_media(
     media.push(InboundMedia {
         key: key.to_string(),
         resource_type,
+        kind,
         file_name: file_name
             .map(str::trim)
             .filter(|n| !n.is_empty())
@@ -960,12 +979,8 @@ pub fn protocol_name() -> &'static str {
     "feishu-ws-long-connection"
 }
 
-/// Upper bound for one inbound attachment. Feishu itself caps resources at
-/// 100 MB; staying lower bounds memory use and App-data growth.
-const MAX_INBOUND_MEDIA_BYTES: usize = 50 * 1024 * 1024;
-
-/// Inbound media is transient; prune older files on the next write.
-const MEDIA_RETENTION_DAYS: u64 = 30;
+/// Upper bound for one inbound attachment. Feishu caps resources at 100 MB.
+const MAX_INBOUND_MEDIA_BYTES: usize = 100 * 1024 * 1024;
 
 /// Per-chat download budget so one chat cannot fill the disk between engine
 /// rate-limit windows. The engine still applies its own turn rate limit.
@@ -998,11 +1013,11 @@ impl MediaBudget {
     }
 }
 
-/// Downloaded media payload plus the response content type (used for the
-/// on-disk extension when the message carries no file name).
+/// Streamed download result; the file already lives under store staging.
 #[derive(Debug)]
 struct DownloadedResource {
-    bytes: Vec<u8>,
+    size: u64,
+    sha256: String,
     content_type: Option<String>,
 }
 
@@ -1020,7 +1035,7 @@ async fn run_media_worker(
             media,
             media_truncated,
         } = parsed;
-        // Never write files for senders the engine will reject (ACL) or for a
+        // Never stage files for senders the engine will reject (ACL) or for a
         // group message the bot was not mentioned in. Forward the message so
         // the engine keeps its existing reply/drop behavior.
         if can_download_media(&inst, &message) {
@@ -1040,6 +1055,7 @@ async fn run_media_worker(
                 chat = %message.chat_id,
                 content_len = message.content.len(),
                 media = media_count,
+                staged = message.staged_attachments.len(),
                 preview = %message.content.chars().take(40).collect::<String>(),
                 "feishu inbound message"
             );
@@ -1057,11 +1073,10 @@ fn can_download_media(inst: &ChannelInstance, msg: &IncomingMessage) -> bool {
     !(msg.chat_type == "group" && require_mention(&inst.options, &inst.acl) && !msg.mentioned_bot)
 }
 
-/// Download inbound media and append `@/absolute/path` lines to the prompt.
+/// Stream each inbound resource into the attachment store's staging area.
 ///
-/// Grok Build resolves `@path` prompt lines into attachments; a Feishu
-/// `image_key` is meaningless to the agent. A failed download therefore writes
-/// an explicit failure note instead of a dead placeholder.
+/// The engine commits staging after resolving the App session and checking the
+/// 512 MB session budget. No `@path` is written into the journal here.
 async fn attach_inbound_media(
     inst: &ChannelInstance,
     incoming: &mut IncomingMessage,
@@ -1078,8 +1093,13 @@ async fn attach_inbound_media(
         );
         return;
     }
-    // Prune at most once per message, off the runtime thread.
-    prepare_media_dir(&inst.id).await;
+    let store = match crate::attachments::shared() {
+        Ok(store) => store,
+        Err(err) => {
+            push_media_failure(&mut incoming.content, &err);
+            return;
+        }
+    };
     // One token + one client per message, not per attachment.
     let token = match tenant_token(&inst.channel, &inst.secrets, &inst.options).await {
         Ok(token) => token,
@@ -1104,32 +1124,38 @@ async fn attach_inbound_media(
             );
             break;
         }
-        match download_and_store_media(
+        let temp_path = store.staging_path();
+        match fetch_message_to_staging(
             &client,
             &api_base,
             &token,
-            &inst.id,
             &incoming.message_id,
             item,
+            &temp_path,
+            MAX_INBOUND_MEDIA_BYTES,
         )
         .await
         {
-            Ok((path, bytes)) => {
-                budget.record(bytes);
-                let file_name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_default();
+            Ok(resource) => {
+                budget.record(resource.size as usize);
+                let name = media_display_name(item, resource.content_type.as_deref());
                 tracing::info!(
                     instance = %inst.id,
                     key = %item.key,
-                    file = %file_name,
-                    bytes,
-                    "feishu inbound media saved"
+                    file = %name,
+                    bytes = resource.size,
+                    "feishu inbound media staged"
                 );
-                append_media_path(&mut incoming.content, &path);
+                incoming.staged_attachments.push(StagedRemoteAttachment {
+                    name,
+                    kind: item.kind,
+                    temp_path,
+                    size: resource.size,
+                    sha256: resource.sha256,
+                });
             }
             Err(err) => {
+                let _ = std::fs::remove_file(&temp_path);
                 tracing::warn!(
                     instance = %inst.id,
                     key = %item.key,
@@ -1140,23 +1166,6 @@ async fn attach_inbound_media(
             }
         }
     }
-}
-
-fn prepare_media_dir_sync(dir: &std::path::Path) {
-    let _ = std::fs::create_dir_all(dir);
-    prune_inbound_media(dir);
-}
-
-async fn prepare_media_dir(instance_id: &str) {
-    let dir = inbound_media_dir(instance_id);
-    let _ = tokio::task::spawn_blocking(move || prepare_media_dir_sync(&dir)).await;
-}
-
-/// Prompt convention shared with the App composer: one `@/abs/path` per line.
-fn append_media_path(content: &mut String, path: &std::path::Path) {
-    content.push('\n');
-    content.push('@');
-    content.push_str(&path.to_string_lossy());
 }
 
 fn push_media_failure(content: &mut String, reason: &str) {
@@ -1173,90 +1182,28 @@ fn push_media_failure(content: &mut String, reason: &str) {
     ));
 }
 
-async fn download_and_store_media(
-    client: &reqwest::Client,
-    api_base: &str,
-    token: &str,
-    instance_id: &str,
-    message_id: &str,
-    media: &InboundMedia,
-) -> Result<(std::path::PathBuf, usize), String> {
-    if !is_safe_resource_id(message_id) {
-        return Err("invalid message_id".into());
-    }
-    let resource = fetch_message_resource(
-        client,
-        api_base,
-        token,
-        message_id,
-        &media.key,
-        media.resource_type,
-        MAX_INBOUND_MEDIA_BYTES,
-    )
-    .await?;
-    let dir = inbound_media_dir(instance_id);
-    let path = dir.join(inbound_media_file_name(
-        media,
-        resource.content_type.as_deref(),
-        &resource.bytes,
-    ));
-    let size = resource.bytes.len();
-    let bytes = resource.bytes;
-    tokio::task::spawn_blocking(move || {
-        std::fs::create_dir_all(&dir).map_err(|e| format!("create media dir: {e}"))?;
-        // Write then rename so a crash cannot leave a truncated attachment.
-        let tmp = path.with_extension("part");
-        std::fs::write(&tmp, &bytes).map_err(|e| format!("write media: {e}"))?;
-        std::fs::rename(&tmp, &path).map_err(|e| format!("commit media: {e}"))?;
-        Ok::<std::path::PathBuf, String>(path)
-    })
-    .await
-    .map_err(|e| format!("media write task: {e}"))?
-    .map(|path| (path, size))
-}
-
-/// Best-effort retention: drop files older than [`MEDIA_RETENTION_DAYS`].
-fn prune_inbound_media(dir: &std::path::Path) {
-    let Some(cutoff) = std::time::SystemTime::now()
-        .checked_sub(Duration::from_secs(MEDIA_RETENTION_DAYS * 86_400))
-    else {
-        return;
-    };
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let expired = entry
-            .metadata()
-            .and_then(|meta| meta.modified())
-            .map(|modified| modified < cutoff)
-            .unwrap_or(false);
-        if expired {
-            let _ = std::fs::remove_file(entry.path());
+fn media_display_name(item: &InboundMedia, content_type: Option<&str>) -> String {
+    let ext = content_type
+        .and_then(extension_for_content_type)
+        .unwrap_or_else(|| match item.kind {
+            AttachmentKind::Image => "png".into(),
+            AttachmentKind::Audio => "opus".into(),
+            AttachmentKind::Video => "mp4".into(),
+            AttachmentKind::File => "bin".into(),
+        });
+    if let Some(name) = item.file_name.as_deref().and_then(sanitize_file_name) {
+        if Path::new(&name).extension().is_some() {
+            return name;
         }
+        return format!("{name}.{ext}");
     }
-}
-
-fn inbound_media_dir(instance_id: &str) -> std::path::PathBuf {
-    crate::paths::app_data_root()
-        .join("remote")
-        .join("media")
-        .join(sanitize_path_component(instance_id))
-}
-
-/// Only allow characters that are safe on every supported filesystem. Dots and
-/// separators are dropped so no `..` survives inside the final component.
-fn sanitize_path_component(raw: &str) -> String {
-    let cleaned: String = raw
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
-        .collect();
-    let cleaned = cleaned.trim_matches(|c| c == '-' || c == '_').to_string();
-    if cleaned.is_empty() {
-        "instance".into()
-    } else {
-        cleaned
-    }
+    let stem = match item.kind {
+        AttachmentKind::Image => "image",
+        AttachmentKind::Audio => "audio",
+        AttachmentKind::Video => "video",
+        AttachmentKind::File => "attachment",
+    };
+    format!("{stem}.{ext}")
 }
 
 /// Keep the original file name recognizable while stripping path separators,
@@ -1299,91 +1246,22 @@ fn extension_for_content_type(content_type: &str) -> Option<String> {
     Some(ext.into())
 }
 
-/// Feishu often answers with `application/octet-stream`; magic bytes are the
-/// reliable way to name the saved file.
-fn sniff_extension(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
-        return Some("jpg");
-    }
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-        return Some("png");
-    }
-    if bytes.starts_with(b"GIF8") {
-        return Some("gif");
-    }
-    if bytes.get(0..4) == Some(b"RIFF".as_slice()) && bytes.get(8..12) == Some(b"WEBP".as_slice()) {
-        return Some("webp");
-    }
-    if bytes.starts_with(b"%PDF") {
-        return Some("pdf");
-    }
-    if bytes.starts_with(b"ID3") {
-        return Some("mp3");
-    }
-    if bytes.starts_with(b"OggS") {
-        return Some("ogg");
-    }
-    if bytes.get(4..8) == Some(b"ftyp".as_slice()) {
-        let brand = bytes.get(8..12).unwrap_or_default();
-        return Some(if brand == b"qt  ".as_slice() {
-            "mov"
-        } else if brand == b"heic".as_slice()
-            || brand == b"heix".as_slice()
-            || brand == b"hevc".as_slice()
-            || brand == b"mif1".as_slice()
-        {
-            "heic"
-        } else if brand == b"avif".as_slice() {
-            "avif"
-        } else {
-            "mp4"
-        });
-    }
-    if bytes.starts_with(&[0x50, 0x4b]) {
-        return Some("zip");
-    }
-    None
-}
-
-fn inbound_media_file_name(
-    media: &InboundMedia,
-    content_type: Option<&str>,
-    bytes: &[u8],
-) -> String {
-    let id = uuid::Uuid::new_v4();
-    let ext = sniff_extension(bytes)
-        .map(str::to_string)
-        .or_else(|| content_type.and_then(extension_for_content_type))
-        .unwrap_or_else(|| {
-            if media.resource_type == "image" {
-                "png".into()
-            } else {
-                "bin".into()
-            }
-        });
-    if let Some(name) = media.file_name.as_deref().and_then(sanitize_file_name) {
-        // Keep the original name; the UUID prefix prevents collisions.
-        if std::path::Path::new(&name).extension().is_some() {
-            return format!("{id}-{name}");
-        }
-        return format!("{id}-{name}.{ext}");
-    }
-    format!("{id}.{ext}")
-}
-
-/// Fetch the resource bytes with an already-issued tenant token. Split out so
-/// tests can drive the shipped HTTP path against a local fixture.
-async fn fetch_message_resource(
+/// Fetch one message resource into an already-allocated staging path.
+async fn fetch_message_to_staging(
     client: &reqwest::Client,
     api_base: &str,
     token: &str,
     message_id: &str,
-    file_key: &str,
-    resource_type: &str,
+    media: &InboundMedia,
+    temp_path: &Path,
     max_bytes: usize,
 ) -> Result<DownloadedResource, String> {
+    if !is_safe_resource_id(message_id) {
+        return Err("invalid message_id".into());
+    }
     let url = format!(
-        "{api_base}/open-apis/im/v1/messages/{message_id}/resources/{file_key}?type={resource_type}"
+        "{api_base}/open-apis/im/v1/messages/{message_id}/resources/{}?type={}",
+        media.key, media.resource_type
     );
     let mut res = client
         .get(url)
@@ -1407,25 +1285,51 @@ async fn fetch_message_resource(
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
-    let mut bytes = Vec::new();
+
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(temp_path)
+        .map_err(|e| format!("feishu media: create staging: {e}"))?;
+    let mut hasher = Sha256::new();
+    let mut total = 0usize;
     while let Some(chunk) = res
         .chunk()
         .await
         .map_err(|e| format!("feishu media read: {e}"))?
     {
-        if bytes.len() + chunk.len() > max_bytes {
+        if total.saturating_add(chunk.len()) > max_bytes {
+            drop(file);
+            let _ = std::fs::remove_file(temp_path);
             return Err(format!(
                 "附件超过 {:.1} MB 上限",
                 max_bytes as f64 / (1024.0 * 1024.0)
             ));
         }
-        bytes.extend_from_slice(&chunk);
+        if let Err(err) = file.write_all(&chunk) {
+            drop(file);
+            let _ = std::fs::remove_file(temp_path);
+            return Err(format!("feishu media write: {err}"));
+        }
+        hasher.update(&chunk);
+        total += chunk.len();
     }
-    if bytes.is_empty() {
+    if total == 0 {
+        drop(file);
+        let _ = std::fs::remove_file(temp_path);
         return Err("feishu media: empty body".into());
     }
+    file.sync_all()
+        .map_err(|e| format!("feishu media sync: {e}"))?;
+
     Ok(DownloadedResource {
-        bytes,
+        size: total as u64,
+        sha256: hex::encode(hasher.finalize()),
         content_type,
     })
 }
@@ -1574,7 +1478,6 @@ mod md_tests {
 #[cfg(test)]
 mod inbound_media_tests {
     use super::*;
-    use std::path::Path;
 
     fn instance() -> ChannelInstance {
         ChannelInstance {
@@ -1616,7 +1519,8 @@ mod inbound_media_tests {
         assert_eq!(parsed.media.len(), 1);
         assert_eq!(parsed.media[0].key, "img_v3_123");
         assert_eq!(parsed.media[0].resource_type, "image");
-        assert_eq!(parsed.message.content, "请查看附件");
+        assert_eq!(parsed.media[0].kind, AttachmentKind::Image);
+        assert_eq!(parsed.message.content, "");
     }
 
     #[test]
@@ -1674,7 +1578,7 @@ mod inbound_media_tests {
         )
         .expect("post event");
 
-        assert_eq!(parsed.message.content, "请查看附件");
+        assert_eq!(parsed.message.content, "");
         assert_eq!(parsed.media.len(), 1);
     }
 
@@ -1787,63 +1691,42 @@ mod inbound_media_tests {
     }
 
     #[test]
-    fn media_file_name_uses_content_type_when_unnamed() {
+    fn media_display_name_uses_content_type_for_unnamed_image() {
         let media = InboundMedia {
             key: "img_1".into(),
             resource_type: "image",
+            kind: AttachmentKind::Image,
             file_name: None,
         };
-        let name = inbound_media_file_name(&media, Some("image/jpeg; charset=binary"), &[]);
-        assert!(name.ends_with(".jpg"), "{name}");
-        assert_eq!(Path::new(&name).file_name().unwrap().to_str(), Some(&*name));
+        assert_eq!(
+            media_display_name(&media, Some("image/jpeg; charset=binary")),
+            "image.jpg"
+        );
     }
 
     #[test]
-    fn media_file_name_sniffs_magic_bytes_over_content_type() {
-        let media = InboundMedia {
-            key: "img_1".into(),
-            resource_type: "image",
-            file_name: None,
-        };
-        let png = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
-        let name = inbound_media_file_name(&media, Some("application/octet-stream"), &png);
-        assert!(name.ends_with(".png"), "{name}");
-
-        let jpeg = [0xff, 0xd8, 0xff, 0xe0];
-        let name = inbound_media_file_name(&media, None, &jpeg);
-        assert!(name.ends_with(".jpg"), "{name}");
-    }
-
-    #[test]
-    fn media_file_name_adds_extension_to_nameless_file() {
+    fn media_display_name_keeps_safe_file_names() {
         let media = InboundMedia {
             key: "file_1".into(),
             resource_type: "file",
+            kind: AttachmentKind::File,
             file_name: Some("README".into()),
         };
-        let name = inbound_media_file_name(&media, Some("text/plain"), b"hello");
-        assert!(name.ends_with("-README.txt"), "{name}");
-    }
+        assert_eq!(media_display_name(&media, Some("text/plain")), "README.txt");
 
-    #[test]
-    fn media_file_name_keeps_safe_original_name() {
-        let media = InboundMedia {
-            key: "file_1".into(),
+        let named = InboundMedia {
+            key: "file_2".into(),
             resource_type: "file",
+            kind: AttachmentKind::File,
             file_name: Some("截图.png".into()),
         };
-        let name = inbound_media_file_name(&media, None, &[]);
-        assert!(name.ends_with("-截图.png"), "{name}");
-        assert!(!name.contains('/'), "{name}");
-        assert!(!name.contains('\\'), "{name}");
+        assert_eq!(media_display_name(&named, None), "截图.png");
+        assert!(!media_display_name(&named, None).contains('/'));
     }
 
     #[test]
-    fn prompt_notes_stay_on_one_line_and_append_refs() {
+    fn prompt_failure_notes_stay_on_one_line() {
         let mut content = "请查看附件".to_string();
-        append_media_path(&mut content, Path::new("/tmp/a b.png"));
-        assert_eq!(content, "请查看附件\n@/tmp/a b.png");
-
         push_media_failure(&mut content, "HTTP 403\n<script>");
         let last = content.lines().last().unwrap();
         assert!(last.contains("附件下载失败"), "{last}");
@@ -1852,51 +1735,66 @@ mod inbound_media_tests {
         assert!(last.chars().count() < 200, "{last}");
     }
 
-    #[test]
-    fn instance_component_cannot_escape_media_dir() {
-        assert_eq!(sanitize_path_component("../../etc"), "etc");
-        assert_eq!(sanitize_path_component("feishu-a_b"), "feishu-a_b");
-    }
-
     #[tokio::test]
-    async fn fetch_message_resource_returns_bytes() {
+    async fn fetch_message_to_staging_writes_file_and_hash() {
         let (base, state, _stop) = crate::remote_im::fixture_http::spawn_fixture().await;
         state.set_route("/resources/img_1", 200, "PNGDATA");
         let client = http_client().expect("client");
+        let dir = std::env::temp_dir().join(format!("feishu-stage-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let temp = dir.join("a.part");
+        let media = InboundMedia {
+            key: "img_1".into(),
+            resource_type: "image",
+            kind: AttachmentKind::Image,
+            file_name: None,
+        };
 
-        let got = fetch_message_resource(
+        let got = fetch_message_to_staging(
             &client,
             &base,
             "tenant",
             "om_1",
-            "img_1",
-            "image",
+            &media,
+            &temp,
             MAX_INBOUND_MEDIA_BYTES,
         )
         .await
         .expect("download");
 
-        assert_eq!(got.bytes, b"PNGDATA");
+        assert_eq!(std::fs::read(&temp).unwrap(), b"PNGDATA");
+        assert_eq!(got.size, 7);
+        assert_eq!(got.sha256, hex::encode(Sha256::digest(b"PNGDATA")));
         let request = &state.request_paths()[0];
         assert!(
             request.contains("/open-apis/im/v1/messages/om_1/resources/img_1?type=image"),
             "{request}"
         );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
-    async fn fetch_message_resource_surfaces_http_error() {
+    async fn fetch_message_to_staging_surfaces_http_error() {
         let (base, state, _stop) = crate::remote_im::fixture_http::spawn_fixture().await;
         state.set_route("/resources/img_403", 403, "no permission");
         let client = http_client().expect("client");
+        let dir = std::env::temp_dir().join(format!("feishu-stage-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let temp = dir.join("a.part");
+        let media = InboundMedia {
+            key: "img_403".into(),
+            resource_type: "image",
+            kind: AttachmentKind::Image,
+            file_name: None,
+        };
 
-        let err = fetch_message_resource(
+        let err = fetch_message_to_staging(
             &client,
             &base,
             "tenant",
             "om_1",
-            "img_403",
-            "image",
+            &media,
+            &temp,
             MAX_INBOUND_MEDIA_BYTES,
         )
         .await
@@ -1904,19 +1802,31 @@ mod inbound_media_tests {
 
         assert!(err.contains("403"), "{err}");
         assert!(!err.contains("no permission"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
-    async fn fetch_message_resource_rejects_oversized_body() {
+    async fn fetch_message_to_staging_rejects_oversized_body_and_cleans_up() {
         let (base, state, _stop) = crate::remote_im::fixture_http::spawn_fixture().await;
         state.set_route("/resources/big", 200, "x".repeat(128));
         let client = http_client().expect("client");
+        let dir = std::env::temp_dir().join(format!("feishu-stage-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let temp = dir.join("a.part");
+        let media = InboundMedia {
+            key: "big".into(),
+            resource_type: "file",
+            kind: AttachmentKind::File,
+            file_name: None,
+        };
 
-        let err = fetch_message_resource(&client, &base, "tenant", "om_1", "big", "file", 64)
+        let err = fetch_message_to_staging(&client, &base, "tenant", "om_1", &media, &temp, 64)
             .await
             .expect_err("must be capped");
 
         assert!(err.contains("上限"), "{err}");
+        assert!(!temp.exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1931,6 +1841,7 @@ mod inbound_media_tests {
 
     fn incoming(sender: &str, chat_type: &str, mentioned: bool) -> IncomingMessage {
         IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: "feishu".into(),
             instance_id: "feishu-test".into(),
             message_id: "om_1".into(),
@@ -1979,29 +1890,5 @@ mod inbound_media_tests {
         assert_eq!(budget.remaining(), MAX_MEDIA_BYTES_PER_CHAT_WINDOW);
         budget.record(MAX_MEDIA_BYTES_PER_CHAT_WINDOW + 10);
         assert_eq!(budget.remaining(), 0);
-    }
-
-    #[test]
-    fn prune_inbound_media_drops_only_expired_files() {
-        let dir = std::env::temp_dir().join(format!("feishu-media-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).expect("temp dir");
-        let old = dir.join("old.png");
-        let fresh = dir.join("fresh.png");
-        std::fs::write(&old, b"old").expect("old file");
-        std::fs::write(&fresh, b"fresh").expect("fresh file");
-        let stale =
-            std::time::SystemTime::now() - Duration::from_secs((MEDIA_RETENTION_DAYS + 1) * 86_400);
-        std::fs::File::options()
-            .write(true)
-            .open(&old)
-            .expect("open old")
-            .set_modified(stale)
-            .expect("set mtime");
-
-        prune_inbound_media(&dir);
-
-        assert!(!old.exists());
-        assert!(fresh.exists());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -74,6 +74,7 @@ pub async fn run(
                                 .to_string();
                             let _ = tx
                                 .send(IncomingMessage {
+                                    staged_attachments: Vec::new(),
                                     channel: inst.channel.clone(),
                                     instance_id: inst.id.clone(),
                                     message_id: ev

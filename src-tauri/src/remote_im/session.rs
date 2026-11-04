@@ -177,6 +177,7 @@ mod tests {
 
     fn msg(thread_id: Option<&str>) -> IncomingMessage {
         IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: "telegram".into(),
             instance_id: "bot".into(),
             message_id: "1".into(),

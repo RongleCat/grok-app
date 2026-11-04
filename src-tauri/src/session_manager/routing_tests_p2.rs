@@ -65,6 +65,7 @@ fn interjection_starts_host_owned_stream_segment() {
         app_session_id: "session-1".into(),
         process_id: "process-1".into(),
         meta: SessionMeta {
+    remote_im: None,
             id: "session-1".into(),
             project_id: None,
             title: "Test".into(),
@@ -193,6 +194,7 @@ fn pick_interjection_target_rejects_non_streaming_session() {
         app_session_id: "session-1".into(),
         process_id: "process-1".into(),
         meta: SessionMeta {
+    remote_im: None,
             id: "session-1".into(),
             project_id: None,
             title: "Test".into(),
@@ -288,6 +290,7 @@ fn bare_live_session(id: &str, process_id: &str) -> LiveSession {
         app_session_id: id.into(),
         process_id: process_id.into(),
         meta: SessionMeta {
+    remote_im: None,
             id: id.into(),
             project_id: None,
             title: "Lock test".into(),

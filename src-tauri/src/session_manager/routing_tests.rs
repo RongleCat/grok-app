@@ -97,6 +97,7 @@ fn sample_live_for_empty_run(body: &str, thought: &str, tools: u32, mode: &str) 
         app_session_id: "session-1".into(),
         process_id: "process-1".into(),
         meta: SessionMeta {
+            remote_im: None,
             id: "session-1".into(),
             project_id: None,
             title: "Test".into(),

@@ -6,9 +6,16 @@
 
 mod store;
 
-// Consumed by the remote inbound/outbound slices next; see store.rs.
-#[allow(unused_imports)]
+use std::sync::OnceLock;
+
 pub use store::{
-    AttachmentKind, AttachmentMeta, AttachmentRef, AttachmentStore, NewAttachment,
-    NewAttachmentFile, NewAttachmentMeta, StagedAttachment, MAX_FILE_BYTES, MAX_SESSION_BYTES,
+    AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentMeta, StagedAttachment,
+    MAX_SESSION_BYTES,
 };
+
+/// Process-wide store used by the remote-control bridge. The first caller
+/// initializes the app-data root; later callers share the same SQLite handle.
+pub fn shared() -> Result<AttachmentStore, String> {
+    static STORE: OnceLock<Result<AttachmentStore, String>> = OnceLock::new();
+    STORE.get_or_init(AttachmentStore::open_default).clone()
+}

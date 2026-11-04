@@ -1,8 +1,10 @@
 //! Shared types for the in-process Remote IM runtime.
 
+use crate::attachments::AttachmentKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct ChannelInstance {
@@ -19,6 +21,58 @@ pub struct ChannelInstance {
 }
 
 #[derive(Debug, Clone)]
+pub struct StagedRemoteAttachment {
+    pub name: String,
+    pub kind: AttachmentKind,
+    pub temp_path: PathBuf,
+    pub size: u64,
+    pub sha256: String,
+}
+
+/// Removes uncommitted staging files on every early return (ACL, rate limit,
+/// cancellation, budget rejection).
+pub struct StagedGuard {
+    staged: Vec<StagedRemoteAttachment>,
+    armed: bool,
+}
+
+impl StagedGuard {
+    pub fn new(staged: Vec<StagedRemoteAttachment>) -> Self {
+        Self {
+            staged,
+            armed: true,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.staged.is_empty()
+    }
+
+    pub fn as_slice(&self) -> &[StagedRemoteAttachment] {
+        &self.staged
+    }
+
+    /// Remove any temp files still present and stop tracking.
+    pub fn finish(&mut self) {
+        for item in &self.staged {
+            let _ = std::fs::remove_file(&item.temp_path);
+        }
+        self.staged.clear();
+        self.armed = false;
+    }
+}
+
+impl Drop for StagedGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            for item in &self.staged {
+                let _ = std::fs::remove_file(&item.temp_path);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct IncomingMessage {
     pub channel: String,
     pub instance_id: String,
@@ -30,6 +84,9 @@ pub struct IncomingMessage {
     pub mentioned_bot: bool,
     /// Telegram forum / private-topic thread (`message_thread_id`).
     pub thread_id: Option<String>,
+    /// Media downloaded to store staging; the engine commits it after resolving
+    /// the App session and checking the 512 MB session budget.
+    pub staged_attachments: Vec<StagedRemoteAttachment>,
 }
 
 impl IncomingMessage {

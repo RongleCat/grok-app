@@ -140,6 +140,7 @@ pub async fn run(
 
             let _ = tx
                 .send(IncomingMessage {
+                    staged_attachments: Vec::new(),
                     channel: inst.channel.clone(),
                     instance_id: inst.id.clone(),
                     message_id,
@@ -242,6 +243,7 @@ fn callback_query_to_incoming(
 
     Some((
         IncomingMessage {
+            staged_attachments: Vec::new(),
             channel: inst.channel.clone(),
             instance_id: inst.id.clone(),
             message_id: message_id.to_string(),

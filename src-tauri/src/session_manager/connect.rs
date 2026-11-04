@@ -2553,6 +2553,7 @@ mod connect_preserve_tests {
             app_session_id: "session-stuck".into(),
             process_id: "process-stuck".into(),
             meta: SessionMeta {
+                remote_im: None,
                 id: "session-stuck".into(),
                 project_id: None,
                 title: "Stuck".into(),
@@ -2655,6 +2656,7 @@ mod connect_preserve_tests {
             app_session_id: id.into(),
             process_id: "process-already-live".into(),
             meta: SessionMeta {
+                remote_im: None,
                 id: id.into(),
                 project_id: None,
                 title: "Already live".into(),

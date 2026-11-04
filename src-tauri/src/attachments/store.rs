@@ -486,8 +486,56 @@ impl AttachmentStore {
         Ok(buf)
     }
 
+    /// Unique blob SHA-256 values referenced by one session's journal.
+    pub fn session_sha_set(&self, session_id: &str) -> Result<HashSet<String>, String> {
+        let ids = self.session_attachment_ids(session_id)?;
+        if ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT a.sha256 FROM attachments a JOIN blobs b ON b.sha256 = a.sha256
+                  WHERE a.id = ?1",
+            )
+            .map_err(|e| format!("attachment store: prepare shas: {e}"))?;
+        let mut shas = HashSet::new();
+        for id in ids {
+            let found: Option<String> = stmt
+                .query_row(params![id], |row| row.get(0))
+                .optional()
+                .map_err(|e| format!("attachment store: sha row: {e}"))?;
+            if let Some(sha) = found {
+                shas.insert(sha);
+            }
+        }
+        Ok(shas)
+    }
+
     /// Unique blob bytes referenced by one session's journal.
     pub fn session_usage(&self, session_id: &str) -> Result<u64, String> {
+        let shas = self.session_sha_set(session_id)?;
+        if shas.is_empty() {
+            return Ok(0);
+        }
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
+            .prepare("SELECT size FROM blobs WHERE sha256 = ?1")
+            .map_err(|e| format!("attachment store: prepare usage: {e}"))?;
+        let mut total = 0u64;
+        for sha in shas {
+            let size: Option<i64> = stmt
+                .query_row(params![sha], |row| row.get(0))
+                .optional()
+                .map_err(|e| format!("attachment store: usage row: {e}"))?;
+            if let Some(size) = size {
+                total = total.saturating_add(size.max(0) as u64);
+            }
+        }
+        Ok(total)
+    }
+
+    fn session_attachment_ids(&self, session_id: &str) -> Result<Vec<String>, String> {
         validate_session_id(session_id)?;
         let path = self
             .inner
@@ -496,7 +544,7 @@ impl AttachmentStore {
             .join("messages.json");
         let raw = match fs::read(&path) {
             Ok(raw) => raw,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(err) => return Err(format!("attachment store: read session journal: {err}")),
         };
         let rows: Vec<serde_json::Value> = serde_json::from_slice(&raw)
@@ -516,31 +564,7 @@ impl AttachmentStore {
                 }
             }
         }
-        if ids.is_empty() {
-            return Ok(0);
-        }
-
-        let conn = self.lock_conn()?;
-        let mut stmt = conn
-            .prepare(
-                "SELECT a.sha256, b.size FROM attachments a JOIN blobs b ON b.sha256 = a.sha256
-                  WHERE a.id = ?1",
-            )
-            .map_err(|e| format!("attachment store: prepare usage: {e}"))?;
-        let mut seen = HashSet::new();
-        let mut total = 0u64;
-        for id in ids {
-            let found: Option<(String, i64)> = stmt
-                .query_row(params![id], |row| Ok((row.get(0)?, row.get(1)?)))
-                .optional()
-                .map_err(|e| format!("attachment store: usage row: {e}"))?;
-            if let Some((sha256, size)) = found {
-                if seen.insert(sha256) {
-                    total = total.saturating_add(size.max(0) as u64);
-                }
-            }
-        }
-        Ok(total)
+        Ok(ids.into_iter().collect())
     }
 
     pub fn ensure_session_capacity(

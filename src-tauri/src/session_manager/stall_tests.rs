@@ -47,6 +47,7 @@ fn streaming_session(now: Instant, mut patch: impl FnMut(&mut LiveSession)) -> L
         app_session_id: "stall-session".into(),
         process_id: "process-stall".into(),
         meta: SessionMeta {
+            remote_im: None,
             id: "stall-session".into(),
             project_id: None,
             title: "Stall".into(),

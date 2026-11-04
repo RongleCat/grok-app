@@ -180,6 +180,7 @@ fn parse_event(inst: &ChannelInstance, payload: &Value) -> Option<IncomingMessag
         .unwrap_or("channel");
     let chat_type = if channel_type == "im" { "p2p" } else { "group" };
     Some(IncomingMessage {
+        staged_attachments: Vec::new(),
         channel: inst.channel.clone(),
         instance_id: inst.id.clone(),
         message_id,

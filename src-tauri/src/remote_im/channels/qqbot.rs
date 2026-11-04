@@ -163,6 +163,7 @@ fn parse_dispatch(inst: &ChannelInstance, d: &Value) -> Option<IncomingMessage> 
         .unwrap_or(&author)
         .to_string();
     Some(IncomingMessage {
+        staged_attachments: Vec::new(),
         channel: inst.channel.clone(),
         instance_id: inst.id.clone(),
         message_id: d.get("id").and_then(|x| x.as_str()).unwrap_or("").into(),

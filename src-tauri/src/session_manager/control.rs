@@ -1665,6 +1665,7 @@ mod recycle_tests {
             app_session_id: "session-1".into(),
             process_id: "process-1".into(),
             meta: SessionMeta {
+                remote_im: None,
                 id: "session-1".into(),
                 project_id: None,
                 title: "Test".into(),
@@ -1779,6 +1780,7 @@ mod recycle_tests {
             app_session_id: id.into(),
             process_id: process_id.into(),
             meta: SessionMeta {
+                remote_im: None,
                 id: id.into(),
                 project_id: None,
                 title: id.into(),

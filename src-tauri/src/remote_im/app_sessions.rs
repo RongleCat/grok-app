@@ -2,6 +2,7 @@
 
 use super::context::ContextCompactSnapshot;
 use super::control_plane::{AppSessionEntry, PendingMode, ScopeBinding};
+use crate::attachments::AttachmentRef;
 use crate::store::{self, ChatMessageStored, MessageAttachmentStored, SessionMeta};
 use chrono::Utc;
 use std::sync::OnceLock;
@@ -140,6 +141,7 @@ pub fn sync_turn_to_app(
     assistant_text: &str,
     is_error: bool,
     channel: &str,
+    attachments: &[AttachmentRef],
 ) -> ScopeBinding {
     let agent_id = binding
         .agent_session_id
@@ -154,13 +156,14 @@ pub fn sync_turn_to_app(
 
     if app_id.is_none() {
         // Create a new App chat so /r and the sidebar see this IM conversation.
-        let title = title_from_prompt(user_prompt, channel);
+        let title = title_for_turn(user_prompt, channel, attachments);
         match store::create_session(binding.project_id.clone(), Some(title), false) {
             Ok(mut meta) => {
                 if let Some(aid) = agent_id {
                     meta.agent_session_id = Some(aid.to_string());
-                    let _ = store::update_session_meta(&meta);
                 }
+                meta.remote_im = Some(channel.to_string());
+                let _ = store::update_session_meta(&meta);
                 app_id = Some(meta.id.clone());
                 next.local_session_id = meta.id.clone();
                 tracing::info!(
@@ -180,7 +183,8 @@ pub fn sync_turn_to_app(
         // stream's newer agent-session binding from another process.
         let id_for_update = id.clone();
         let project_id = binding.project_id.clone();
-        let title = title_from_prompt(user_prompt, channel);
+        let title = title_for_turn(user_prompt, channel, attachments);
+        let channel = channel.to_string();
         let _ = store::update_sessions_index(move |list| {
             if let Some(s) = list.iter_mut().find(|s| s.id == id_for_update) {
                 if let Some(aid) = agent_id {
@@ -189,6 +193,7 @@ pub fn sync_turn_to_app(
                 if s.project_id.is_none() {
                     s.project_id = project_id;
                 }
+                s.remote_im = Some(channel);
                 // First meaningful title: replace default "New chat" / placeholder
                 if is_placeholder_title(&s.title) {
                     s.title = title;
@@ -206,17 +211,36 @@ pub fn sync_turn_to_app(
 
     // Journal: user + assistant rows (App UI reads messages.json)
     let now = Utc::now();
-    // Remote inbound media is handed to the agent as `@/abs/path` prompt lines;
-    // the same lines become structured attachment cards in the App history.
-    let inbound_attachments = inbound_attachments_from_prompt(user_prompt);
+    let stored_attachments: Option<Vec<MessageAttachmentStored>> = if attachments.is_empty() {
+        None
+    } else {
+        Some(
+            attachments
+                .iter()
+                .map(|attachment| MessageAttachmentStored {
+                    id: Some(attachment.id.clone()),
+                    path: String::new(),
+                    name: attachment.name.clone(),
+                    is_dir: false,
+                    kind: Some(attachment.kind.as_str().to_string()),
+                    size: Some(attachment.size),
+                })
+                .collect(),
+        )
+    };
+    let content = if user_prompt.trim().is_empty() {
+        format!("[Remote IM · {channel}]")
+    } else {
+        format!("[Remote IM · {channel}]\n{user_prompt}")
+    };
     let user_msg = ChatMessageStored {
         id: uuid::Uuid::new_v4().to_string(),
         role: "user".into(),
-        content: format!("[Remote IM · {channel}]\n{user_prompt}"),
+        content,
         thought: None,
         created_at: now,
         is_error: false,
-        attachments: inbound_attachments,
+        attachments: stored_attachments,
         marker: None,
     };
     let asst_msg = ChatMessageStored {
@@ -261,19 +285,15 @@ fn find_app_session_id(local_id: &str, agent_id: Option<&str>) -> Option<String>
     None
 }
 
-/// Journal cards for media the Bridge downloaded for this IM turn.
-///
-/// Only paths under the Bridge media dir qualify: a user typing `@/abs/path`
-/// in the IM text must not turn into a local attachment card.
-fn inbound_attachments_from_prompt(prompt: &str) -> Option<Vec<MessageAttachmentStored>> {
-    let (_body, mut attachments) = crate::cli_sessions::parse_at_path_attachments(prompt);
-    let media_root = crate::paths::app_data_root().join("remote").join("media");
-    attachments.retain(|a| std::path::Path::new(&a.path).starts_with(&media_root));
-    if attachments.is_empty() {
-        None
-    } else {
-        Some(attachments)
-    }
+/// Resolve the App session id for an existing binding without creating one.
+/// Used to check the 512 MB budget before the turn; a brand-new chat starts at 0.
+pub fn resolve_app_session_id(binding: &ScopeBinding) -> Option<String> {
+    let agent_id = binding
+        .agent_session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    find_app_session_id(binding.local_session_id.as_str(), agent_id)
 }
 
 fn is_placeholder_title(t: &str) -> bool {
@@ -285,15 +305,15 @@ fn is_placeholder_title(t: &str) -> bool {
     crate::session_title::is_placeholder_title(t) || t.starts_with("Remote IM")
 }
 
-fn title_from_prompt(prompt: &str, channel: &str) -> String {
+fn title_for_turn(prompt: &str, channel: &str, attachments: &[AttachmentRef]) -> String {
     let one_line = prompt.lines().next().unwrap_or(prompt).trim();
-    // Media-only turns would all share the same "attachment" lead; use the
-    // first downloaded file name so the sidebar stays distinguishable.
-    if one_line == "请查看附件" {
-        if let Some(name) = inbound_attachments_from_prompt(prompt)
-            .and_then(|list| list.into_iter().next())
-            .map(|a| a.name)
-            .filter(|n| !n.trim().is_empty())
+    // Media-only turns have an empty body; use the first attachment name so the
+    // sidebar stays distinguishable. Legacy `请查看附件` rows use the same rule.
+    if one_line.is_empty() || one_line == "请查看附件" {
+        if let Some(name) = attachments
+            .first()
+            .map(|a| a.name.trim())
+            .filter(|n| !n.is_empty())
         {
             return name.chars().take(48).collect();
         }
@@ -343,6 +363,7 @@ mod tests {
             workspace_capability: None,
             provider_id: None,
             source: None,
+            remote_im: None,
         }
     }
 
@@ -359,31 +380,18 @@ mod tests {
     }
 
     #[test]
-    fn prompt_media_lines_become_journal_attachments() {
-        let path = crate::paths::app_data_root().join("remote/media/feishu-1/a.png");
-        let prompt = format!("请查看附件\n@{}", path.display());
-        let attachments = inbound_attachments_from_prompt(&prompt).expect("attachments");
-        assert_eq!(attachments.len(), 1);
-        assert!(attachments[0].path.ends_with("/a.png"));
-        assert_eq!(attachments[0].name, "a.png");
-        assert!(!attachments[0].is_dir);
-    }
-
-    #[test]
-    fn user_typed_abs_path_is_not_a_journal_attachment() {
-        let prompt = "请查看附件\n@/Users/me/Desktop/not_from_bridge.png";
-        assert!(inbound_attachments_from_prompt(prompt).is_none());
-    }
-
-    #[test]
-    fn plain_prompt_has_no_journal_attachments() {
-        assert!(inbound_attachments_from_prompt("hello").is_none());
-    }
-
-    #[test]
-    fn media_only_title_uses_the_downloaded_file_name() {
-        let path = crate::paths::app_data_root().join("remote/media/feishu-1/screenshot.png");
-        let prompt = format!("请查看附件\n@{}", path.display());
-        assert_eq!(title_from_prompt(&prompt, "feishu"), "screenshot.png");
+    fn media_only_title_uses_attachment_name() {
+        let attachments = vec![AttachmentRef {
+            id: "0190c3d2-0000-7000-8000-000000000000".into(),
+            name: "screenshot.png".into(),
+            kind: crate::attachments::AttachmentKind::Image,
+            size: 10,
+        }];
+        assert_eq!(title_for_turn("", "feishu", &attachments), "screenshot.png");
+        assert_eq!(
+            title_for_turn("这张图怎么处理？", "feishu", &attachments),
+            "这张图怎么处理？"
+        );
+        assert_eq!(title_for_turn("", "feishu", &[]), "Remote IM · feishu");
     }
 }
