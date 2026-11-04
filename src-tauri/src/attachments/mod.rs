@@ -11,8 +11,6 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 pub use gc::GcReport;
-#[cfg(test)]
-pub use store::NewAttachment;
 pub use store::{
     file_sha256, AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentFile,
     NewAttachmentMeta, StagedAttachment, MAX_FILE_BYTES, MAX_SESSION_BYTES,
@@ -25,6 +23,21 @@ const GC_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 pub fn shared() -> Result<AttachmentStore, String> {
     static STORE: OnceLock<Result<AttachmentStore, String>> = OnceLock::new();
     STORE.get_or_init(AttachmentStore::open_default).clone()
+}
+
+/// Delete the pre-store Feishu media directory. The transition build wrote
+/// test images there; the store is now the only owner of remote attachments.
+pub fn cleanup_legacy_media() {
+    let dir = crate::paths::app_data_root().join("remote").join("media");
+    if !dir.exists() {
+        return;
+    }
+    match std::fs::remove_dir_all(&dir) {
+        Ok(()) => tracing::info!(path = %dir.display(), "removed legacy remote media dir"),
+        Err(err) => {
+            tracing::warn!(path = %dir.display(), error = %err, "legacy media cleanup failed")
+        }
+    }
 }
 
 /// Run GC now (Host command / tests).

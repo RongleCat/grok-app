@@ -1,6 +1,6 @@
 # 远程控制附件文件系统（Remote Attachment Store）设计
 
-> **状态：待评审**（评审通过后才拆票与实现）  
+> **状态：已实现（T1–T6）**  
 > **范围：远程控制双向附件**（入站：IM → App；出站：App → IM），覆盖飞书 / Lark、Telegram、Discord、Slack、微信、钉钉等渠道  
 > **首个渠道适配器：** Feishu / Lark（入站下载 + 出站原生媒体发送）。store、journal 引用与 GC 与具体渠道无关。  
 > **基线：** `fix/remote-im-feishu-inbound-media`（`e5ac3c20`，已实现 Feishu 入站下载到 `remote/media` 的过渡版本）  
@@ -90,7 +90,7 @@ Feishu 入站过渡实现链路：
 入站                                          出站
 ┌──────────────────────────┐        ┌──────────────────────────────┐
 │ 渠道适配器（Feishu 首发）│        │ 渠道适配器（Feishu 首发）    │
-│ 下载 → put_bytes         │        │ upload(AttachmentRef)        │
+│ 下载 → commit_staged   │        │ upload(AttachmentRef)        │
 └────────────┬─────────────┘        └──────────────▲───────────────┘
              │ AttachmentId                        │
              ▼                                     │
@@ -98,8 +98,8 @@ Feishu 入站过渡实现链路：
 │ AttachmentStore（Host Rust）                  │───┘
 │  blobs/<sha256>/<safe-name>                   │
 │  index.sqlite                                 │
-│  put_bytes / put_file / metadata              │
-│  materialize / open_range / gc                │
+│  commit_staged / put_file / metadata          │
+│  materialize / session_usage / gc             │
 └────────────┬──────────────────▲──────────────┘
              │ 引用（uuid）      │ 入库（outbound）
              ▼                  │
@@ -427,16 +427,6 @@ pub struct StagedRemoteAttachment {
     pub sha256: String,
 }
 
-pub struct NewAttachment {
-    pub name: String,
-    pub kind: AttachmentKind,
-    pub origin: String,              // 例如 remote:feishu / outbound:feishu
-    pub instance_id: Option<String>,
-    pub session_id: Option<String>,
-    pub message_id: Option<String>,
-    pub bytes: Vec<u8>,
-}
-
 pub struct NewAttachmentFile {
     pub name: String,
     pub kind: AttachmentKind,
@@ -468,7 +458,6 @@ pub struct AttachmentRef {
 }
 
 impl AttachmentStore {
-    pub fn put_bytes(&self, input: NewAttachment) -> Result<AttachmentRef, StoreError>;
     pub fn commit_staged(
         &self,
         staged: StagedAttachment,
@@ -477,7 +466,6 @@ impl AttachmentStore {
     pub fn put_file(&self, input: NewAttachmentFile) -> Result<AttachmentRef, StoreError>;
     pub fn metadata(&self, id: &str) -> Result<AttachmentMeta, StoreError>;
     pub fn materialize(&self, id: &str) -> Result<PathBuf, StoreError>;
-    pub fn open_range(&self, id: &str, start: u64, len: u64) -> Result<Vec<u8>, StoreError>;
     pub fn session_usage(&self, session_id: &str) -> Result<u64, StoreError>;
     pub fn gc(&self, now: SystemTime) -> Result<GcReport, StoreError>;
 }
@@ -566,7 +554,7 @@ impl OutboundRouter {
 
 ### 12.1 Host
 
-- Store：put → metadata → materialize → open_range 往返；UUIDv7 生成与时间有序性；重复 id 冲突；100 MB 流式上限（101 MB 拒绝，不整文件读入内存）；路径穿越 / 符号链接拒绝。
+- Store：put → metadata → materialize → file read 往返；UUIDv7 生成与时间有序性；重复 id 冲突；100 MB 流式上限（101 MB 拒绝，不整文件读入内存）；路径穿越 / 符号链接拒绝。
 - 去重：相同 sha256 上传两次 → 1 个 blob + 2 个 attachment id；删除一个 attachment 行后 blob 仍存在；再次上传仍复用该 blob。
 - 会话额度：重复内容只计一次；新增后超过 512 MB 拒绝；删除引用后额度下降。
 - Journal：新 ref 序列化/反序列化；旧 `{path}` 兼容；`id` 优先于 `path`；缺失字段默认值。
@@ -664,7 +652,7 @@ impl OutboundRouter {
 - A3 成功上传后从展示文本中移除路径行，改为附件引用。
 - A4 渠道范围：Feishu 首发；其他渠道只预留契约与文本降级。
 
-待确认：本文档拆成哪些纵向切片、每个切片的验收标准与依赖顺序。
+待确认：无；T1–T6 已按 Linear 子票逐票实现。
 
 ---
 
@@ -677,3 +665,4 @@ impl OutboundRouter {
 | 2026-11-04 | 纳入远程控制出站附件（App → IM）；补充出站流程、存储与安全约束 |
 | 2026-11-04 | 评审修订：UUIDv7；出站以 store 为唯一交付来源；Mark 只扫描 remoteIm 会话；取消附件脱敏 |
 | 2026-11-04 | 评审修订：单文件 100 MB；单会话 512 MB；sha256 去重（blob 共享，UUID 区分上传） |
+| 2026-11-04 | 实现完成：T1–T6 逐票提交；移除 put_bytes/open_range/ensure_session_capacity |

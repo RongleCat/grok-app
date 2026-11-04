@@ -613,18 +613,23 @@ Callout：社区桥、风险自负。
 | 侧栏同步 | 写盘后 emit `session://index_changed`，App 刷新会话列表 |
 | 权限 | 受「允许远程 YOLO」总闸 |
 | 飞书渲染 | 含 Markdown 时用 interactive 卡片 `schema 2.0` markdown 元素（非 plain text） |
-| 媒体 | 飞书入站图片/文件先下载落盘，再以 `@/绝对路径` 行（`buildAgentPrompt` 同款约定）交给 agent；同时写入 App 会话 `attachments`。单文件上限 50 MB；路径组件白名单，绝不使用飞书 key 拼路径 |
+| 媒体 | 入站附件进入 AttachmentStore（`~/.grok-app/attachments/store`）：blob 按 sha256 去重，每次上传一个 UUIDv7 引用；journal 只存 `{id,name,kind,size}`，`@/绝对路径` 仅在发送时物化。预览走 `/v1/attachment/<id>` |
+| 媒体额度 | 单文件 100 MB；单会话唯一 blob 总量 512 MB；每聊天每 60 秒最多下载 200 MB |
+| 出站附件 | agent 回复中以独立行给出的本地绝对路径被提取、入库，再由渠道上传为原生图片/文件；成功后才写入 assistant 行引用 |
 | 并发 | 复用 App maxConcurrentAgents |
 
-飞书入站媒体细节：
+远程附件细节：
 
-- 事件里的 `image_key` / `file_key` 只是资源标识，agent 无法解析；必须调用 `GET /open-apis/im/v1/messages/{message_id}/resources/{file_key}?type=image|file` 取回字节。
-- 落盘位置 `~/.grok-app/remote/media/<instance>/`，文件名用 UUID 前缀；`file` 消息保留原文件名（去除路径分隔符与控制字符）；缺少扩展名时按 magic bytes 与 `Content-Type` 补齐。
+- 事件里的 `image_key` / `file_key` 只是资源标识，agent 无法解析；Feishu 通过 `GET /open-apis/im/v1/messages/{message_id}/resources/{file_key}?type=image|file` 取回字节。
+- 渠道适配器流式写入 `attachments/store/staging/` 并计算 sha256；engine 解析 App 会话、检查 512 MB 额度后 `commit_staged`。相同内容只保存一份 blob，重复上传生成不同的 UUID 引用。
 - 支持 `image`、`file`、`audio`、`media`（视频）、`sticker` 消息，以及 `post` 富文本（含 `zh_cn` / `en_us` locale 包裹）中的 `img` / `media` 节点；同一条消息内同一 key 只下载一次，最多 16 个附件。
-- 下载在每实例一个 worker 中执行，不阻塞飞书 WebSocket 心跳；`allow_from` 或群 @ 门槛不通过时不写盘。
-- 入站媒体按 30 天保留，写入新附件时顺带清理过期文件；「重置应用数据」会删除 `remote/media`。
-- 每个聊天每 60 秒最多下载 200 MB 媒体，避免绕过 agent 限流把磁盘写满。
-- 下载失败时在提示词中写入失败状态（HTTP 状态码 / 超限），让 agent 诚实告知用户，不得再回「请查看附件」占位。
+- 下载在每实例一个 worker 中执行，不阻塞飞书 WebSocket 心跳；`allow_from` 或群 @ 门槛不通过时不落盘。
+- 新 journal 的 user/assistant 行只保存展示文本 + 附件引用；旧 `@path` 行继续可读，不再作为新数据通道。
+- 出站：远程 prompt 追加一条约定，agent 把要回传的文件绝对路径单独写一行；Host 校验允许根与渠道大小后入库，再从 store 上传，成功后删除展示文本中的路径行并写入 assistant 引用。Feishu 图片 ≤10 MB、文件 ≤30 MB，其他渠道按适配器定义。
+- 引用驱动 GC：只 Mark `remoteIm` 会话（含归档），24h 宽限期后删除无引用的 attachment 行，再删除没有别名的 blob；删除会话/rewind 后防抖执行，启动时最多每 24h 一次，也可调用 Host 命令 `attachments_gc`。
+- 归档不等于删除：归档会话的引用继续参与 Mark；取消归档或 Fork 不会丢失引用。
+- 附件内容按原样保存，不做脱敏、转码或内容改写；store 文件 0600、目录 0700。
+- 预览：`GET /v1/attachment/<id>?variant=thumb|original`，Host 内部解析 UUID，不向 WebView 暴露 store 绝对路径；缺失对象返回 404，历史加载时按缺失附件处理。
 - 应用需在开放平台具备「获取单聊、群组消息」或「获取与发送单聊、群组消息」权限；未发布版本时下载会失败。
 
 ---

@@ -13,11 +13,13 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
-### Fixed
-- Feishu remote control downloads the images and files you send, so the agent can read them.
+### Added
+- Remote-control attachments now use a deduplicated, size-limited store. Unreferenced files are cleaned up automatically.
+- Remote control can send agent-created files back as native attachments.
 
-**中文 · 修复**
-- 飞书远程控制会下载你发送的图片和文件，agent 能真正读到内容。
+**中文 · 新增**
+- 远程控制附件改为去重、限额的附件文件系统，无引用文件会自动清理。
+- 远程控制可以把 agent 生成的文件作为原生附件发回 IM。
 
 ## [0.2.50] - 2026-10-28
 

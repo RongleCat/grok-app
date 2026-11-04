@@ -31,6 +31,24 @@ GET http://127.0.0.1:{port}/v1/media?t={token}&p={urlencode(absPath)}
 Frontend entry: `src/lib/imageSrc.ts` (`localPathToMediaHttpUrl`, `resolveImageSrc*`).  
 Preview/office: `src/lib/filePreviewSrc.ts` (reassembles multi-Range for full-file readers).
 
+## Delivery: attachment store by UUID
+
+Remote-control attachments live in the AttachmentStore and are referenced by
+UUID instead of an absolute path:
+
+```
+GET http://127.0.0.1:{port}/v1/attachment/{id}?t={token}&variant=thumb|original
+```
+
+- Host resolves the UUID through `AttachmentStore::metadata` / `materialize`;
+  the WebView never receives the store path.
+- Same token, Origin, CORS, Range and image-thumb behavior as `/v1/media`.
+- `variant=thumb` reuses the 480px local-image thumb (falls back to the original
+  on thumb failure).
+- Frontend: `attachmentIdToMediaHttpUrl()` in `src/lib/imageSrc.ts`;
+  `AttachmentCard` uses it when `attachment.id` is present.
+- Legacy path rows and remote `http(s)` URLs keep using `/v1/media`.
+
 ## Chat image thumbs (performance)
 
 Chat **card** layout does **not** re-stream full multi-MB originals on every virtual-list remount.

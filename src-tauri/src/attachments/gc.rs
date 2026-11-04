@@ -207,7 +207,7 @@ fn valid_session_id(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attachments::{AttachmentKind, NewAttachment};
+    use crate::attachments::{AttachmentKind, NewAttachmentFile};
     use rusqlite::params;
     use std::path::PathBuf;
     use uuid::Uuid;
@@ -226,18 +226,17 @@ mod tests {
         }
 
         fn put(&self, session: &str, bytes: &[u8]) -> String {
-            self.store
-                .put_bytes(NewAttachment {
-                    name: "a.png".into(),
-                    kind: AttachmentKind::Image,
-                    origin: "remote:feishu".into(),
-                    instance_id: Some("feishu-1".into()),
-                    session_id: Some(session.into()),
-                    message_id: Some("om_1".into()),
-                    bytes: bytes.to_vec(),
-                })
-                .unwrap()
-                .id
+            let source = self.base.join(format!("src-{}.tmp", Uuid::now_v7()));
+            std::fs::write(&source, bytes).unwrap();
+            let result = self.store.put_file(NewAttachmentFile {
+                name: "a.png".into(),
+                kind: AttachmentKind::Image,
+                origin: "remote:feishu".into(),
+                session_id: Some(session.into()),
+                source: source.clone(),
+            });
+            let _ = std::fs::remove_file(&source);
+            result.unwrap().id
         }
 
         fn age(&self, id: &str, secs: i64) {

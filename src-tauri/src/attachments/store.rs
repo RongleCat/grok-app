@@ -4,17 +4,12 @@
 //! upload gets its own UUIDv7 attachment row, so duplicate content is shared
 //! while sessions keep independent references.
 
-// The remote inbound/outbound slices wire this API in the next step; keep it
-// compiled and tested before those consumers land. Remove this allow once the
-// bridge calls the store.
-#![allow(dead_code)]
-
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -67,29 +62,16 @@ pub struct AttachmentRef {
     pub size: u64,
 }
 
+/// Store-facing metadata; callers may read only the fields they need.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct AttachmentMeta {
     pub id: String,
-    pub sha256: String,
     pub name: String,
     pub kind: AttachmentKind,
     pub size: u64,
     pub origin: String,
-    pub instance_id: Option<String>,
     pub session_id: Option<String>,
-    pub message_id: Option<String>,
-    pub created_at: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewAttachment {
-    pub name: String,
-    pub kind: AttachmentKind,
-    pub origin: String,
-    pub instance_id: Option<String>,
-    pub session_id: Option<String>,
-    pub message_id: Option<String>,
-    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -174,33 +156,6 @@ impl AttachmentStore {
             .root
             .join("staging")
             .join(format!("{}.part", Uuid::now_v7()))
-    }
-
-    pub fn put_bytes(&self, input: NewAttachment) -> Result<AttachmentRef, String> {
-        validate_meta(&input.origin, input.session_id.as_deref())?;
-        let size = input.bytes.len() as u64;
-        ensure_file_size(size)?;
-        let sha256 = hash_bytes(&input.bytes);
-        let temp_path = self.staging_path();
-        if let Err(err) = write_staging(&temp_path, &input.bytes) {
-            remove_file_best_effort(&temp_path);
-            return Err(format!("attachment store: write staging: {err}"));
-        }
-        self.commit_staged(
-            StagedAttachment {
-                temp_path,
-                name: input.name,
-                kind: input.kind,
-                size,
-                sha256,
-            },
-            NewAttachmentMeta {
-                origin: input.origin,
-                instance_id: input.instance_id,
-                session_id: input.session_id,
-                message_id: input.message_id,
-            },
-        )
     }
 
     pub fn put_file(&self, input: NewAttachmentFile) -> Result<AttachmentRef, String> {
@@ -381,8 +336,7 @@ impl AttachmentStore {
         let conn = self.lock_conn()?;
         let row = conn
             .query_row(
-                "SELECT a.id, a.sha256, a.name, a.kind, a.origin, a.instance_id,
-                        a.session_id, a.message_id, b.size, a.created_at
+                "SELECT a.id, a.name, a.kind, a.origin, a.session_id, b.size
                    FROM attachments a JOIN blobs b ON b.sha256 = a.sha256
                   WHERE a.id = ?1",
                 params![id],
@@ -392,43 +346,23 @@ impl AttachmentStore {
                         row.get::<_, String>(1)?,
                         row.get::<_, String>(2)?,
                         row.get::<_, String>(3)?,
-                        row.get::<_, String>(4)?,
-                        row.get::<_, Option<String>>(5)?,
-                        row.get::<_, Option<String>>(6)?,
-                        row.get::<_, Option<String>>(7)?,
-                        row.get::<_, i64>(8)?,
-                        row.get::<_, i64>(9)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, i64>(5)?,
                     ))
                 },
             )
             .optional()
             .map_err(|e| format!("attachment store: read metadata: {e}"))?;
-        let Some((
-            id,
-            sha256,
-            name,
-            kind,
-            origin,
-            instance_id,
-            session_id,
-            message_id,
-            size,
-            created_at,
-        )) = row
-        else {
+        let Some((id, name, kind, origin, session_id, size)) = row else {
             return Err("attachment not found".into());
         };
         Ok(AttachmentMeta {
             id,
-            sha256,
             name,
             kind: AttachmentKind::parse(&kind).unwrap_or(AttachmentKind::File),
             size: size as u64,
             origin,
-            instance_id,
             session_id,
-            message_id,
-            created_at,
         })
     }
 
@@ -463,27 +397,6 @@ impl AttachmentStore {
             return Err("attachment file is missing".into());
         }
         Ok(canonical)
-    }
-
-    pub fn open_range(&self, id: &str, start: u64, len: u64) -> Result<Vec<u8>, String> {
-        let path = self.materialize(id)?;
-        let mut file =
-            fs::File::open(&path).map_err(|e| format!("attachment store: open blob: {e}"))?;
-        let file_len = file
-            .metadata()
-            .map_err(|e| format!("attachment store: stat blob: {e}"))?
-            .len();
-        if start >= file_len || len == 0 {
-            return Ok(Vec::new());
-        }
-        let end = start.saturating_add(len).min(file_len);
-        let take = (end - start) as usize;
-        let mut buf = vec![0u8; take];
-        file.seek(SeekFrom::Start(start))
-            .map_err(|e| format!("attachment store: seek blob: {e}"))?;
-        file.read_exact(&mut buf)
-            .map_err(|e| format!("attachment store: read blob: {e}"))?;
-        Ok(buf)
     }
 
     /// Unique blob SHA-256 values referenced by one session's journal.
@@ -565,18 +478,6 @@ impl AttachmentStore {
             }
         }
         Ok(ids.into_iter().collect())
-    }
-
-    pub fn ensure_session_capacity(
-        &self,
-        session_id: &str,
-        additional_unique_bytes: u64,
-    ) -> Result<(), String> {
-        let used = self.session_usage(session_id)?;
-        if used.saturating_add(additional_unique_bytes) > MAX_SESSION_BYTES {
-            return Err("附件超过单会话 512 MB 上限".into());
-        }
-        Ok(())
     }
 
     pub(super) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
@@ -677,10 +578,6 @@ fn sanitize_name(raw: &str) -> String {
     }
 }
 
-fn hash_bytes(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
-
 /// SHA-256 of a local file, used for outbound budget/dedupe before import.
 pub fn file_sha256(path: &Path) -> Result<String, String> {
     hash_file(path)
@@ -726,12 +623,6 @@ fn create_staging_file(path: &Path) -> std::io::Result<fs::File> {
         options.mode(0o600);
     }
     options.open(path)
-}
-
-fn write_staging(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let mut file = create_staging_file(path)?;
-    file.write_all(bytes)?;
-    file.sync_all()
 }
 
 #[cfg(unix)]
@@ -784,20 +675,18 @@ mod tests {
         }
     }
 
-    fn new_attachment(name: &str, bytes: &[u8]) -> NewAttachment {
-        NewAttachment {
+    fn put(store: &AttachmentStore, name: &str, bytes: &[u8]) -> AttachmentRef {
+        let source = std::env::temp_dir().join(format!("attach-src-{}", Uuid::now_v7()));
+        fs::write(&source, bytes).expect("source");
+        let result = store.put_file(NewAttachmentFile {
             name: name.into(),
             kind: AttachmentKind::Image,
             origin: "remote:feishu".into(),
-            instance_id: Some("feishu-1".into()),
             session_id: Some("session-1".into()),
-            message_id: Some("om_1".into()),
-            bytes: bytes.to_vec(),
-        }
-    }
-
-    fn put(store: &AttachmentStore, name: &str, bytes: &[u8]) -> AttachmentRef {
-        store.put_bytes(new_attachment(name, bytes)).expect("put")
+            source: source.clone(),
+        });
+        let _ = fs::remove_file(&source);
+        result.expect("put")
     }
 
     fn write_journal(store: &AttachmentStore, session_id: &str, ids: &[&str]) {
@@ -846,15 +735,6 @@ mod tests {
 
         let path = test.store.materialize(&attachment.id).expect("materialize");
         assert_eq!(fs::read(&path).unwrap(), b"0123456789");
-        assert_eq!(
-            test.store.open_range(&attachment.id, 2, 3).unwrap(),
-            b"234".to_vec()
-        );
-        assert!(test
-            .store
-            .open_range(&attachment.id, 99, 3)
-            .unwrap()
-            .is_empty());
     }
 
     #[test]
@@ -931,15 +811,7 @@ mod tests {
         write_journal(&test.store, "session-1", &[&a.id, &b.id, &c.id]);
 
         assert_eq!(test.store.session_usage("session-1").unwrap(), 10);
-        let remaining = MAX_SESSION_BYTES - 10;
-        assert!(test
-            .store
-            .ensure_session_capacity("session-1", remaining)
-            .is_ok());
-        assert!(test
-            .store
-            .ensure_session_capacity("session-1", remaining + 1)
-            .is_err());
+        assert!(test.store.session_usage("session-1").unwrap() <= MAX_SESSION_BYTES);
     }
 
     #[test]
