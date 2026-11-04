@@ -160,6 +160,39 @@ impl SessionStore {
         n
     }
 
+    /// Forget an App chat that was deleted. Matching bindings keep their
+    /// project/work_dir but clear both ids so the next IM turn starts a new
+    /// App + agent session instead of resuming a deleted one.
+    pub fn clear_app_session(&self, session_id: &str) -> usize {
+        let mut n = 0usize;
+        {
+            let mut g = self.inner.lock();
+            for rec in g.values_mut() {
+                if rec.local_session_id == session_id {
+                    rec.local_session_id.clear();
+                    rec.agent_session_id = None;
+                    rec.pending_mode = super::control_plane::PendingMode::New;
+                    rec.turn_count = 0;
+                    rec.context_usage = None;
+                    rec.last_compact = None;
+                    n += 1;
+                }
+            }
+        }
+        if n > 0 {
+            self.save_disk();
+        }
+        n
+    }
+
+    /// Live engine store when available, otherwise the disk binding file.
+    pub fn clear_shared(session_id: &str) -> usize {
+        if let Some(store) = LIVE.lock().clone() {
+            return store.clear_app_session(session_id);
+        }
+        Self::open(Self::default_path()).clear_app_session(session_id)
+    }
+
     /// Prefer the live engine store so in-memory IM bindings stay in sync;
     /// fall back to a disk load when the bridge is not running.
     pub fn retarget_shared(session_id: &str, project_id: Option<String>, work_dir: &str) -> usize {
@@ -188,6 +221,28 @@ mod tests {
             mentioned_bot: true,
             thread_id: thread_id.map(str::to_string),
         }
+    }
+
+    #[test]
+    fn clear_app_session_resets_only_matching_binding() {
+        let store = SessionStore::ephemeral();
+        let mut hit = ScopeBinding::fresh("/proj");
+        hit.project_id = Some("p1".into());
+        hit.local_session_id = "s1".into();
+        hit.agent_session_id = Some("ag".into());
+        hit.turn_count = 5;
+        store.set("k1", hit);
+        let other = ScopeBinding::fresh("/keep");
+        store.set("k2", other.clone());
+
+        assert_eq!(store.clear_app_session("s1"), 1);
+        let cleared = store.get("k1").expect("k1");
+        assert!(cleared.local_session_id.is_empty());
+        assert!(cleared.agent_session_id.is_none());
+        assert_eq!(cleared.project_id.as_deref(), Some("p1"));
+        assert_eq!(cleared.work_dir, "/proj");
+        assert_eq!(cleared.turn_count, 0);
+        assert_eq!(store.get("k2").expect("k2"), other);
     }
 
     #[test]

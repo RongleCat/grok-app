@@ -49,6 +49,12 @@ pub fn retarget_bindings_for_app_session(
     session::SessionStore::retarget_shared(session_id, project_id, work_dir)
 }
 
+/// Clear IM bindings that point at a deleted App chat; the next turn starts a
+/// new App + agent session while keeping project/work_dir.
+pub fn forget_app_session_bindings(session_id: &str) -> usize {
+    session::SessionStore::clear_shared(session_id)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BridgeStatusDto {

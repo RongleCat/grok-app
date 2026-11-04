@@ -943,6 +943,8 @@ pub async fn session_delete(
     }
 
     store::delete_session(&id)?;
+    // A deleted chat must not be resumed by the next IM turn.
+    let _ = crate::remote_im::forget_app_session_bindings(&id);
     Ok(())
 }
 
