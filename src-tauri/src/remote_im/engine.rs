@@ -110,6 +110,55 @@ pub struct Engine {
     allow_remote_yolo: bool,
 }
 
+/// Per-turn view of the session attachment budget. Loads the journal once,
+/// then counts inbound + outbound additions committed in this turn.
+struct SessionAttachmentBudget {
+    session_id: Option<String>,
+    used: u64,
+    shas: HashSet<String>,
+}
+
+impl SessionAttachmentBudget {
+    fn load(binding: &ScopeBinding) -> Self {
+        let session_id = app_sessions::resolve_app_session_id(binding);
+        let Some(sid) = session_id.as_deref() else {
+            return Self {
+                session_id,
+                used: 0,
+                shas: HashSet::new(),
+            };
+        };
+        let Ok(store) = crate::attachments::shared() else {
+            return Self {
+                session_id,
+                used: 0,
+                shas: HashSet::new(),
+            };
+        };
+        let shas = store.session_sha_set(sid).unwrap_or_else(|err| {
+            tracing::warn!(error = %err, "remote_im: session attachment index failed");
+            HashSet::new()
+        });
+        let used = store.session_usage(sid).unwrap_or(0);
+        Self {
+            session_id,
+            used,
+            shas,
+        }
+    }
+
+    fn can_add(&self, sha256: &str, size: u64) -> bool {
+        self.shas.contains(sha256)
+            || self.used.saturating_add(size) <= crate::attachments::MAX_SESSION_BYTES
+    }
+
+    fn record(&mut self, sha256: &str, size: u64) {
+        if self.shas.insert(sha256.to_string()) {
+            self.used = self.used.saturating_add(size);
+        }
+    }
+}
+
 impl Engine {
     pub fn new(outbound: OutboundRouter, allow_remote_yolo: bool) -> Self {
         let store = SessionStore::open_default();
@@ -1435,55 +1484,32 @@ impl Engine {
     async fn prepare_inbound_attachments(
         &self,
         msg: &IncomingMessage,
-        binding: &ScopeBinding,
         user_text: &str,
         staged: &mut StagedGuard,
+        budget: &mut SessionAttachmentBudget,
     ) -> (String, Vec<AttachmentRef>, String) {
-        let mut display = user_text.trim().to_string();
+        let display = user_text.trim().to_string();
+        let mut notes: Vec<String> = msg.attachment_note.iter().cloned().collect();
         if staged.is_empty() {
-            return (display.clone(), Vec::new(), display);
+            return (build_prompt_text(&display, &notes), Vec::new(), display);
         }
         let store = match crate::attachments::shared() {
             Ok(store) => store,
             Err(err) => {
-                append_attachment_note(&mut display, &err);
+                push_prompt_note(&mut notes, &err);
                 staged.finish();
-                return (display.clone(), Vec::new(), display);
+                return (build_prompt_text(&display, &notes), Vec::new(), display);
             }
         };
-        let session_id = app_sessions::resolve_app_session_id(binding);
-        let existing = match session_id.as_deref() {
-            Some(sid) => store.session_sha_set(sid).unwrap_or_else(|err| {
-                tracing::warn!(error = %err, "remote_im: session attachment index failed");
-                HashSet::new()
-            }),
-            None => HashSet::new(),
-        };
-        let mut unique: HashMap<String, u64> = HashMap::new();
-        for item in staged.as_slice() {
-            if !existing.contains(&item.sha256) {
-                unique.entry(item.sha256.clone()).or_insert(item.size);
-            }
-        }
-        let additional: u64 = unique.values().sum();
-        let used = session_id
-            .as_deref()
-            .and_then(|sid| store.session_usage(sid).ok())
-            .unwrap_or(0);
-        if used.saturating_add(additional) > crate::attachments::MAX_SESSION_BYTES {
-            append_attachment_note(&mut display, "超过单会话 512 MB 附件上限");
-            staged.finish();
-            let prompt = if display.trim().is_empty() {
-                "附件超过单会话 512 MB 上限".into()
-            } else {
-                display.clone()
-            };
-            return (prompt, Vec::new(), display);
-        }
+        let session_id = budget.session_id.clone();
 
         let origin = format!("remote:{}", msg.channel);
         let mut attachments = Vec::new();
         for item in staged.as_slice() {
+            if !budget.can_add(&item.sha256, item.size) {
+                push_prompt_note(&mut notes, "超过单会话 512 MB 附件上限");
+                continue;
+            }
             let staged_attachment = StagedAttachment {
                 temp_path: item.temp_path.clone(),
                 name: item.name.clone(),
@@ -1503,20 +1529,23 @@ impl Engine {
             })
             .await
             {
-                Ok(Ok(attachment)) => attachments.push(attachment),
+                Ok(Ok(attachment)) => {
+                    budget.record(&item.sha256, item.size);
+                    attachments.push(attachment);
+                }
                 Ok(Err(err)) => {
                     tracing::warn!(error = %err, "remote_im: commit attachment failed");
-                    append_attachment_note(&mut display, &err);
+                    push_prompt_note(&mut notes, &err);
                 }
                 Err(err) => {
                     tracing::warn!(error = %err, "remote_im: commit attachment task failed");
-                    append_attachment_note(&mut display, &format!("commit task: {err}"));
+                    push_prompt_note(&mut notes, &format!("commit task: {err}"));
                 }
             }
         }
         staged.finish();
 
-        let mut prompt = display.clone();
+        let mut prompt = build_prompt_text(&display, &notes);
         if !attachments.is_empty() {
             if prompt.trim().is_empty() {
                 prompt = "请查看附件".into();
@@ -1544,7 +1573,11 @@ impl Engine {
         msg: &IncomingMessage,
         binding: &ScopeBinding,
         candidates: Vec<super::outbound_media::OutboundCandidate>,
-    ) -> (Vec<AttachmentRef>, Vec<String>) {
+        budget: &mut SessionAttachmentBudget,
+    ) -> (
+        Vec<(super::outbound_media::OutboundCandidate, AttachmentRef)>,
+        Vec<String>,
+    ) {
         if candidates.is_empty() {
             return (Vec::new(), Vec::new());
         }
@@ -1552,15 +1585,7 @@ impl Engine {
             Ok(store) => store,
             Err(err) => return (Vec::new(), vec![err]),
         };
-        let session_id = app_sessions::resolve_app_session_id(binding);
-        let mut existing = match session_id.as_deref() {
-            Some(sid) => store.session_sha_set(sid).unwrap_or_default(),
-            None => HashSet::new(),
-        };
-        let mut used = session_id
-            .as_deref()
-            .and_then(|sid| store.session_usage(sid).ok())
-            .unwrap_or(0);
+        let session_id = budget.session_id.clone();
         let origin = format!("outbound:{}", msg.channel);
         let mut refs = Vec::new();
         let mut errors = Vec::new();
@@ -1609,16 +1634,10 @@ impl Engine {
                     continue;
                 }
             };
-            let additional = if existing.contains(&sha) {
-                0
-            } else {
-                meta.len()
-            };
-            if used.saturating_add(additional) > crate::attachments::MAX_SESSION_BYTES {
+            if !budget.can_add(&sha, meta.len()) {
                 errors.push(format!("{}：超过单会话 512 MB 上限", candidate.name));
                 continue;
             }
-            used = used.saturating_add(additional);
 
             let input = NewAttachmentFile {
                 name: candidate.name.clone(),
@@ -1630,8 +1649,8 @@ impl Engine {
             let store_for_put = store.clone();
             match tokio::task::spawn_blocking(move || store_for_put.put_file(input)).await {
                 Ok(Ok(attachment)) => {
-                    existing.insert(sha);
-                    refs.push(attachment);
+                    budget.record(&sha, meta.len());
+                    refs.push((candidate, attachment));
                 }
                 Ok(Err(err)) => errors.push(format!("{}：{err}", candidate.name)),
                 Err(err) => errors.push(format!("{}：{err}", candidate.name)),
@@ -1644,18 +1663,19 @@ impl Engine {
     async fn send_outbound_media(
         &self,
         msg: &IncomingMessage,
-        refs: &[AttachmentRef],
-    ) -> (Vec<AttachmentRef>, Vec<String>) {
-        if refs.is_empty() {
-            return (Vec::new(), Vec::new());
+        prepared: &[(super::outbound_media::OutboundCandidate, AttachmentRef)],
+    ) -> (Vec<AttachmentRef>, Vec<usize>, Vec<String>) {
+        if prepared.is_empty() {
+            return (Vec::new(), Vec::new(), Vec::new());
         }
         let store = match crate::attachments::shared() {
             Ok(store) => store,
-            Err(err) => return (Vec::new(), vec![err]),
+            Err(err) => return (Vec::new(), Vec::new(), vec![err]),
         };
         let mut sent = Vec::new();
+        let mut sent_lines = Vec::new();
         let mut notes = Vec::new();
-        for attachment in refs {
+        for (candidate, attachment) in prepared {
             let path = match store.materialize(&attachment.id) {
                 Ok(path) => path,
                 Err(err) => {
@@ -1677,7 +1697,10 @@ impl Engine {
                 )
                 .await
             {
-                Ok(()) => sent.push(attachment.clone()),
+                Ok(()) => {
+                    sent.push(attachment.clone());
+                    sent_lines.extend(candidate.lines.iter().copied());
+                }
                 Err(err) => {
                     let note = format!("附件发送失败（{}）：{err}", attachment.name);
                     let _ = self.reply_msg(msg, &note).await;
@@ -1685,7 +1708,7 @@ impl Engine {
                 }
             }
         }
-        (sent, notes)
+        (sent, sent_lines, notes)
     }
 
     async fn run_agent_turn(
@@ -1721,8 +1744,9 @@ impl Engine {
             return;
         }
 
+        let mut attachment_budget = SessionAttachmentBudget::load(&binding);
         let (mut prompt, attachments, user_display_text) = self
-            .prepare_inbound_attachments(msg, &binding, user_text, staged)
+            .prepare_inbound_attachments(msg, user_text, staged, &mut attachment_budget)
             .await;
         prompt.push_str("\n\n");
         prompt.push_str(outbound_rule(&self.lang()));
@@ -1826,23 +1850,35 @@ impl Engine {
         };
 
         let is_error = had_error || text.starts_with("Error:");
-        let (mut assistant_display, candidates) = if is_error {
-            (text.clone(), Vec::new())
+        let candidates = if is_error {
+            Vec::new()
         } else {
             outbound_media::extract(&text)
         };
-        let (outbound_refs, outbound_errors) =
-            self.prepare_outbound_media(msg, &binding, candidates).await;
-        for error in outbound_errors {
-            append_attachment_note(&mut assistant_display, &error);
-        }
-        // Text first, then native media, matching the legacy bridge contract.
-        for chunk in chunk_text(&assistant_display, 3500) {
+        let candidate_lines: Vec<usize> = candidates
+            .iter()
+            .flat_map(|candidate| candidate.lines.iter().copied())
+            .collect();
+        let (outbound_refs, outbound_errors) = self
+            .prepare_outbound_media(msg, &binding, candidates, &mut attachment_budget)
+            .await;
+        // Send the text first, without path lines that may be uploaded. Failed
+        // paths stay in the journal and are reported in the follow-up note.
+        let initial_display = outbound_media::remove_lines(&text, &candidate_lines);
+        for chunk in chunk_text(&initial_display, 3500) {
             let _ = self.reply_msg(msg, &chunk).await;
         }
-        let (sent_refs, send_notes) = self.send_outbound_media(msg, &outbound_refs).await;
-        for note in send_notes {
-            append_attachment_note(&mut assistant_display, &note);
+        let (sent_refs, sent_lines, send_notes) =
+            self.send_outbound_media(msg, &outbound_refs).await;
+        let mut assistant_display = outbound_media::remove_lines(&text, &sent_lines);
+        for error in &outbound_errors {
+            append_attachment_note(&mut assistant_display, error);
+        }
+        for note in &send_notes {
+            append_attachment_note(&mut assistant_display, note);
+        }
+        if !outbound_errors.is_empty() {
+            let _ = self.reply_msg(msg, &outbound_errors.join("\n")).await;
         }
         if assistant_display.trim().is_empty() && !sent_refs.is_empty() {
             assistant_display = if self.lang() == "en" {
@@ -1985,19 +2021,35 @@ fn outbound_rule(lang: &str) -> &'static str {
     }
 }
 
-fn append_attachment_note(text: &mut String, reason: &str) {
+fn attachment_note_line(reason: &str) -> String {
     let reason: String = reason
         .chars()
         .map(|c| if c.is_control() { ' ' } else { c })
         .take(120)
         .collect();
+    format!("[附件处理失败：{}] 请告诉用户重新发送。", reason.trim())
+}
+
+fn append_attachment_note(text: &mut String, reason: &str) {
     if !text.is_empty() {
         text.push('\n');
     }
-    text.push_str(&format!(
-        "[附件处理失败：{}] 请告诉用户重新发送。",
-        reason.trim()
-    ));
+    text.push_str(&attachment_note_line(reason));
+}
+
+fn push_prompt_note(notes: &mut Vec<String>, reason: &str) {
+    notes.push(attachment_note_line(reason));
+}
+
+fn build_prompt_text(display: &str, notes: &[String]) -> String {
+    let mut prompt = display.trim().to_string();
+    for note in notes {
+        if !prompt.is_empty() {
+            prompt.push('\n');
+        }
+        prompt.push_str(note);
+    }
+    prompt
 }
 
 fn chunk_text(s: &str, max: usize) -> Vec<String> {
@@ -2335,6 +2387,7 @@ mod tests {
 
         let stop_message = IncomingMessage {
             staged_attachments: Vec::new(),
+            attachment_note: None,
             channel: "test".into(),
             instance_id: "test-instance".into(),
             message_id: "stop-message".into(),
@@ -2519,6 +2572,7 @@ mod tests {
         });
         let msg = IncomingMessage {
             staged_attachments: Vec::new(),
+            attachment_note: None,
             channel: "weixin".into(),
             instance_id: "weixin-default".into(),
             message_id: "m1".into(),
@@ -2533,5 +2587,27 @@ mod tests {
         tokio::time::timeout(Duration::from_secs(3), engine.handle(msg))
             .await
             .expect("handle(/p) deadlocked on pending mutex re-entry");
+    }
+}
+
+#[cfg(test)]
+mod session_budget_tests {
+    use super::SessionAttachmentBudget;
+    use std::collections::HashSet;
+
+    #[test]
+    fn counts_unique_shas_once_and_enforces_cap() {
+        let mut budget = SessionAttachmentBudget {
+            session_id: Some("s1".into()),
+            used: crate::attachments::MAX_SESSION_BYTES - 10,
+            shas: HashSet::new(),
+        };
+        assert!(budget.can_add("a", 10));
+        assert!(!budget.can_add("b", 11));
+        budget.record("a", 10);
+        assert!(budget.can_add("a", 100));
+        budget.record("a", 100);
+        assert_eq!(budget.used, crate::attachments::MAX_SESSION_BYTES);
+        assert_eq!(budget.shas.len(), 1);
     }
 }

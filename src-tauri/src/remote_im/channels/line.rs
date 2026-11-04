@@ -120,7 +120,7 @@ pub async fn run(
                                 // store reply token as message_id for outbound
                                 let _ = tx.send(IncomingMessage {
                                     staged_attachments: Vec::new(),
-                                    channel: inst.channel.clone(),
+                                    attachment_note: None,                                    channel: inst.channel.clone(),
                                     instance_id: inst.id.clone(),
                                     message_id: reply_token.into(),
                                     chat_id: user.into(),

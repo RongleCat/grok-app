@@ -219,7 +219,7 @@ async fn run_once(
                                     if let Err(e) = tx
                                         .send(IncomingMessage {
         staged_attachments: Vec::new(),
-                                            channel: inst.channel.clone(),
+        attachment_note: None,                                            channel: inst.channel.clone(),
                                             instance_id: inst.id.clone(),
                                             message_id: event
                                                 .pointer("/event/context/open_message_id")
@@ -251,7 +251,7 @@ async fn run_once(
                                             // the message without its attachments.
                                             if !parsed.media.is_empty() {
                                                 push_media_failure(
-                                                    &mut parsed.message.content,
+                                                    &mut parsed.message.attachment_note,
                                                     "附件处理队列已满，请稍后重新发送",
                                                 );
                                             }
@@ -503,6 +503,7 @@ fn parse_im_event(inst: &ChannelInstance, root: &Value) -> Option<ParsedInbound>
     Some(ParsedInbound {
         message: IncomingMessage {
             staged_attachments: Vec::new(),
+            attachment_note: None,
             channel: inst.channel.clone(),
             instance_id: inst.id.clone(),
             message_id,
@@ -1046,9 +1047,10 @@ async fn run_media_worker(
                 .or_insert_with(MediaBudget::new);
             attach_inbound_media(&inst, &mut message, &media, budget).await;
             if media_truncated {
-                message
-                    .content
-                    .push_str(&format!("\n[附件过多，仅处理前 {MAX_INBOUND_FILES} 个]"));
+                append_note(
+                    &mut message.attachment_note,
+                    format!("[附件过多，仅处理前 {MAX_INBOUND_FILES} 个]"),
+                );
             }
             tracing::info!(
                 instance = %inst.id,
@@ -1088,7 +1090,7 @@ async fn attach_inbound_media(
     }
     if budget.remaining() == 0 {
         push_media_failure(
-            &mut incoming.content,
+            &mut incoming.attachment_note,
             "本聊天附件下载额度已用完，请稍后再试",
         );
         return;
@@ -1096,7 +1098,7 @@ async fn attach_inbound_media(
     let store = match crate::attachments::shared() {
         Ok(store) => store,
         Err(err) => {
-            push_media_failure(&mut incoming.content, &err);
+            push_media_failure(&mut incoming.attachment_note, &err);
             return;
         }
     };
@@ -1104,7 +1106,7 @@ async fn attach_inbound_media(
     let token = match tenant_token(&inst.channel, &inst.secrets, &inst.options).await {
         Ok(token) => token,
         Err(err) => {
-            push_media_failure(&mut incoming.content, &err);
+            push_media_failure(&mut incoming.attachment_note, &err);
             return;
         }
     };
@@ -1112,14 +1114,14 @@ async fn attach_inbound_media(
     let client = match http_client() {
         Ok(client) => client,
         Err(err) => {
-            push_media_failure(&mut incoming.content, &err);
+            push_media_failure(&mut incoming.attachment_note, &err);
             return;
         }
     };
     for item in media {
         if budget.remaining() == 0 {
             push_media_failure(
-                &mut incoming.content,
+                &mut incoming.attachment_note,
                 "本聊天附件下载额度已用完，请稍后再试",
             );
             break;
@@ -1162,13 +1164,23 @@ async fn attach_inbound_media(
                     error = %err,
                     "feishu inbound media download failed"
                 );
-                push_media_failure(&mut incoming.content, &err);
+                push_media_failure(&mut incoming.attachment_note, &err);
             }
         }
     }
 }
 
-fn push_media_failure(content: &mut String, reason: &str) {
+fn append_note(note: &mut Option<String>, line: String) {
+    match note {
+        Some(existing) => {
+            existing.push('\n');
+            existing.push_str(&line);
+        }
+        None => *note = Some(line),
+    }
+}
+
+fn push_media_failure(note: &mut Option<String>, reason: &str) {
     // External text must stay on one line and bounded before it reaches the
     // agent prompt.
     let reason: String = reason
@@ -1176,10 +1188,10 @@ fn push_media_failure(content: &mut String, reason: &str) {
         .map(|c| if c.is_control() { ' ' } else { c })
         .take(120)
         .collect();
-    content.push_str(&format!(
-        "\n[附件下载失败：{}] 请告诉用户该附件没有传过来，并请其重新发送。",
-        reason.trim()
-    ));
+    append_note(
+        note,
+        format!("[附件处理失败：{}] 请告诉用户重新发送。", reason.trim()),
+    );
 }
 
 fn media_display_name(item: &InboundMedia, content_type: Option<&str>) -> String {
@@ -1970,10 +1982,11 @@ mod inbound_media_tests {
 
     #[test]
     fn prompt_failure_notes_stay_on_one_line() {
-        let mut content = "请查看附件".to_string();
-        push_media_failure(&mut content, "HTTP 403\n<script>");
-        let last = content.lines().last().unwrap();
-        assert!(last.contains("附件下载失败"), "{last}");
+        let mut note = None;
+        push_media_failure(&mut note, "HTTP 403\n<script>");
+        let note = note.expect("note");
+        let last = note.lines().last().unwrap();
+        assert!(last.contains("附件处理失败"), "{last}");
         assert!(last.contains("HTTP 403"), "{last}");
         assert!(!last.contains('\n'), "{last}");
         assert!(last.chars().count() < 200, "{last}");
@@ -2086,6 +2099,7 @@ mod inbound_media_tests {
     fn incoming(sender: &str, chat_type: &str, mentioned: bool) -> IncomingMessage {
         IncomingMessage {
             staged_attachments: Vec::new(),
+            attachment_note: None,
             channel: "feishu".into(),
             instance_id: "feishu-test".into(),
             message_id: "om_1".into(),

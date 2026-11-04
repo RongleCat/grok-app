@@ -166,7 +166,7 @@ async fn run_stream_once(
                                 .to_string();
                             let _ = tx.send(IncomingMessage {
                                 staged_attachments: Vec::new(),
-                                channel: inst.channel.clone(),
+                                attachment_note: None,                                channel: inst.channel.clone(),
                                 instance_id: inst.id.clone(),
                                 message_id: data.get("msgId").and_then(|x| x.as_str()).unwrap_or("").into(),
                                 chat_id,
@@ -260,6 +260,7 @@ fn parse_bot_callback(inst: &ChannelInstance, data: &Value) -> Option<IncomingMe
     let chat_type = if conv_type == "2" { "group" } else { "p2p" };
     Some(IncomingMessage {
         staged_attachments: Vec::new(),
+        attachment_note: None,
         channel: inst.channel.clone(),
         instance_id: inst.id.clone(),
         message_id: msg_id,

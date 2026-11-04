@@ -185,6 +185,7 @@ fn parse_message(inst: &ChannelInstance, d: &Value) -> Option<IncomingMessage> {
 
     Some(IncomingMessage {
         staged_attachments: Vec::new(),
+        attachment_note: None,
         channel: inst.channel.clone(),
         instance_id: inst.id.clone(),
         message_id,

@@ -82,7 +82,7 @@ async fn run_once(
                             .unwrap_or_default();
                         let _ = tx.send(IncomingMessage {
                             staged_attachments: Vec::new(),
-                            channel: inst.channel.clone(),
+                            attachment_note: None,                            channel: inst.channel.clone(),
                             instance_id: inst.id.clone(),
                             message_id: v.get("id").map(|x| x.to_string()).unwrap_or_default(),
                             chat_id: sender.clone(),

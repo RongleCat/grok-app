@@ -87,6 +87,9 @@ pub struct IncomingMessage {
     /// Media downloaded to store staging; the engine commits it after resolving
     /// the App session and checking the 512 MB session budget.
     pub staged_attachments: Vec<StagedRemoteAttachment>,
+    /// Agent-facing note about attachment failures/truncation. Never written to
+    /// the journal as user content.
+    pub attachment_note: Option<String>,
 }
 
 impl IncomingMessage {
