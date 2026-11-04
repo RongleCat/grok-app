@@ -71,71 +71,71 @@ pub async fn run(
 
     loop {
         tokio::select! {
-                _ = cancel.changed() => {
-                    if *cancel.borrow() { return Ok(()); }
-                }
-                acc = listener.accept() => {
-                    let Ok((mut socket, _)) = acc else { continue };
-                    let tx = tx.clone();
-                    let inst = inst.clone();
-                    let path = path.clone();
-                    let channel_secret = channel_secret.clone();
-                    tokio::spawn(async move {
-                        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-                        let mut buf = vec![0u8; 65536];
-                        let n = match socket.read(&mut buf).await {
-                            Ok(n) if n > 0 => n,
-                            _ => return,
-                        };
-                        let req = String::from_utf8_lossy(&buf[..n]);
-                        let body = req.split("\r\n\r\n").nth(1).unwrap_or("");
-                        if !req.contains(path.as_str()) {
-                            let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
-                            return;
-                        }
-                        // require X-Line-Signature (HMAC-SHA256 of raw body).
-                        let sig = req
-                            .lines()
-                            .find(|l| l.to_ascii_lowercase().starts_with("x-line-signature:"))
-                            .and_then(|l| l.split_once(':'))
-                            .map(|(_, v)| v.trim().to_string());
-                        if !line_signature_ok(channel_secret.as_str(), body.as_bytes(), sig.as_deref())
-                        {
-                            tracing::warn!(instance = %inst.id, "line: bad or missing X-Line-Signature");
-                            let _ = socket
-                                .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n")
-                                .await;
-                            return;
-                        }
-                        if let Ok(v) = serde_json::from_str::<Value>(body) {
-                            if let Some(events) = v.get("events").and_then(|e| e.as_array()) {
-                                for ev in events {
-                                    if ev.get("type").and_then(|t| t.as_str()) != Some("message") {
-                                        continue;
-                                    }
-                                    let text = ev.pointer("/message/text").and_then(|x| x.as_str()).unwrap_or("");
-                                    if text.is_empty() { continue; }
-                                    let user = ev.pointer("/source/userId").and_then(|x| x.as_str()).unwrap_or("");
-                                    let reply_token = ev.get("replyToken").and_then(|x| x.as_str()).unwrap_or("");
-                                    // store reply token as message_id for outbound
-                                    let _ = tx.send(IncomingMessage {
-        staged_attachments: Vec::new(),
-                                        channel: inst.channel.clone(),
-                                        instance_id: inst.id.clone(),
-                                        message_id: reply_token.into(),
-                                        chat_id: user.into(),
-                                        chat_type: "p2p".into(),
-                                        sender_id: user.into(),
-                                        content: text.into(),
-                                        mentioned_bot: true,
-                                        thread_id: None,                                }).await;
+            _ = cancel.changed() => {
+                if *cancel.borrow() { return Ok(()); }
+            }
+            acc = listener.accept() => {
+                let Ok((mut socket, _)) = acc else { continue };
+                let tx = tx.clone();
+                let inst = inst.clone();
+                let path = path.clone();
+                let channel_secret = channel_secret.clone();
+                tokio::spawn(async move {
+                    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                    let mut buf = vec![0u8; 65536];
+                    let n = match socket.read(&mut buf).await {
+                        Ok(n) if n > 0 => n,
+                        _ => return,
+                    };
+                    let req = String::from_utf8_lossy(&buf[..n]);
+                    let body = req.split("\r\n\r\n").nth(1).unwrap_or("");
+                    if !req.contains(path.as_str()) {
+                        let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+                    // require X-Line-Signature (HMAC-SHA256 of raw body).
+                    let sig = req
+                        .lines()
+                        .find(|l| l.to_ascii_lowercase().starts_with("x-line-signature:"))
+                        .and_then(|l| l.split_once(':'))
+                        .map(|(_, v)| v.trim().to_string());
+                    if !line_signature_ok(channel_secret.as_str(), body.as_bytes(), sig.as_deref())
+                    {
+                        tracing::warn!(instance = %inst.id, "line: bad or missing X-Line-Signature");
+                        let _ = socket
+                            .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n")
+                            .await;
+                        return;
+                    }
+                    if let Ok(v) = serde_json::from_str::<Value>(body) {
+                        if let Some(events) = v.get("events").and_then(|e| e.as_array()) {
+                            for ev in events {
+                                if ev.get("type").and_then(|t| t.as_str()) != Some("message") {
+                                    continue;
                                 }
+                                let text = ev.pointer("/message/text").and_then(|x| x.as_str()).unwrap_or("");
+                                if text.is_empty() { continue; }
+                                let user = ev.pointer("/source/userId").and_then(|x| x.as_str()).unwrap_or("");
+                                let reply_token = ev.get("replyToken").and_then(|x| x.as_str()).unwrap_or("");
+                                // store reply token as message_id for outbound
+                                let _ = tx.send(IncomingMessage {
+                                    staged_attachments: Vec::new(),
+                                    channel: inst.channel.clone(),
+                                    instance_id: inst.id.clone(),
+                                    message_id: reply_token.into(),
+                                    chat_id: user.into(),
+                                    chat_type: "p2p".into(),
+                                    sender_id: user.into(),
+                                    content: text.into(),
+                                    mentioned_bot: true,
+                                    thread_id: None,                                }).await;
                             }
                         }
-                        let _ = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK").await;
-                    });
-                }
+                    }
+                    let _ = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK").await;
+                });
             }
+        }
     }
 }
 

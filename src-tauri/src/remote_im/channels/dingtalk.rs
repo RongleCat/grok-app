@@ -115,89 +115,89 @@ async fn run_stream_once(
 
     loop {
         tokio::select! {
-                _ = cancel.changed() => {
-                    if *cancel.borrow() {
-                        let _ = write.close().await;
-                        return Ok(());
-                    }
-                }
-                msg = read.next() => {
-                    match msg {
-                        Some(Ok(Message::Text(t))) => {
-                            let v: Value = serde_json::from_str(&t).unwrap_or(json!({}));
-                            // ACK keepalives
-                            if v.get("type").and_then(|x| x.as_str()) == Some("SYSTEM")
-                                || v.get("headers").and_then(|h| h.get("topic")).and_then(|x| x.as_str()) == Some("ping")
-                            {
-                                let ack = json!({ "code": 200, "headers": v.get("headers").cloned().unwrap_or(json!({})) });
-                                let _ = write.send(Message::Text(ack.to_string().into())).await;
-                                continue;
-                            }
-                            // Callback data
-                            let data = v
-                                .get("data")
-                                .cloned()
-                                .or_else(|| v.get("body").cloned())
-                                .unwrap_or(v.clone());
-                            let data = if let Some(s) = data.as_str() {
-                                serde_json::from_str(s).unwrap_or(json!({}))
-                            } else {
-                                data
-                            };
-                            // Card action
-                            if let Some(action_id) = data
-                                .get("actionIds")
-                                .and_then(|a| a.as_array())
-                                .and_then(|a| a.first())
-                                .and_then(|x| x.as_str())
-                                .or_else(|| data.get("actionId").and_then(|x| x.as_str()))
-                            {
-                                let chat_id = data
-                                    .get("conversationId")
-                                    .or_else(|| data.get("conversation_id"))
-                                    .and_then(|x| x.as_str())
-                                    .unwrap_or("card")
-                                    .to_string();
-                                let sender = data
-                                    .get("senderStaffId")
-                                    .or_else(|| data.get("senderId"))
-                                    .and_then(|x| x.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                let _ = tx.send(IncomingMessage {
-        staged_attachments: Vec::new(),
-                                    channel: inst.channel.clone(),
-                                    instance_id: inst.id.clone(),
-                                    message_id: data.get("msgId").and_then(|x| x.as_str()).unwrap_or("").into(),
-                                    chat_id,
-                                    chat_type: "p2p".into(),
-                                    sender_id: sender,
-                                    content: format!("__card_action__:{action_id}"),
-                                    mentioned_bot: true,
-                                    thread_id: None,                            }).await;
-                                let ack = json!({ "code": 200 });
-                                let _ = write.send(Message::Text(ack.to_string().into())).await;
-                                continue;
-                            }
-                            if let Some(incoming) = parse_bot_callback(inst, &data) {
-                                // Persist sessionWebhook on secrets map via side channel file
-                                if let Some(wh) = data.get("sessionWebhook").and_then(|x| x.as_str()) {
-                                    store_session_webhook(&inst.id, &incoming.chat_id, wh);
-                                }
-                                let _ = tx.send(incoming).await;
-                            }
-                            let ack = json!({ "code": 200 });
-                            let _ = write.send(Message::Text(ack.to_string().into())).await;
-                        }
-                        Some(Ok(Message::Ping(p))) => {
-                            let _ = write.send(Message::Pong(p)).await;
-                        }
-                        Some(Ok(Message::Close(_))) | None => return Ok(()),
-                        Some(Err(e)) => return Err(e.to_string()),
-                        _ => {}
-                    }
+            _ = cancel.changed() => {
+                if *cancel.borrow() {
+                    let _ = write.close().await;
+                    return Ok(());
                 }
             }
+            msg = read.next() => {
+                match msg {
+                    Some(Ok(Message::Text(t))) => {
+                        let v: Value = serde_json::from_str(&t).unwrap_or(json!({}));
+                        // ACK keepalives
+                        if v.get("type").and_then(|x| x.as_str()) == Some("SYSTEM")
+                            || v.get("headers").and_then(|h| h.get("topic")).and_then(|x| x.as_str()) == Some("ping")
+                        {
+                            let ack = json!({ "code": 200, "headers": v.get("headers").cloned().unwrap_or(json!({})) });
+                            let _ = write.send(Message::Text(ack.to_string().into())).await;
+                            continue;
+                        }
+                        // Callback data
+                        let data = v
+                            .get("data")
+                            .cloned()
+                            .or_else(|| v.get("body").cloned())
+                            .unwrap_or(v.clone());
+                        let data = if let Some(s) = data.as_str() {
+                            serde_json::from_str(s).unwrap_or(json!({}))
+                        } else {
+                            data
+                        };
+                        // Card action
+                        if let Some(action_id) = data
+                            .get("actionIds")
+                            .and_then(|a| a.as_array())
+                            .and_then(|a| a.first())
+                            .and_then(|x| x.as_str())
+                            .or_else(|| data.get("actionId").and_then(|x| x.as_str()))
+                        {
+                            let chat_id = data
+                                .get("conversationId")
+                                .or_else(|| data.get("conversation_id"))
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("card")
+                                .to_string();
+                            let sender = data
+                                .get("senderStaffId")
+                                .or_else(|| data.get("senderId"))
+                                .and_then(|x| x.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let _ = tx.send(IncomingMessage {
+                                staged_attachments: Vec::new(),
+                                channel: inst.channel.clone(),
+                                instance_id: inst.id.clone(),
+                                message_id: data.get("msgId").and_then(|x| x.as_str()).unwrap_or("").into(),
+                                chat_id,
+                                chat_type: "p2p".into(),
+                                sender_id: sender,
+                                content: format!("__card_action__:{action_id}"),
+                                mentioned_bot: true,
+                                thread_id: None,                            }).await;
+                            let ack = json!({ "code": 200 });
+                            let _ = write.send(Message::Text(ack.to_string().into())).await;
+                            continue;
+                        }
+                        if let Some(incoming) = parse_bot_callback(inst, &data) {
+                            // Persist sessionWebhook on secrets map via side channel file
+                            if let Some(wh) = data.get("sessionWebhook").and_then(|x| x.as_str()) {
+                                store_session_webhook(&inst.id, &incoming.chat_id, wh);
+                            }
+                            let _ = tx.send(incoming).await;
+                        }
+                        let ack = json!({ "code": 200 });
+                        let _ = write.send(Message::Text(ack.to_string().into())).await;
+                    }
+                    Some(Ok(Message::Ping(p))) => {
+                        let _ = write.send(Message::Pong(p)).await;
+                    }
+                    Some(Ok(Message::Close(_))) | None => return Ok(()),
+                    Some(Err(e)) => return Err(e.to_string()),
+                    _ => {}
+                }
+            }
+        }
     }
 }
 

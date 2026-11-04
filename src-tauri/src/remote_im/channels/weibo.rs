@@ -59,46 +59,46 @@ async fn run_once(
     let (mut write, mut read) = ws.split();
     loop {
         tokio::select! {
-                _ = cancel.changed() => {
-                    if *cancel.borrow() {
-                        let _ = write.close().await;
-                        return Ok(());
-                    }
-                }
-                msg = read.next() => {
-                    match msg {
-                        Some(Ok(Message::Text(t))) => {
-                            let v: Value = serde_json::from_str(&t).unwrap_or(json!({}));
-                            let text = v
-                                .get("text")
-                                .or_else(|| v.pointer("/data/text"))
-                                .and_then(|x| x.as_str())
-                                .unwrap_or("");
-                            if text.is_empty() { continue; }
-                            let sender = v
-                                .get("sender_id")
-                                .or_else(|| v.pointer("/data/sender_id"))
-                                .map(|x| x.to_string())
-                                .unwrap_or_default();
-                            let _ = tx.send(IncomingMessage {
-        staged_attachments: Vec::new(),
-                                channel: inst.channel.clone(),
-                                instance_id: inst.id.clone(),
-                                message_id: v.get("id").map(|x| x.to_string()).unwrap_or_default(),
-                                chat_id: sender.clone(),
-                                chat_type: "p2p".into(),
-                                sender_id: sender,
-                                content: text.into(),
-                                mentioned_bot: true,
-                                thread_id: None,                        }).await;
-                        }
-                        Some(Ok(Message::Close(_))) | None => return Ok(()),
-                        Some(Ok(Message::Ping(p))) => { let _ = write.send(Message::Pong(p)).await; }
-                        Some(Err(e)) => return Err(e.to_string()),
-                        _ => {}
-                    }
+            _ = cancel.changed() => {
+                if *cancel.borrow() {
+                    let _ = write.close().await;
+                    return Ok(());
                 }
             }
+            msg = read.next() => {
+                match msg {
+                    Some(Ok(Message::Text(t))) => {
+                        let v: Value = serde_json::from_str(&t).unwrap_or(json!({}));
+                        let text = v
+                            .get("text")
+                            .or_else(|| v.pointer("/data/text"))
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("");
+                        if text.is_empty() { continue; }
+                        let sender = v
+                            .get("sender_id")
+                            .or_else(|| v.pointer("/data/sender_id"))
+                            .map(|x| x.to_string())
+                            .unwrap_or_default();
+                        let _ = tx.send(IncomingMessage {
+                            staged_attachments: Vec::new(),
+                            channel: inst.channel.clone(),
+                            instance_id: inst.id.clone(),
+                            message_id: v.get("id").map(|x| x.to_string()).unwrap_or_default(),
+                            chat_id: sender.clone(),
+                            chat_type: "p2p".into(),
+                            sender_id: sender,
+                            content: text.into(),
+                            mentioned_bot: true,
+                            thread_id: None,                        }).await;
+                    }
+                    Some(Ok(Message::Close(_))) | None => return Ok(()),
+                    Some(Ok(Message::Ping(p))) => { let _ = write.send(Message::Pong(p)).await; }
+                    Some(Err(e)) => return Err(e.to_string()),
+                    _ => {}
+                }
+            }
+        }
     }
 }
 

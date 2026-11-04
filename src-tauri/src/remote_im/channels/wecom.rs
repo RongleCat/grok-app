@@ -360,129 +360,129 @@ async fn run_webhook(
 
     loop {
         tokio::select! {
-                _ = cancel.changed() => {
-                    if *cancel.borrow() { return Ok(()); }
-                }
-                acc = listener.accept() => {
-                    let Ok((mut socket, _)) = acc else { continue };
-                    let tx = tx.clone();
-                    let inst = inst.clone();
-                    let path = path.clone();
-                    let callback_token = callback_token.clone();
-                    tokio::spawn(async move {
-                        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-                        let mut buf = vec![0u8; 65536];
-                        let n = match socket.read(&mut buf).await {
-                            Ok(n) if n > 0 => n,
-                            _ => return,
-                        };
-                        let req = String::from_utf8_lossy(&buf[..n]);
-                        let (request_line, _, body) = split_request(&req);
+            _ = cancel.changed() => {
+                if *cancel.borrow() { return Ok(()); }
+            }
+            acc = listener.accept() => {
+                let Ok((mut socket, _)) = acc else { continue };
+                let tx = tx.clone();
+                let inst = inst.clone();
+                let path = path.clone();
+                let callback_token = callback_token.clone();
+                tokio::spawn(async move {
+                    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                    let mut buf = vec![0u8; 65536];
+                    let n = match socket.read(&mut buf).await {
+                        Ok(n) if n > 0 => n,
+                        _ => return,
+                    };
+                    let req = String::from_utf8_lossy(&buf[..n]);
+                    let (request_line, _, body) = split_request(&req);
 
-                        let uri = request_line.split_whitespace().nth(1).unwrap_or("");
-                        let (uri_path, uri_query) = match uri.split_once('?') {
-                            Some((p, q)) => (p, q),
-                            None => (uri, ""),
-                        };
-                        // Path match on the decoded request target; tolerate a
-                        // trailing-slash difference only.
-                        let norm =
-                            |p: &str| p.trim_end_matches('/').to_string();
-                        if norm(&percent_decode(uri_path)) != norm(path.as_str()) {
-                            let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
-                            return;
-                        }
+                    let uri = request_line.split_whitespace().nth(1).unwrap_or("");
+                    let (uri_path, uri_query) = match uri.split_once('?') {
+                        Some((p, q)) => (p, q),
+                        None => (uri, ""),
+                    };
+                    // Path match on the decoded request target; tolerate a
+                    // trailing-slash difference only.
+                    let norm =
+                        |p: &str| p.trim_end_matches('/').to_string();
+                    if norm(&percent_decode(uri_path)) != norm(path.as_str()) {
+                        let _ = socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
 
-                        // Official WeCom signature over [token, timestamp, nonce,
-                        // payload]; GET verify signs the echostr, POSTs sign the body.
-                        let sig = query_param(uri_query, "msg_signature").map(percent_decode);
-                        let timestamp = query_param(uri_query, "timestamp")
-                            .map(percent_decode)
-                            .unwrap_or_default();
-                        let nonce = query_param(uri_query, "nonce")
-                            .map(percent_decode)
-                            .unwrap_or_default();
-                        let echostr = query_param(uri_query, "echostr").map(percent_decode);
-                        let header_token = req.lines().skip(1).find_map(|l| {
-                            l.split_once(':').filter(|(name, _)| {
-                                name.eq_ignore_ascii_case(SHARED_TOKEN_HEADER)
-                            }).map(|(_, v)| v.trim().to_string())
-                        });
+                    // Official WeCom signature over [token, timestamp, nonce,
+                    // payload]; GET verify signs the echostr, POSTs sign the body.
+                    let sig = query_param(uri_query, "msg_signature").map(percent_decode);
+                    let timestamp = query_param(uri_query, "timestamp")
+                        .map(percent_decode)
+                        .unwrap_or_default();
+                    let nonce = query_param(uri_query, "nonce")
+                        .map(percent_decode)
+                        .unwrap_or_default();
+                    let echostr = query_param(uri_query, "echostr").map(percent_decode);
+                    let header_token = req.lines().skip(1).find_map(|l| {
+                        l.split_once(':').filter(|(name, _)| {
+                            name.eq_ignore_ascii_case(SHARED_TOKEN_HEADER)
+                        }).map(|(_, v)| v.trim().to_string())
+                    });
 
-                        let is_get = request_line.starts_with("GET");
-                        let payload_for_sig: &str = if is_get {
-                            echostr.as_deref().unwrap_or("")
-                        } else {
-                            body
-                        };
-                        let now = super::super::resilience::now_unix_secs() as i64;
-                        let verified = wecom_callback_authorized(
-                            callback_token.as_str(),
-                            &timestamp,
-                            &nonce,
-                            payload_for_sig,
-                            sig.as_deref(),
-                            header_token.as_deref(),
-                            now,
-                        );
+                    let is_get = request_line.starts_with("GET");
+                    let payload_for_sig: &str = if is_get {
+                        echostr.as_deref().unwrap_or("")
+                    } else {
+                        body
+                    };
+                    let now = super::super::resilience::now_unix_secs() as i64;
+                    let verified = wecom_callback_authorized(
+                        callback_token.as_str(),
+                        &timestamp,
+                        &nonce,
+                        payload_for_sig,
+                        sig.as_deref(),
+                        header_token.as_deref(),
+                        now,
+                    );
 
-                        // URL verify echo: only echo after verification (WeCom signs
-                        // the encrypted echostr during endpoint setup).
-                        if is_get {
-                            if !verified {
-                                tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature on verify");
-                                let _ = socket.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n").await;
-                                return;
-                            }
-                            if let Some(echo) = echostr.as_deref() {
-                                let resp = format!(
-                                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                                    echo.len(),
-                                    echo
-                                );
-                                let _ = socket.write_all(resp.as_bytes()).await;
-                                return;
-                            }
-                            let _ = socket.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n").await;
-                            return;
-                        }
-
+                    // URL verify echo: only echo after verification (WeCom signs
+                    // the encrypted echostr during endpoint setup).
+                    if is_get {
                         if !verified {
-                            tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature");
+                            tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature on verify");
                             let _ = socket.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n").await;
                             return;
                         }
-
-                        // JSON or XML simplified — try JSON
-                        if let Ok(v) = serde_json::from_str::<Value>(body) {
-                            let text = v
-                                .get("Content")
-                                .or_else(|| v.get("text"))
-                                .and_then(|x| x.as_str())
-                                .unwrap_or("");
-                            let user = v
-                                .get("FromUserName")
-                                .or_else(|| v.get("from"))
-                                .and_then(|x| x.as_str())
-                                .unwrap_or("");
-                            if !text.is_empty() {
-                                let _ = tx.send(IncomingMessage {
-        staged_attachments: Vec::new(),
-                                    channel: inst.channel.clone(),
-                                    instance_id: inst.id.clone(),
-                                    message_id: v.get("MsgId").and_then(|x| x.as_str()).unwrap_or("").into(),
-                                    chat_id: user.into(),
-                                    chat_type: "p2p".into(),
-                                    sender_id: user.into(),
-                                    content: text.into(),
-                                    mentioned_bot: true,
-                                    thread_id: None,                            }).await;
-                            }
+                        if let Some(echo) = echostr.as_deref() {
+                            let resp = format!(
+                                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                                echo.len(),
+                                echo
+                            );
+                            let _ = socket.write_all(resp.as_bytes()).await;
+                            return;
                         }
-                        let _ = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nsuccess").await;
-                    });
-                }
+                        let _ = socket.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+
+                    if !verified {
+                        tracing::warn!(instance = %inst.id, "wecom: bad or missing callback signature");
+                        let _ = socket.write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n").await;
+                        return;
+                    }
+
+                    // JSON or XML simplified — try JSON
+                    if let Ok(v) = serde_json::from_str::<Value>(body) {
+                        let text = v
+                            .get("Content")
+                            .or_else(|| v.get("text"))
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("");
+                        let user = v
+                            .get("FromUserName")
+                            .or_else(|| v.get("from"))
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("");
+                        if !text.is_empty() {
+                            let _ = tx.send(IncomingMessage {
+                                staged_attachments: Vec::new(),
+                                channel: inst.channel.clone(),
+                                instance_id: inst.id.clone(),
+                                message_id: v.get("MsgId").and_then(|x| x.as_str()).unwrap_or("").into(),
+                                chat_id: user.into(),
+                                chat_type: "p2p".into(),
+                                sender_id: user.into(),
+                                content: text.into(),
+                                mentioned_bot: true,
+                                thread_id: None,                            }).await;
+                        }
+                    }
+                    let _ = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nsuccess").await;
+                });
             }
+        }
     }
 }
 
