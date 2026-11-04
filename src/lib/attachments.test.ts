@@ -44,6 +44,15 @@ describe("attachments", () => {
     expect(out.find((a) => a.path === file.path)?.name).toBe("renamed");
   });
 
+  it("keeps store-backed refs distinct by id when paths are empty", () => {
+    const a = { path: "", name: "a.png", isDir: false, id: "id-a" };
+    const b = { path: "", name: "b.png", isDir: false, id: "id-b" };
+    const out = mergeAttachments([a], [b, { ...a, name: "a2.png" }]);
+    expect(out).toHaveLength(2);
+    expect(out.map((x) => x.id)).toEqual(["id-a", "id-b"]);
+    expect(out[0].name).toBe("a2.png");
+  });
+
   it("collapses one Windows image stored with both slash styles (#1284)", () => {
     const stored: Attachment = {
       path: "C:\\Users\\me\\AppData\\Local\\Temp\\paste.png",

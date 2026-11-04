@@ -111,6 +111,23 @@ describe("refineJournalAttachments", () => {
     expect(out[0]?.attachments).toBeUndefined();
   });
 
+  it("keeps store-backed id attachments without a path", () => {
+    const id = "0190c3d2-0000-7000-8000-000000000000";
+    const rows = [
+      assistant("a", "hi", {
+        attachments: [
+          { path: "", name: "error.png", isDir: false, id, kind: "image" },
+        ],
+      }),
+    ];
+    const out = refineJournalAttachments(rows, {
+      resolved: [],
+      classifyByPath: new Map(),
+      classifyFailed: false,
+    });
+    expect(out[0]?.attachments?.[0]?.id).toBe(id);
+  });
+
   it("keeps http(s) attachments even without classify", () => {
     const rows = [
       assistant("a", "hi", {

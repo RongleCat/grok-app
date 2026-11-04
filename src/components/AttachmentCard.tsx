@@ -15,13 +15,13 @@ import {
   deriveAttachPreviewPhase,
 } from "@/lib/attachmentsPro";
 import * as api from "@/lib/api";
-import { ensureMediaEndpoint } from "@/lib/imageSrc";
+import { ensureMediaEndpoint, attachmentIdToMediaHttpUrl } from "@/lib/imageSrc";
 import {
   chatCardFirstPaintSrc,
   nextChatCardDisplaySrc,
   resolveChatImageThumb,
 } from "@/lib/imageThumbClient";
-import { copyImageFromPath } from "@/lib/copyImage";
+import { copyImageFromPath, copyImageFromSrc } from "@/lib/copyImage";
 import { useImageViewerOptional } from "@/components/ImageViewerContext";
 import {
   IconClose,
@@ -73,9 +73,11 @@ export function AttachmentCard({
   galleryPaths,
 }: AttachmentCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const isImg = !attachment.isDir && isImagePath(attachment.path);
+  const isImg =
+    !attachment.isDir &&
+    (attachment.kind === "image" || isImagePath(attachment.path));
   const [thumbSrc, setThumbSrc] = useState<string | null>(() =>
-    isImg
+    isImg && !attachment.id
       ? chatCardFirstPaintSrc(attachment.path, attachment.path, "card")
       : null,
   );
@@ -89,6 +91,20 @@ export function AttachmentCard({
       setThumbSrc(null);
       setThumbFailed(false);
       return;
+    }
+    if (attachment.id) {
+      let cancelled = false;
+      void (async () => {
+        await ensureMediaEndpoint();
+        const url = attachmentIdToMediaHttpUrl(attachment.id!, "thumb");
+        if (!cancelled && url) {
+          setThumbSrc(url);
+          setThumbFailed(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
     // Same thumb path as chat ImageUi (#675). Full originals in a 36px
     // <img> make WKWebView hitch / flash when a long virtualized thread
@@ -121,7 +137,7 @@ export function AttachmentCard({
     return () => {
       cancelled = true;
     };
-  }, [attachment.path, isImg]);
+  }, [attachment.id, attachment.path, isImg]);
 
   const previewPhase = useMemo(
     () =>
@@ -145,8 +161,10 @@ export function AttachmentCard({
     if (key === "attach.preview.pending" && labels.previewPending) {
       return labels.previewPending;
     }
-    return attachment.path;
+    return attachment.id ? attachment.name : attachment.path;
   }, [
+    attachment.id,
+    attachment.name,
     attachment.path,
     labels.previewBroken,
     labels.previewMissing,
@@ -157,6 +175,7 @@ export function AttachmentCard({
   const showThumb = isImg && !!thumbSrc && !thumbFailed;
 
   const openPath = async () => {
+    if (attachment.id) return;
     try {
       if (api.isTauri()) await api.pathOpen(attachment.path);
     } catch (e) {
@@ -165,6 +184,7 @@ export function AttachmentCard({
   };
 
   const revealPath = async () => {
+    if (attachment.id) return;
     try {
       if (api.isTauri()) await api.pathReveal(attachment.path);
     } catch (e) {
@@ -173,6 +193,7 @@ export function AttachmentCard({
   };
 
   const copyPath = async () => {
+    if (attachment.id) return;
     try {
       await navigator.clipboard.writeText(attachment.path);
     } catch {
@@ -181,10 +202,21 @@ export function AttachmentCard({
   };
 
   const copyImage = async () => {
+    if (attachment.id) {
+      const src = attachmentIdToMediaHttpUrl(attachment.id, "original");
+      if (src) await copyImageFromSrc(src);
+      return;
+    }
     await copyImageFromPath(attachment.path);
   };
 
   const openInViewer = () => {
+    if (attachment.id) {
+      const src = attachmentIdToMediaHttpUrl(attachment.id, "original");
+      if (!src) return;
+      viewer.open([{ src, title: attachment.name }], 0);
+      return;
+    }
     const gallery =
       galleryPaths && galleryPaths.length > 0
         ? galleryPaths
@@ -211,15 +243,18 @@ export function AttachmentCard({
         else void openPath();
       },
     },
-    {
+  ];
+  // Store-backed refs have no OS path: hide reveal / copy-path / add.
+  if (!attachment.id) {
+    menuItems.push({
       id: "reveal",
       label: labels.reveal,
       icon: <IconFolder size={16} />,
       onClick: () => {
         void revealPath();
       },
-    },
-  ];
+    });
+  }
   if (isImg) {
     menuItems.push({
       id: "copy-image",
@@ -230,15 +265,17 @@ export function AttachmentCard({
       },
     });
   }
-  menuItems.push({
-    id: "copy-path",
-    label: labels.copyPath,
-    icon: <IconCopy size={16} />,
-    onClick: () => {
-      void copyPath();
-    },
-  });
-  if (onAddToComposer) {
+  if (!attachment.id) {
+    menuItems.push({
+      id: "copy-path",
+      label: labels.copyPath,
+      icon: <IconCopy size={16} />,
+      onClick: () => {
+        void copyPath();
+      },
+    });
+  }
+  if (onAddToComposer && !attachment.id) {
     menuItems.push({
       id: "add",
       label: labels.addToComposer,

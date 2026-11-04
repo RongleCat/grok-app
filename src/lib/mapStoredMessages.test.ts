@@ -27,6 +27,34 @@ describe("mapStoredMessages", () => {
     ]);
   });
 
+  it("keeps store-backed UUID refs without a path", () => {
+    const msg = mapStoredMessageToChat({
+      id: "u-2",
+      role: "user",
+      content: "看看这张图",
+      attachments: [
+        {
+          path: "",
+          name: "error.png",
+          isDir: false,
+          id: "0190c3d2-0000-7000-8000-000000000000",
+          kind: "image",
+          size: 1234,
+        },
+      ],
+    });
+    expect(msg.attachments).toEqual([
+      {
+        path: "",
+        name: "error.png",
+        isDir: false,
+        id: "0190c3d2-0000-7000-8000-000000000000",
+        kind: "image",
+        size: 1234,
+      },
+    ]);
+  });
+
   it("coerces non-string journal content so the thread can render (#1242)", () => {
     const msg = mapStoredMessageToChat({
       id: "a-obj",

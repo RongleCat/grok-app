@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  attachmentIdToMediaHttpUrl,
   clearImageSrcCache,
   isMediaEndpointReady,
   isViewableSrc,
@@ -11,8 +12,32 @@ import {
   setMediaEndpoint,
 } from "./imageSrc";
 
-describe("isViewableSrc", () => {
-  it("accepts http(s), data, blob, asset, media", () => {
+describe("attachmentIdToMediaHttpUrl", () => {
+  afterEach(() => {
+    resetMediaEndpointForTests();
+  });
+
+  it("builds thumb and original URLs by attachment id", () => {
+    setMediaEndpoint({ baseUrl: "http://127.0.0.1:49152/", token: "t k" });
+    expect(
+      attachmentIdToMediaHttpUrl(
+        "0190c3d2-0000-7000-8000-000000000000",
+        "thumb",
+      ),
+    ).toBe(
+      "http://127.0.0.1:49152/v1/attachment/0190c3d2-0000-7000-8000-000000000000?t=t%20k&variant=thumb",
+    );
+    expect(attachmentIdToMediaHttpUrl("id", "original")).toContain(
+      "variant=original",
+    );
+  });
+
+  it("returns null without an endpoint", () => {
+    expect(attachmentIdToMediaHttpUrl("id")).toBeNull();
+  });
+});
+
+describe("isViewableSrc", () => {  it("accepts http(s), data, blob, asset, media", () => {
     expect(isViewableSrc("https://example.com/a.png")).toBe(true);
     expect(isViewableSrc("http://example.com/a.png")).toBe(true);
     expect(isViewableSrc("data:image/png;base64,xx")).toBe(true);

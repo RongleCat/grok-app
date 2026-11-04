@@ -138,6 +138,20 @@ export function isMediaEndpointReady(): boolean {
 }
 
 /**
+ * Build a token-gated loopback URL for an attachment-store UUID.
+ * `variant` picks the Host-side 480px thumb or the original blob.
+ */
+export function attachmentIdToMediaHttpUrl(
+  id: string,
+  variant: "thumb" | "original" = "original",
+): string | null {
+  const ep = mediaEndpoint;
+  if (!ep?.baseUrl || !ep.token || !id) return null;
+  const base = ep.baseUrl.replace(/\/$/, "");
+  return `${base}/v1/attachment/${encodeURIComponent(id)}?t=${encodeURIComponent(ep.token)}&variant=${variant}`;
+}
+
+/**
  * Inject endpoint from Host (or tests). Clears the path→url cache so prior
  * nulls (server not ready) can re-resolve, and notifies dependent caches
  * (chat thumb displayCache) when the endpoint actually changed.

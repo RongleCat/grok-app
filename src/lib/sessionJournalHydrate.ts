@@ -153,6 +153,8 @@ export function refineJournalAttachments(
       if (!msg.attachments?.length) return msg;
       const nextAtts = msg.attachments
         .map((a) => {
+          // Store-backed refs are resolved by id and are never path-classified.
+          if (a.id) return a;
           if (!isDisplayableAttachmentPath(a.path)) return null;
           const remote = /^https?:\/\//i.test(a.path);
           const c = byPath.get(a.path);
@@ -173,8 +175,8 @@ export function refineJournalAttachments(
   } else if (opts.classifyFailed) {
     next = next.map((msg) => {
       if (!msg.attachments?.length) return msg;
-      const nextAtts = msg.attachments.filter((a) =>
-        isDisplayableAttachmentPath(a.path),
+      const nextAtts = msg.attachments.filter(
+        (a) => !!a.id || isDisplayableAttachmentPath(a.path),
       );
       return {
         ...msg,

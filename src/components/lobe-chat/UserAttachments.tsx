@@ -39,8 +39,9 @@ export function UserAttachments({
   const galleryPaths = useMemo(
     () =>
       attachments
-        .filter((x) => !x.isDir && isImagePath(x.path))
-        .map((x) => x.path),
+        .filter((x) => !x.isDir && (x.kind === "image" || isImagePath(x.path)))
+        .map((x) => x.path)
+        .filter(Boolean),
     [attachments],
   );
 
@@ -58,7 +59,7 @@ export function UserAttachments({
     >
       {visible.map((a) => (
         <AttachmentCard
-          key={a.path}
+          key={a.id || a.path}
           attachment={a}
           variant="card"
           labels={labels}

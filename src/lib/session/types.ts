@@ -38,6 +38,9 @@ export interface MessageAttachment {
   path: string;
   name: string;
   isDir: boolean;
+  id?: string;
+  kind?: string;
+  size?: number;
 }
 
 /** Tool step embedded in the assistant timeline (live stream order). */

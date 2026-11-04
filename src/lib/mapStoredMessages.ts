@@ -41,6 +41,9 @@ export type StoredJournalMessage = {
     path: string;
     name: string;
     isDir?: boolean;
+    id?: string | null;
+    kind?: string | null;
+    size?: number | null;
   }> | null;
 };
 
@@ -54,9 +57,14 @@ export function mapStoredMessageToChat(
   const journalText = asChatText(m.content);
   const parsed = parseAttachmentsFromContent(journalText);
   const storedAtts: Attachment[] = (m.attachments ?? []).map((a) => ({
-    path: a.path,
-    name: a.name || a.path.split(/[/\\]/).pop() || a.path,
+    path: a.path || "",
+    name:
+      a.name ||
+      (a.path ? a.path.split(/[/\\]/).pop() || a.path : a.id || "attachment"),
     isDir: !!a.isDir,
+    id: a.id || undefined,
+    kind: a.kind || undefined,
+    size: a.size ?? undefined,
   }));
   const attachments = mergeMessageAttachments(
     mergeAttachments(parsed.attachments, storedAtts),
@@ -97,6 +105,9 @@ export function mapStoredMessageToChat(
     path: a.path,
     name: a.name,
     isDir: a.isDir,
+    id: a.id,
+    kind: a.kind,
+    size: a.size,
   }));
   return {
     id: m.id,

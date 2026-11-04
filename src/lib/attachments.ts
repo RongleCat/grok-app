@@ -21,6 +21,11 @@ export interface Attachment {
   path: string;
   name: string;
   isDir: boolean;
+  /** AttachmentStore UUID; when set, preview uses `/v1/attachment/<id>`. */
+  id?: string;
+  /** Store kind (`image` / `file` / `audio` / `video`). */
+  kind?: string;
+  size?: number;
 }
 
 /**
@@ -38,8 +43,8 @@ export function mergeAttachments(
   const order: string[] = [];
   const put = (a: Attachment) => {
     const raw = pathTokenText(a.path).trim();
-    if (!raw) return;
-    const key = localPathIdentity(raw);
+    const key = a.id ? `id:${a.id}` : localPathIdentity(raw);
+    if (!key) return;
     const existing = map.get(key);
     if (!existing) {
       order.push(key);
@@ -888,6 +893,8 @@ export function filterAttachmentsNotInlined(
     extractMediaPathsFromContent(content).map((a) => localPathIdentity(a.path)),
   );
   const out = attachments.filter((a) => {
+    // Store-backed refs have no local path; the Host resolves them by id.
+    if (a.id) return true;
     // Hide unopenable false extracts (paperclip that cannot preview).
     if (!isDisplayableAttachmentPath(a.path)) return false;
     if (a.isDir || !isMediaPath(a.path)) return true;

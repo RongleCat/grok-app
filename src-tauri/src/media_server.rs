@@ -19,13 +19,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::extract::{Query, Request, State};
+use axum::extract::{Path as AxumPath, Query, Request, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use rand::RngCore;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 
@@ -105,6 +105,15 @@ struct MediaQuery {
     p: String,
 }
 
+#[derive(Deserialize)]
+struct AttachmentQuery {
+    /// Shared secret from `media_server_endpoint`.
+    t: String,
+    /// `thumb` or `original` (default).
+    #[serde(default)]
+    variant: Option<String>,
+}
+
 fn is_browser_safe_media_port(port: u16) -> bool {
     (MEDIA_PORT_MIN..=MEDIA_PORT_MAX).contains(&port)
 }
@@ -156,6 +165,12 @@ pub async fn start() -> Result<MediaServerHandle, String> {
         .route(
             "/v1/media",
             get(media_get).head(media_get).options(media_options),
+        )
+        .route(
+            "/v1/attachment/{id}",
+            get(attachment_get)
+                .head(attachment_get)
+                .options(media_options),
         )
         .route("/v1/health", get(health))
         .fallback(fallback_not_found)
@@ -367,6 +382,76 @@ async fn media_options(req: Request<Body>) -> Response {
     headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
     headers.insert(header::VARY, HeaderValue::from_static("Origin"));
     (StatusCode::NO_CONTENT, headers, Body::empty()).into_response()
+}
+
+async fn attachment_get(
+    State(state): State<ServerState>,
+    AxumPath(id): AxumPath<String>,
+    Query(q): Query<AttachmentQuery>,
+    req: Request<Body>,
+) -> Response {
+    let acao = cors_origin_from_headers(req.headers());
+    if !request_origin_allowed(req.headers()) {
+        return text_status_cors(StatusCode::FORBIDDEN, "origin not allowed", acao);
+    }
+    if !tokens_equal(state.token.as_str(), &q.t) {
+        return text_status_cors(StatusCode::UNAUTHORIZED, "unauthorized", acao);
+    }
+    let variant = q.variant.as_deref().unwrap_or("original");
+    if variant != "thumb" && variant != "original" {
+        return text_status_cors(StatusCode::BAD_REQUEST, "unknown variant", acao);
+    }
+
+    let store = match crate::attachments::shared() {
+        Ok(store) => store,
+        Err(err) => {
+            tracing::warn!(error = %err, "media server: attachment store unavailable");
+            return text_status_cors(StatusCode::NOT_FOUND, "attachment not found", acao);
+        }
+    };
+    let meta = match store.metadata(&id) {
+        Ok(meta) => meta,
+        Err(_) => return text_status_cors(StatusCode::NOT_FOUND, "attachment not found", acao),
+    };
+    let path = match store.materialize(&id) {
+        Ok(path) => path,
+        Err(_) => return text_status_cors(StatusCode::NOT_FOUND, "attachment not found", acao),
+    };
+    let path = if variant == "thumb" && meta.kind == crate::attachments::AttachmentKind::Image {
+        let source = path.to_string_lossy().to_string();
+        match tokio::task::spawn_blocking(move || {
+            crate::image_thumb::ensure_local_image_thumb(&source)
+        })
+        .await
+        {
+            Ok(Ok(thumb)) => PathBuf::from(thumb.thumb_path),
+            _ => path,
+        }
+    } else {
+        path
+    };
+
+    let method = req.method().clone();
+    let range_hdr = req
+        .headers()
+        .get(header::RANGE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let result = tokio::task::spawn_blocking(move || {
+        read_file_chunk(&path, range_hdr.as_deref(), method == Method::HEAD)
+    })
+    .await;
+    match result {
+        Ok(Ok(mut chunk)) => {
+            chunk.cors_origin = acao;
+            chunk.into_response()
+        }
+        Ok(Err((status, msg))) => text_status_cors(status, msg, acao),
+        Err(e) => {
+            tracing::error!(error = %e, "media server: attachment join error");
+            text_status_cors(StatusCode::INTERNAL_SERVER_ERROR, "internal error", acao)
+        }
+    }
 }
 
 async fn media_get(
