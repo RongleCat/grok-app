@@ -71,16 +71,21 @@ pub async fn gc_if_due() {
     }
     let store_for_gc = store.clone();
     let result = tokio::task::spawn_blocking(move || store_for_gc.gc(SystemTime::now())).await;
-    if let Ok(Ok(report)) = result {
-        tracing::info!(
-            sessions = report.sessions_scanned,
-            marked = report.attachments_marked,
-            deleted = report.attachments_deleted,
-            blobs = report.blobs_deleted,
-            bytes = report.bytes_freed,
-            errors = report.errors.len(),
-            "attachment gc complete"
-        );
-        let _ = std::fs::write(store.root_dir().join("last_gc"), b"");
+    match result {
+        Ok(Ok(report)) => {
+            tracing::info!(
+                sessions = report.sessions_scanned,
+                marked = report.attachments_marked,
+                deleted = report.attachments_deleted,
+                blobs = report.blobs_deleted,
+                orphans = report.orphan_files_deleted,
+                bytes = report.bytes_freed,
+                errors = report.errors.len(),
+                "attachment gc complete"
+            );
+            let _ = std::fs::write(store.root_dir().join("last_gc"), b"");
+        }
+        Ok(Err(err)) => tracing::warn!(error = %err, "attachment gc aborted"),
+        Err(err) => tracing::warn!(error = %err, "attachment gc task failed"),
     }
 }

@@ -8,7 +8,8 @@ use super::AttachmentStore;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub const GC_GRACE_SECS: i64 = 24 * 60 * 60;
 
@@ -19,6 +20,7 @@ pub struct GcReport {
     pub attachments_marked: usize,
     pub attachments_deleted: usize,
     pub blobs_deleted: usize,
+    pub orphan_files_deleted: usize,
     pub bytes_freed: u64,
     pub skipped_young: usize,
     pub errors: Vec<String>,
@@ -51,8 +53,9 @@ impl AttachmentStore {
                 continue;
             };
             if !valid_session_id(id) {
-                report.errors.push(format!("invalid session id: {id}"));
-                continue;
+                // Corrupt index entry: fail closed instead of guessing which
+                // refs it might contain.
+                return Err(format!("attachment gc: invalid session id: {id}"));
             }
             all_sessions.insert(id.to_string());
             let Some(channel) = session.get("remoteIm").and_then(|v| v.as_str()) else {
@@ -66,15 +69,15 @@ impl AttachmentStore {
                 Ok(raw) => raw,
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(err) => {
-                    report.errors.push(format!("{id}: read journal: {err}"));
-                    continue;
+                    // A read error must abort the sweep: otherwise this
+                    // session's refs look unreferenced and could be deleted.
+                    return Err(format!("attachment gc: read journal {id}: {err}"));
                 }
             };
             let rows: Vec<serde_json::Value> = match serde_json::from_slice(&raw) {
                 Ok(rows) => rows,
                 Err(err) => {
-                    report.errors.push(format!("{id}: parse journal: {err}"));
-                    continue;
+                    return Err(format!("attachment gc: parse journal {id}: {err}"));
                 }
             };
             for row in rows {
@@ -192,7 +195,75 @@ impl AttachmentStore {
                 Err(err) => report.errors.push(format!("{sha}: delete blob row: {err}")),
             }
         }
+        let known: HashSet<String> = {
+            let mut stmt = conn
+                .prepare("SELECT sha256 FROM blobs")
+                .map_err(|e| format!("attachment gc: prepare known blobs: {e}"))?;
+            let rows = stmt
+                .query_map([], |row| row.get::<_, String>(0))
+                .map_err(|e| format!("attachment gc: query known blobs: {e}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("attachment gc: read known blobs: {e}"))?;
+            rows.into_iter().collect()
+        };
+        sweep_orphan_files(self.root_dir(), now, &known, &mut report);
         Ok(report)
+    }
+}
+
+/// Remove blob dirs / staging files that no index row owns. These appear when
+/// a crash happens between renaming the file and committing the DB row, or
+/// when a download is abandoned.
+fn sweep_orphan_files(
+    root: &Path,
+    now: SystemTime,
+    known: &HashSet<String>,
+    report: &mut GcReport,
+) {
+    let Some(cutoff) = now.checked_sub(Duration::from_secs(GC_GRACE_SECS as u64)) else {
+        return;
+    };
+    let blobs = root.join("blobs");
+    if let Ok(entries) = fs::read_dir(&blobs) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.len() != 64 || !name.chars().all(|c| c.is_ascii_hexdigit()) {
+                continue;
+            }
+            if known.contains(&name) {
+                continue;
+            }
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            if !meta.is_dir() || meta.modified().map(|m| m >= cutoff).unwrap_or(true) {
+                continue;
+            }
+            match fs::remove_dir_all(entry.path()) {
+                Ok(()) => report.orphan_files_deleted += 1,
+                Err(err) => report
+                    .errors
+                    .push(format!("orphan blob {name}: remove: {err}")),
+            }
+        }
+    }
+
+    let staging = root.join("staging");
+    if let Ok(entries) = fs::read_dir(&staging) {
+        for entry in entries.flatten() {
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            if !meta.is_file() || meta.modified().map(|m| m >= cutoff).unwrap_or(true) {
+                continue;
+            }
+            match fs::remove_file(entry.path()) {
+                Ok(()) => report.orphan_files_deleted += 1,
+                Err(err) => report
+                    .errors
+                    .push(format!("orphan staging file: remove: {err}")),
+            }
+        }
     }
 }
 
@@ -368,5 +439,39 @@ mod tests {
         let report = h.store.gc(std::time::SystemTime::now()).expect("gc");
         assert!(report.errors.is_empty(), "{:?}", report.errors);
         assert!(h.store.metadata(&id).is_err());
+    }
+
+    #[test]
+    fn journal_read_error_aborts_gc() {
+        let h = Harness::new();
+        let id = h.put("s1", b"keep");
+        h.index(&[("s1", false)]);
+        h.age(&id, 0);
+        // A directory at messages.json makes fs::read fail; GC must abort
+        // instead of treating the refs as missing.
+        let dir = h.base.join("sessions/s1/messages.json");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let err = h.store.gc(std::time::SystemTime::now()).expect_err("fail");
+        assert!(err.contains("read journal"), "{err}");
+        assert!(h.store.metadata(&id).is_ok());
+    }
+
+    #[test]
+    fn sweeps_orphan_blob_dirs_and_staging_files() {
+        let h = Harness::new();
+        let sha = "a".repeat(64);
+        let orphan = h.base.join("store/blobs").join(&sha);
+        std::fs::create_dir_all(&orphan).unwrap();
+        std::fs::write(orphan.join("leftover.bin"), b"x").unwrap();
+        let staging = h.base.join("store/staging/old.part");
+        std::fs::write(&staging, b"x").unwrap();
+        h.index(&[]);
+
+        let future = std::time::SystemTime::now() + Duration::from_secs(2 * 86_400);
+        let report = h.store.gc(future).expect("gc");
+        assert!(!orphan.exists());
+        assert!(!staging.exists());
+        assert_eq!(report.orphan_files_deleted, 2);
     }
 }
