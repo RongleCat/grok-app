@@ -62,16 +62,10 @@ pub struct AttachmentRef {
     pub size: u64,
 }
 
-/// Store-facing metadata; callers may read only the fields they need.
-#[allow(dead_code)]
+/// Store-facing metadata used by preview routing.
 #[derive(Debug, Clone)]
 pub struct AttachmentMeta {
-    pub id: String,
-    pub name: String,
     pub kind: AttachmentKind,
-    pub size: u64,
-    pub origin: String,
-    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -345,33 +339,17 @@ impl AttachmentStore {
         let conn = self.lock_conn()?;
         let row = conn
             .query_row(
-                "SELECT a.id, a.name, a.kind, a.origin, a.session_id, b.size
-                   FROM attachments a JOIN blobs b ON b.sha256 = a.sha256
-                  WHERE a.id = ?1",
+                "SELECT a.kind FROM attachments a WHERE a.id = ?1",
                 params![id],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
-                        row.get::<_, Option<String>>(4)?,
-                        row.get::<_, i64>(5)?,
-                    ))
-                },
+                |row| row.get::<_, String>(0),
             )
             .optional()
             .map_err(|e| format!("attachment store: read metadata: {e}"))?;
-        let Some((id, name, kind, origin, session_id, size)) = row else {
+        let Some(kind) = row else {
             return Err("attachment not found".into());
         };
         Ok(AttachmentMeta {
-            id,
-            name,
             kind: AttachmentKind::parse(&kind).unwrap_or(AttachmentKind::File),
-            size: size as u64,
-            origin,
-            session_id,
         })
     }
 
@@ -471,22 +449,7 @@ impl AttachmentStore {
         };
         let rows: Vec<serde_json::Value> = serde_json::from_slice(&raw)
             .map_err(|e| format!("attachment store: parse session journal: {e}"))?;
-        let mut ids = HashSet::new();
-        for row in rows {
-            let Some(attachments) = row.get("attachments").and_then(|value| value.as_array())
-            else {
-                continue;
-            };
-            for attachment in attachments {
-                let Some(id) = attachment.get("id").and_then(|value| value.as_str()) else {
-                    continue;
-                };
-                if Uuid::parse_str(id).is_ok() {
-                    ids.insert(id.to_string());
-                }
-            }
-        }
-        Ok(ids.into_iter().collect())
+        Ok(attachment_ids_from_rows(&rows).into_iter().collect())
     }
 
     pub(super) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
@@ -542,6 +505,25 @@ fn validate_meta(origin: &str, session_id: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+/// Attachment ids referenced by a parsed `messages.json` array.
+pub(super) fn attachment_ids_from_rows(rows: &[serde_json::Value]) -> HashSet<String> {
+    let mut ids = HashSet::new();
+    for row in rows {
+        let Some(attachments) = row.get("attachments").and_then(|value| value.as_array()) else {
+            continue;
+        };
+        for attachment in attachments {
+            let Some(id) = attachment.get("id").and_then(|value| value.as_str()) else {
+                continue;
+            };
+            if Uuid::parse_str(id).is_ok() {
+                ids.insert(id.to_string());
+            }
+        }
+    }
+    ids
+}
+
 fn validate_attachment_id(id: &str) -> Result<(), String> {
     let parsed = Uuid::parse_str(id).map_err(|_| "invalid attachment id".to_string())?;
     if parsed.get_version_num() != 7 {
@@ -550,7 +532,7 @@ fn validate_attachment_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_session_id(session_id: &str) -> Result<(), String> {
+pub(super) fn validate_session_id(session_id: &str) -> Result<(), String> {
     if session_id.is_empty()
         || session_id.len() > 64
         || !session_id
@@ -623,7 +605,7 @@ fn remove_file_best_effort(path: &Path) {
     let _ = fs::remove_file(path);
 }
 
-fn create_staging_file(path: &Path) -> std::io::Result<fs::File> {
+pub(crate) fn create_staging_file(path: &Path) -> std::io::Result<fs::File> {
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -747,15 +729,11 @@ mod tests {
     }
 
     #[test]
-    fn metadata_round_trips() {
+    fn metadata_returns_kind() {
         let test = TestStore::new();
         let attachment = put(&test.store, "shot.png", b"png");
         let meta = test.store.metadata(&attachment.id).expect("metadata");
-        assert_eq!(meta.name, "shot.png");
         assert_eq!(meta.kind, AttachmentKind::Image);
-        assert_eq!(meta.origin, "remote:feishu");
-        assert_eq!(meta.session_id.as_deref(), Some("session-1"));
-        assert_eq!(meta.size, 3);
     }
 
     #[test]

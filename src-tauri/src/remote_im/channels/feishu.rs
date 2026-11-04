@@ -1307,15 +1307,7 @@ async fn fetch_message_to_staging(
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
 
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let mut file = options
-        .open(temp_path)
+    let mut file = crate::attachments::create_staging_file(temp_path)
         .map_err(|e| format!("feishu media: create staging: {e}"))?;
     let mut hasher = Sha256::new();
     let mut total = 0usize;

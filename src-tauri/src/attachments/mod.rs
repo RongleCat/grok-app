@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 pub use gc::GcReport;
+pub(crate) use store::create_staging_file;
 pub use store::{
     file_sha256, AttachmentKind, AttachmentRef, AttachmentStore, NewAttachmentFile,
     NewAttachmentMeta, StagedAttachment, MAX_FILE_BYTES, MAX_SESSION_BYTES,

@@ -4,6 +4,7 @@
 //! attachment ids. Sweep: delete old unmarked attachment rows, then blobs that
 //! no row references. A 24h grace covers the write-before-journal window.
 
+use super::store::{attachment_ids_from_rows, validate_session_id};
 use super::AttachmentStore;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -52,18 +53,17 @@ impl AttachmentStore {
             let Some(id) = session.get("id").and_then(|v| v.as_str()) else {
                 continue;
             };
-            if !valid_session_id(id) {
+            if let Err(err) = validate_session_id(id) {
                 // Corrupt index entry: fail closed instead of guessing which
                 // refs it might contain.
-                return Err(format!("attachment gc: invalid session id: {id}"));
+                return Err(format!("attachment gc: invalid session id {id}: {err}"));
             }
             all_sessions.insert(id.to_string());
-            let Some(channel) = session.get("remoteIm").and_then(|v| v.as_str()) else {
+            if session.get("remoteIm").and_then(|v| v.as_str()).is_none() {
                 continue;
-            };
+            }
             remote_sessions.insert(id.to_string());
             report.sessions_scanned += 1;
-            let _ = channel;
             let journal = self.sessions_dir().join(id).join("messages.json");
             let raw = match fs::read(&journal) {
                 Ok(raw) => raw,
@@ -80,15 +80,8 @@ impl AttachmentStore {
                     return Err(format!("attachment gc: parse journal {id}: {err}"));
                 }
             };
-            for row in rows {
-                let Some(attachments) = row.get("attachments").and_then(|v| v.as_array()) else {
-                    continue;
-                };
-                for attachment in attachments {
-                    if let Some(att_id) = attachment.get("id").and_then(|v| v.as_str()) {
-                        marked.insert(att_id.to_string());
-                    }
-                }
+            for id in attachment_ids_from_rows(&rows) {
+                marked.insert(id);
             }
         }
         report.attachments_marked = marked.len();
@@ -265,14 +258,6 @@ fn sweep_orphan_files(
             }
         }
     }
-}
-
-fn valid_session_id(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 64
-        && value
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 #[cfg(test)]
