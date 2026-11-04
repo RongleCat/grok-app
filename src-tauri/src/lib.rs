@@ -9,6 +9,8 @@ mod acp_client;
 #[cfg(test)]
 mod acp_golden_test;
 
+mod attachments;
+
 mod agent_auto_wake;
 
 mod agent_codebase_indexing;

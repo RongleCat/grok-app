@@ -1029,13 +1029,25 @@ pub struct SecretsFile {
 }
 
 /// File/image card persisted with a chat message (user attach or agent image_gen).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageAttachmentStored {
+    /// AttachmentStore UUIDv7. Present for remote-control media; absent on
+    /// legacy path rows and remote URLs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Legacy / agent-output path, or a remote `http(s)` URL. Empty when the
+    /// row is backed by an attachment id.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub path: String,
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub is_dir: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

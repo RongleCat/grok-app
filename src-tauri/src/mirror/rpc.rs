@@ -447,6 +447,7 @@ fn param_attachments(params: &Value) -> Option<Vec<store::MessageAttachmentStore
             path: path.to_string(),
             name,
             is_dir,
+            ..Default::default()
         });
     }
     if out.is_empty() {

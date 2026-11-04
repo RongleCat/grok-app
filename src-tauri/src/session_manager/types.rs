@@ -1798,6 +1798,7 @@ pub(super) fn attachment_from_path(path: &str) -> MessageAttachmentStored {
         path,
         name,
         is_dir: false,
+        ..Default::default()
     }
 }
 
@@ -2094,6 +2095,7 @@ mod journal_attach_tests {
             path: path.to_string(),
             name: path.rsplit('/').next().unwrap_or(path).to_string(),
             is_dir: false,
+            ..Default::default()
         }
     }
 

@@ -40,6 +40,7 @@ pub async fn session_resolve_relative_media(
             path,
             name,
             is_dir: false,
+            ..Default::default()
         });
     }
     Ok(out)
