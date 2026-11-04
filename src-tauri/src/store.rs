@@ -2880,6 +2880,8 @@ pub fn fork_session(
     meta.effort = source.effort.clone();
     meta.mode = source.mode.clone();
     meta.permission_policy = source.permission_policy.clone();
+    // Forked remote chats keep the GC marker so shared refs stay marked.
+    meta.remote_im = source.remote_im.clone();
     // Worktree linkage follows the source project/cwd story.
     meta.worktree_path = source.worktree_path.clone();
     meta.worktree_branch = source.worktree_branch.clone();
