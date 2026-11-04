@@ -1212,7 +1212,11 @@ fn media_display_name(item: &InboundMedia, content_type: Option<&str>) -> String
             AttachmentKind::Video => "mp4".into(),
             AttachmentKind::File => "bin".into(),
         });
-    if let Some(name) = item.file_name.as_deref().and_then(sanitize_file_name) {
+    if let Some(name) = item
+        .file_name
+        .as_deref()
+        .and_then(crate::attachments::sanitize_file_name)
+    {
         if Path::new(&name).extension().is_some() {
             return name;
         }
@@ -1225,24 +1229,6 @@ fn media_display_name(item: &InboundMedia, content_type: Option<&str>) -> String
         AttachmentKind::File => "attachment",
     };
     format!("{stem}.{ext}")
-}
-
-/// Keep the original file name recognizable while stripping path separators,
-/// control characters and anything a filesystem may reject.
-fn sanitize_file_name(raw: &str) -> Option<String> {
-    let base = std::path::Path::new(raw.trim())
-        .file_name()?
-        .to_string_lossy()
-        .into_owned();
-    let cleaned: String = base
-        .chars()
-        .filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | ' '))
-        .collect();
-    let cleaned = cleaned.trim().trim_matches('.').trim().to_string();
-    if cleaned.is_empty() {
-        return None;
-    }
-    Some(cleaned.chars().take(80).collect())
 }
 
 fn extension_for_content_type(content_type: &str) -> Option<String> {
@@ -1735,6 +1721,7 @@ mod md_tests {
 #[cfg(test)]
 mod inbound_media_tests {
     use super::*;
+    use crate::attachments::sanitize_file_name;
 
     fn instance() -> ChannelInstance {
         ChannelInstance {

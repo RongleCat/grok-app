@@ -552,10 +552,14 @@ fn ensure_file_size(size: u64) -> Result<(), String> {
 }
 
 fn sanitize_name(raw: &str) -> String {
+    sanitize_file_name(raw).unwrap_or_else(|| "attachment".into())
+}
+
+/// Safe single path component for display and storage.
+pub(crate) fn sanitize_file_name(raw: &str) -> Option<String> {
     let base = Path::new(raw.trim())
         .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
+        .map(|name| name.to_string_lossy().into_owned())?;
     let cleaned: String = base
         .chars()
         .filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | ' '))
@@ -563,9 +567,9 @@ fn sanitize_name(raw: &str) -> String {
     let cleaned = cleaned.trim().trim_matches('.').trim();
     let cleaned: String = cleaned.chars().take(MAX_NAME_CHARS).collect();
     if cleaned.is_empty() || cleaned == "." || cleaned == ".." {
-        "attachment".into()
+        None
     } else {
-        cleaned
+        Some(cleaned)
     }
 }
 
