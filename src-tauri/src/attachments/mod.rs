@@ -7,7 +7,8 @@
 mod gc;
 mod store;
 
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
 
 pub use gc::GcReport;
@@ -18,6 +19,8 @@ pub use store::{
 };
 
 const GC_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+static GC_QUEUED: AtomicBool = AtomicBool::new(false);
+static GC_LOCK: Mutex<()> = Mutex::new(());
 
 /// Process-wide store used by the remote-control bridge. The first caller
 /// initializes the app-data root; later callers share the same SQLite handle.
@@ -41,17 +44,31 @@ pub fn cleanup_legacy_media() {
     }
 }
 
-/// Run GC now (Host command / tests).
+/// Run GC now (Host command / tests). One run at a time.
 pub fn gc_now() -> Result<GcReport, String> {
+    let _guard = GC_LOCK
+        .lock()
+        .map_err(|_| "attachment gc: lock poisoned".to_string())?;
     shared()?.gc(SystemTime::now())
 }
 
-/// Debounced GC after session deletion / rewind.
+/// Debounced GC after session deletion / rewind. Concurrent requests coalesce.
 pub fn schedule_gc() {
+    if GC_QUEUED.swap(true, Ordering::SeqCst) {
+        return;
+    }
     let Ok(handle) = tokio::runtime::Handle::try_current() else {
+        GC_QUEUED.store(false, Ordering::SeqCst);
         return;
     };
     handle.spawn(async {
+        struct ClearQueued;
+        impl Drop for ClearQueued {
+            fn drop(&mut self) {
+                GC_QUEUED.store(false, Ordering::SeqCst);
+            }
+        }
+        let _clear = ClearQueued;
         tokio::time::sleep(Duration::from_secs(30)).await;
         let _ = tokio::task::spawn_blocking(gc_now).await;
     });
@@ -70,8 +87,7 @@ pub async fn gc_if_due() {
             }
         }
     }
-    let store_for_gc = store.clone();
-    let result = tokio::task::spawn_blocking(move || store_for_gc.gc(SystemTime::now())).await;
+    let result = tokio::task::spawn_blocking(gc_now).await;
     match result {
         Ok(Ok(report)) => {
             tracing::info!(

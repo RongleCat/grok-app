@@ -105,7 +105,9 @@ pub async fn session_rewind_drop_last_user(
     mgr: State<'_, Arc<SessionManager>>,
     session_id: Option<String>,
 ) -> Result<SessionSnapshot, String> {
-    mgr.rewind_drop_last_user_turn(app, session_id).await
+    let result = mgr.rewind_drop_last_user_turn(app, session_id).await?;
+    crate::attachments::schedule_gc();
+    Ok(result)
 }
 
 /// List rewind points (one per user prompt) for a session journal.
