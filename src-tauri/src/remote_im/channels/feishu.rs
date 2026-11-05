@@ -1361,24 +1361,19 @@ pub async fn send_media(
     let domain = open_domain(channel, options);
     let base = format!("https://{domain}");
     let client = http_client()?;
-    let source = path.to_path_buf();
-    let bytes = tokio::task::spawn_blocking(move || std::fs::read(source))
-        .await
-        .map_err(|e| format!("media read task: {e}"))?
-        .map_err(|e| format!("media read: {e}"))?;
 
     // Feishu images cap at 10 MB; larger images are uploaded as files.
     let (msg_type, content) = if kind == AttachmentKind::Image && meta.len() <= 10 * 1024 * 1024 {
-        match upload_image(&client, &base, &token, &bytes, name).await {
+        match upload_image(&client, &base, &token, path, name).await {
             Ok(image_key) => ("image", json!({ "image_key": image_key })),
             Err(err) => {
                 tracing::warn!(error = %err, "feishu image upload failed; retry as file");
-                let file_key = upload_file(&client, &base, &token, &bytes, name).await?;
+                let file_key = upload_file(&client, &base, &token, path, name).await?;
                 ("file", json!({ "file_key": file_key }))
             }
         }
     } else {
-        let file_key = upload_file(&client, &base, &token, &bytes, name).await?;
+        let file_key = upload_file(&client, &base, &token, path, name).await?;
         match kind {
             AttachmentKind::Audio => ("audio", json!({ "file_key": file_key })),
             AttachmentKind::Video => ("media", json!({ "file_key": file_key })),
@@ -1392,7 +1387,7 @@ pub async fn send_media(
     .await
     {
         if msg_type == "audio" || msg_type == "media" {
-            let file_key = upload_file(&client, &base, &token, &bytes, name).await?;
+            let file_key = upload_file(&client, &base, &token, path, name).await?;
             send_native_message(
                 &client,
                 &base,
@@ -1410,17 +1405,59 @@ pub async fn send_media(
     Ok(())
 }
 
+/// Stream a local file into a multipart part without loading it into memory.
+async fn file_part(
+    path: &Path,
+    name: &str,
+    mime: &str,
+) -> Result<reqwest::multipart::Part, String> {
+    let len = std::fs::metadata(path)
+        .map_err(|e| format!("media stat: {e}"))?
+        .len();
+    let path = path.to_path_buf();
+    let (tx, rx) = tokio::sync::mpsc::channel::<std::io::Result<Vec<u8>>>(4);
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut file = match std::fs::File::open(&path) {
+            Ok(file) => file,
+            Err(err) => {
+                let _ = tx.blocking_send(Err(err));
+                return;
+            }
+        };
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            match file.read(&mut buf) {
+                Ok(0) => break,
+                Ok(read) => {
+                    if tx.blocking_send(Ok(buf[..read].to_vec())).is_err() {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    let _ = tx.blocking_send(Err(err));
+                    break;
+                }
+            }
+        }
+    });
+    let stream = futures_util::stream::unfold(rx, |mut rx| async move {
+        rx.recv().await.map(|item| (item, rx))
+    });
+    reqwest::multipart::Part::stream_with_length(reqwest::Body::wrap_stream(stream), len)
+        .file_name(name.to_string())
+        .mime_str(mime)
+        .map_err(|e| format!("media mime: {e}"))
+}
+
 async fn upload_image(
     client: &reqwest::Client,
     base: &str,
     token: &str,
-    bytes: &[u8],
+    path: &Path,
     name: &str,
 ) -> Result<String, String> {
-    let part = reqwest::multipart::Part::bytes(bytes.to_vec())
-        .file_name(name.to_string())
-        .mime_str(mime_for_name(name))
-        .map_err(|e| format!("image mime: {e}"))?;
+    let part = file_part(path, name, mime_for_name(name)).await?;
     let form = reqwest::multipart::Form::new()
         .text("image_type", "message")
         .part("image", part);
@@ -1452,13 +1489,10 @@ async fn upload_file(
     client: &reqwest::Client,
     base: &str,
     token: &str,
-    bytes: &[u8],
+    path: &Path,
     name: &str,
 ) -> Result<String, String> {
-    let part = reqwest::multipart::Part::bytes(bytes.to_vec())
-        .file_name(name.to_string())
-        .mime_str("application/octet-stream")
-        .map_err(|e| format!("file mime: {e}"))?;
+    let part = file_part(path, name, "application/octet-stream").await?;
     let form = reqwest::multipart::Form::new()
         .text("file_type", file_type_for_name(name))
         .text("file_name", name.to_string())
