@@ -3,6 +3,8 @@
 pub mod dingtalk;
 pub mod discord;
 pub mod feishu;
+mod feishu_media;
+mod feishu_upload;
 pub mod generic;
 pub mod imessage;
 pub mod line;
