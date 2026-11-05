@@ -1,7 +1,11 @@
 /**
  * Settings → runtime section (consumes SettingsModel context).
  */
+import { useState } from "react";
+
 import { useSettingsModel } from "@/providers/SettingsModelContext";
+
+import * as api from "@/lib/api";
 
 import { Select } from "@/components/Select";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -100,6 +104,28 @@ export function RuntimeSection() {
     useLeader,
     workflowsEnabled,
   } = s;
+
+  const [attachmentGcReport, setAttachmentGcReport] =
+    useState<api.AttachmentsGcReport | null>(null);
+  const [attachmentGcBusy, setAttachmentGcBusy] = useState(false);
+  const runAttachmentGc = async () => {
+    setAttachmentGcBusy(true);
+    try {
+      const report = await api.attachmentsGc();
+      setAttachmentGcReport(report);
+      showSettingsToast?.(
+        t("settings.attachmentGcSummary", {
+          deleted: report.attachmentsDeleted,
+          blobs: report.blobsDeleted,
+        }),
+        3000,
+      );
+    } catch {
+      showSettingsToast?.(t("settings.attachmentGcFailed"), 3000);
+    } finally {
+      setAttachmentGcBusy(false);
+    }
+  };
 
   return (
     <>
@@ -736,6 +762,35 @@ export function RuntimeSection() {
                       onClick={onDoctor}
                     >
                       {t("settings.runDoctor")}
+                    </button>
+                  </div>
+                  <div className="settings-row">
+                    <div className="settings-row__text">
+                      <div className="settings-row__label">
+                        <IconArchive size={16} />
+                        {t("settings.attachmentStore")}
+                      </div>
+                      <div className="settings-row__desc">
+                        {t("settings.attachmentStoreDesc")}
+                      </div>
+                      {attachmentGcReport ? (
+                        <div className="settings-row__desc">
+                          {t("settings.attachmentGcSummary", {
+                            deleted: attachmentGcReport.attachmentsDeleted,
+                            blobs: attachmentGcReport.blobsDeleted,
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--ghost settings-row__action"
+                      disabled={attachmentGcBusy}
+                      onClick={() => void runAttachmentGc()}
+                    >
+                      {attachmentGcBusy
+                        ? t("doctor.loading")
+                        : t("settings.attachmentGcRun")}
                     </button>
                   </div>
                 </div>
