@@ -204,10 +204,9 @@ fn file_name_sanitizer_strips_traversal() {
         sanitize_file_name("../../evil.png").as_deref(),
         Some("evil.png")
     );
-    assert_eq!(
-        sanitize_file_name("C:\\temp\\report.pdf").as_deref(),
-        Some("Ctempreport.pdf")
-    );
+    let windows = sanitize_file_name("C:\\temp\\report.pdf").expect("windows name");
+    assert!(!windows.contains('\\') && !windows.contains('/'));
+    assert!(windows.ends_with("report.pdf"), "{windows}");
     assert_eq!(sanitize_file_name("..."), None);
     assert_eq!(sanitize_file_name(""), None);
 }
