@@ -159,6 +159,23 @@ impl SessionAttachmentBudget {
     }
 }
 
+struct InboundPreparation {
+    prompt: String,
+    attachments: Vec<AttachmentRef>,
+    display: String,
+}
+
+struct OutboundPreparation {
+    prepared: Vec<(super::outbound_media::OutboundCandidate, AttachmentRef)>,
+    errors: Vec<String>,
+}
+
+struct OutboundSendResult {
+    sent: Vec<AttachmentRef>,
+    sent_lines: Vec<usize>,
+    notes: Vec<String>,
+}
+
 impl Engine {
     pub fn new(outbound: OutboundRouter, allow_remote_yolo: bool) -> Self {
         let store = SessionStore::open_default();
@@ -1487,18 +1504,26 @@ impl Engine {
         user_text: &str,
         staged: &mut StagedGuard,
         budget: &mut SessionAttachmentBudget,
-    ) -> (String, Vec<AttachmentRef>, String) {
+    ) -> InboundPreparation {
         let display = user_text.trim().to_string();
         let mut notes: Vec<String> = msg.attachment_note.iter().cloned().collect();
         if staged.is_empty() {
-            return (build_prompt_text(&display, &notes), Vec::new(), display);
+            return InboundPreparation {
+                prompt: build_prompt_text(&display, &notes),
+                attachments: Vec::new(),
+                display,
+            };
         }
         let store = match crate::attachments::shared() {
             Ok(store) => store,
             Err(err) => {
                 push_prompt_note(&mut notes, &err);
                 staged.finish();
-                return (build_prompt_text(&display, &notes), Vec::new(), display);
+                return InboundPreparation {
+                    prompt: build_prompt_text(&display, &notes),
+                    attachments: Vec::new(),
+                    display,
+                };
             }
         };
         let session_id = budget.session_id.clone();
@@ -1564,7 +1589,11 @@ impl Engine {
         if prompt.trim().is_empty() {
             prompt = i18n::t(&self.lang(), MessageKey::AttachmentProcessingFailed).to_string();
         }
-        (prompt, attachments, display)
+        InboundPreparation {
+            prompt,
+            attachments,
+            display,
+        }
     }
 
     /// Validate, import and budget outbound files the agent wants to send.
@@ -1574,16 +1603,21 @@ impl Engine {
         binding: &ScopeBinding,
         candidates: Vec<super::outbound_media::OutboundCandidate>,
         budget: &mut SessionAttachmentBudget,
-    ) -> (
-        Vec<(super::outbound_media::OutboundCandidate, AttachmentRef)>,
-        Vec<String>,
-    ) {
+    ) -> OutboundPreparation {
         if candidates.is_empty() {
-            return (Vec::new(), Vec::new());
+            return OutboundPreparation {
+                prepared: Vec::new(),
+                errors: Vec::new(),
+            };
         }
         let store = match crate::attachments::shared() {
             Ok(store) => store,
-            Err(err) => return (Vec::new(), vec![err]),
+            Err(err) => {
+                return OutboundPreparation {
+                    prepared: Vec::new(),
+                    errors: vec![err],
+                }
+            }
         };
         let session_id = budget.session_id.clone();
         let origin = format!("outbound:{}", msg.channel);
@@ -1662,7 +1696,10 @@ impl Engine {
                 Err(err) => errors.push(format!("{}：{err}", candidate.name)),
             }
         }
-        (refs, errors)
+        OutboundPreparation {
+            prepared: refs,
+            errors,
+        }
     }
 
     /// Upload prepared refs from the store; failures become visible notes.
@@ -1670,13 +1707,23 @@ impl Engine {
         &self,
         msg: &IncomingMessage,
         prepared: &[(super::outbound_media::OutboundCandidate, AttachmentRef)],
-    ) -> (Vec<AttachmentRef>, Vec<usize>, Vec<String>) {
+    ) -> OutboundSendResult {
         if prepared.is_empty() {
-            return (Vec::new(), Vec::new(), Vec::new());
+            return OutboundSendResult {
+                sent: Vec::new(),
+                sent_lines: Vec::new(),
+                notes: Vec::new(),
+            };
         }
         let store = match crate::attachments::shared() {
             Ok(store) => store,
-            Err(err) => return (Vec::new(), Vec::new(), vec![err]),
+            Err(err) => {
+                return OutboundSendResult {
+                    sent: Vec::new(),
+                    sent_lines: Vec::new(),
+                    notes: vec![err],
+                }
+            }
         };
         let mut sent = Vec::new();
         let mut sent_lines = Vec::new();
@@ -1722,7 +1769,11 @@ impl Engine {
                 }
             }
         }
-        (sent, sent_lines, notes)
+        OutboundSendResult {
+            sent,
+            sent_lines,
+            notes,
+        }
     }
 
     async fn run_agent_turn(
@@ -1759,7 +1810,11 @@ impl Engine {
         }
 
         let mut attachment_budget = SessionAttachmentBudget::load(&binding);
-        let (mut prompt, attachments, user_display_text) = self
+        let InboundPreparation {
+            mut prompt,
+            attachments,
+            display: user_display_text,
+        } = self
             .prepare_inbound_attachments(msg, user_text, staged, &mut attachment_budget)
             .await;
         prompt.push_str("\n\n");
@@ -1873,7 +1928,10 @@ impl Engine {
             .iter()
             .flat_map(|candidate| candidate.lines.iter().copied())
             .collect();
-        let (outbound_refs, outbound_errors) = self
+        let OutboundPreparation {
+            prepared: outbound_refs,
+            errors: outbound_errors,
+        } = self
             .prepare_outbound_media(msg, &binding, candidates, &mut attachment_budget)
             .await;
         // Send the text first, without path lines that may be uploaded. Failed
@@ -1882,8 +1940,11 @@ impl Engine {
         for chunk in chunk_text(&initial_display, 3500) {
             let _ = self.reply_msg(msg, &chunk).await;
         }
-        let (sent_refs, sent_lines, send_notes) =
-            self.send_outbound_media(msg, &outbound_refs).await;
+        let OutboundSendResult {
+            sent: sent_refs,
+            sent_lines,
+            notes: send_notes,
+        } = self.send_outbound_media(msg, &outbound_refs).await;
         let mut assistant_display = outbound_media::remove_lines(&text, &sent_lines);
         for error in &outbound_errors {
             append_attachment_note(&mut assistant_display, error);
