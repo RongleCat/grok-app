@@ -5,6 +5,10 @@
 //!   - summary.json — title, timestamps, cwd
 //!   - chat_history.jsonl — line-delimited messages
 
+pub(crate) mod rewind_fence;
+#[cfg(test)]
+mod rewind_reconcile_tests;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -1696,57 +1700,116 @@ pub fn reconcile_journal_from_chat_history(
         Ok(r) => r,
         Err(_) => return Ok(0),
     };
-    let pairs: Vec<(String, String)> = rows
+    let changed = store::update_messages(app_session_id, |journal| {
+        reconcile_history_rows(
+            journal,
+            &rows,
+            &tool_calls,
+            &rewind_fence::RewindFence::load(app_session_id),
+        )
+    })?;
+    if changed > 0 {
+        tracing::info!(
+            target: "session",
+            session = %app_session_id,
+            agent = %agent_session_id,
+            changed,
+            "reconciled App journal from agent chat_history"
+        );
+    }
+    Ok(changed)
+}
+
+/// Match history to actual surviving prompts, never merely their count. After
+/// rewind a new prompt can occupy a removed turn's ordinal while a delayed CLI
+/// disk flush still contains that turn's old answer (#1405).
+fn reconcile_history_rows(
+    journal: &mut Vec<ChatMessageStored>,
+    rows: &[(String, String, Option<String>)],
+    tool_calls: &HashMap<String, ToolCallRecord>,
+    fence: &rewind_fence::RewindFence,
+) -> u32 {
+    let prompts: Vec<_> = journal
         .iter()
-        .filter(|(role, _, _)| role == "user" || role == "assistant")
-        .map(|(role, content, _)| (role.clone(), content.clone()))
+        .filter(|m| store::is_user_prompt_message(m))
+        .map(|m| (m.id.clone(), m.content.clone()))
         .collect();
-    let mut journal = store::load_messages(app_session_id);
-    let journal_users = store::user_prompt_count(&journal);
-    let mut seen_users = 0u32;
+    let mut next_prompt = 0;
+    let mut active_prompt: Option<String> = None;
+    let mut matched_pairs = Vec::new();
     let mut changed = 0u32;
     let now = Utc::now();
     // Insert anchor: journal index after which the next rebuilt tool row goes,
     // so turn-2 fragments + their tools land in stream order (not appended at
     // the tail after later turns).
-    let mut anchor: Option<usize> = journal.len().checked_sub(1);
+    let mut anchor: Option<usize> = None;
 
-    for (role, content, tool_call_id) in &rows {
+    for (role, content, tool_call_id) in rows {
         if role == "user" {
-            seen_users = seen_users.saturating_add(1);
+            active_prompt = None;
+            anchor = None;
+            // Identical re-issued prompts have no stable branch identity in
+            // legacy CLI logs. Prefer live text over importing an old answer.
+            if fence.blocks_prompt(content) {
+                continue;
+            }
+            if let Some(offset) = prompts[next_prompt..]
+                .iter()
+                .position(|(_, body)| user_body_key(body) == user_body_key(content))
+            {
+                let at = next_prompt + offset;
+                active_prompt = Some(prompts[at].0.clone());
+                next_prompt = at + 1;
+                matched_pairs.push((role.clone(), content.clone()));
+            }
             continue;
         }
-        // A rewind leaves the journal shorter than chat_history.jsonl. Do not
-        // paste assistant or tool rows from turns that were cut.
-        if seen_users > journal_users {
+        if fence.blocks(role, content, tool_call_id.as_deref()) {
             continue;
+        }
+        let Some(prompt_id) = active_prompt.as_deref() else {
+            continue;
+        };
+        let Some(start) = journal.iter().position(|m| m.id == prompt_id) else {
+            continue;
+        };
+        let end = journal[start + 1..]
+            .iter()
+            .position(store::is_user_prompt_message)
+            .map_or(journal.len(), |offset| start + 1 + offset);
+        if anchor.is_none() {
+            anchor = Some(start);
         }
         if role == "assistant" {
-            match journal_covers_assistant(&journal, content) {
+            match journal_covers_assistant(&journal[start + 1..end], content) {
                 CoverKind::Covered(idx) => {
                     // usize::MAX = empty body sentinel; never a real anchor.
                     if idx != usize::MAX {
-                        anchor = Some(idx);
+                        anchor = Some(start + 1 + idx);
                     }
                 }
                 CoverKind::Extend(idx) => {
+                    let idx = start + 1 + idx;
                     journal[idx].content = content.clone();
                     changed += 1;
                     anchor = Some(idx);
                 }
                 CoverKind::Missing => {
-                    journal.push(ChatMessageStored {
-                        id: Uuid::new_v4().to_string(),
-                        role: "assistant".into(),
-                        content: content.clone(),
-                        thought: None,
-                        created_at: now + chrono::Duration::milliseconds(changed as i64),
-                        is_error: false,
-                        attachments: None,
-                        marker: None,
-                    });
+                    journal.insert(
+                        end,
+                        ChatMessageStored {
+                            id: Uuid::new_v4().to_string(),
+                            role: "assistant".into(),
+                            content: content.clone(),
+                            thought: None,
+                            created_at: now + chrono::Duration::milliseconds(changed as i64),
+                            is_error: false,
+                            attachments: None,
+                            marker: None,
+                        },
+                    );
                     changed += 1;
-                    anchor = Some(journal.len() - 1);
+                    anchor = Some(end);
                 }
             }
             continue;
@@ -1835,19 +1898,8 @@ pub fn reconcile_journal_from_chat_history(
         }
     }
 
-    changed += backfill_user_attachments_from_agent_pairs(&mut journal, &pairs);
-
-    if changed > 0 {
-        store::save_messages(app_session_id, &journal)?;
-        tracing::info!(
-            target: "session",
-            session = %app_session_id,
-            agent = %agent_session_id,
-            changed,
-            "reconciled App journal from agent chat_history"
-        );
-    }
-    Ok(changed)
+    changed += backfill_user_attachments_from_agent_pairs(journal, &matched_pairs);
+    changed
 }
 
 /// Linked reconcile may rebuild the App journal from agent `chat_history`.
