@@ -94,10 +94,12 @@ pub async fn start_server(
     let listener = TcpListener::bind(addr)
         .await
         .map_err(|e| format!("mirror bind {addr}: {e}"))?;
-    let bound = listener
+    let bound_addr = listener
         .local_addr()
-        .map_err(|e| format!("mirror local_addr: {e}"))?
-        .port();
+        .map_err(|e| format!("mirror local_addr: {e}"))?;
+    #[cfg(test)]
+    super::lan_bind_test::assert_actual_bind(&host, bound_addr);
+    let bound = bound_addr.port();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
