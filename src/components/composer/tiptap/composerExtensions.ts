@@ -18,6 +18,7 @@ import { Markdown } from "tiptap-markdown";
 import { SkillTokenNode } from "@/components/composer/tiptap/composerSkillNode";
 import { RefTokenNode } from "@/components/composer/tiptap/composerRefNode";
 import { ComposerGhostGuard } from "@/components/composer/tiptap/composerGhostGuard";
+import { ComposerMarkdownPaste } from "@/components/composer/tiptap/composerPaste";
 
 /**
  * 列表项内的换行语义。
@@ -302,6 +303,7 @@ export function buildComposerExtensions(opts: ComposerExtensionOptions = {}) {
     ListLineBreak,
     BlockAfterBreak,
     ComposerGhostGuard,
+    ComposerMarkdownPaste,
     CodeBlockLanguageLabel,
     Placeholder.configure({
       placeholder: opts.placeholder ?? "",
