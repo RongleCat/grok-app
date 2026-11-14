@@ -13,6 +13,8 @@
 
 探测：`scripts/probe-models.sh`。Host：`models_list_available`。
 
+Host 同时读取当前会话数据模式的 `GROK_HOME/models_cache.json` 与终端 `~/.grok/models_cache.json`，按有效 RFC3339 `fetched_at` 选择最新的完整目录。有效时间优先于缺失或无效时间；时间相同或两者均未知时保留当前 home 优先。模型、来源和刷新时间来自同一份快照，不合并旧目录，也不重新补齐最新目录已隐藏或移除的模型。损坏、缺失、空 `models` 的缓存跳过；没有可用快照才用静态兜底。最新快照若所有条目都标为隐藏，结果保持空。读取不改写共享配置，不递归扫描历史 `agent-proc` 目录。
+
 ## 上下文窗口
 
 CLI `models_cache.json` 的 `info.context_window` 是目录默认值（Grok 4.7 / Fast / 4.6 / 4.5 当前为 **256000**）。可选长度在 `info.context_windows`（当前 `[256000, 500000]`）。静态兜底与此相同。`initialize` 的 live 覆盖只改默认值，不抹掉列表。
