@@ -31,7 +31,7 @@ Markdown 档使用 TipTap；内置编辑器不受本规则影响。存储、发�
 接管的粘贴使用独立历史分组，一次撤销仅回退本次粘贴，保留紧邻的先前输入。
 
 - Shift 粘贴继续走 ProseMirror 的 `preferPlain` 路径，不接管；Shift+Insert 保持普通粘贴。
-- 选区任一端在代码块内时，不接管；代码内容交给 ProseMirror 的 `inCode` 路径。
+- 选区任一端在代码块内时，不接管且不执行文本归一化；代码内容及首尾空行、缩进交给 ProseMirror 的 `inCode` 路径。
 - 文件、图片、超大 Windows 文本附件和整段 URL chip 仍由 `ComposerEditorTiptap` 的前置 `editorProps.handlePaste` 处理，顺序不变。
 - 不注册额外快捷键，不改 Live Voice 或 IME 的键盘路由。
 - CRLF 统一为 LF；普通 Markdown 粘贴去掉首尾空行，保留中间换行及最后一行的尾随空格。文本转换钩子也作用于库的纯文本路径。
@@ -44,4 +44,4 @@ Shift 状态来自 prosemirror-view 1.42.3 的内部 `view.input.shiftKey`；`la
 
 ## 验证
 
-`composerPaste.test.ts` 覆盖真实 DOM paste 管线：浏览器 `code` 包壳标题、围栏及语言、多行块级源码、普通单行标记、语义 HTML、编辑器自身 slice、粘贴后输入、行中插入、Shift 路径和独立撤销。既有 composer、草稿、IME、文件剪贴板与 URL 测试验证相邻路径。
+`composerPaste.test.ts` 覆盖真实 DOM paste 管线：浏览器 `code` 包壳标题、围栏及语言、多行块级源码、普通单行标记、语义 HTML、编辑器自身 slice、粘贴后输入、行中插入、Shift 路径和独立撤销。`composerCodePaste.test.ts` 对照移除插件的原始管线，验证普通与 Shift 粘贴都保留代码块剪贴板空白。既有 composer、草稿、IME、文件剪贴板与 URL 测试验证相邻路径。

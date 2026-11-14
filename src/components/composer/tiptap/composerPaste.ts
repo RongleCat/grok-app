@@ -279,7 +279,15 @@ export const ComposerMarkdownPaste = Extension.create({
           return trailingMarksReset(newState);
         },
         props: {
-          transformPastedText(text: string) {
+          transformPastedText(text: string, _plain: boolean, view: EditorView) {
+            // 此钩子早于 handlePaste，代码块回退也会经过这里；保留其原始空白。
+            const { selection } = view.state;
+            if (
+              selection.$from.parent.type.spec.code ||
+              selection.$to.parent.type.spec.code
+            ) {
+              return text;
+            }
             return normalizePastedMarkdown(text);
           },
           handlePaste(view: EditorView, event: ClipboardEvent) {
