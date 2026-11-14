@@ -137,8 +137,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Write-Host "=== cargo test --no-run ==="
-          cargo test --no-run
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Cargo owns harness locations (including build/.../out on newer Rust).
+          # Use only artifacts reported by this invocation, never cached-file scans.
+          $testExecutables = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+          cargo test --no-run --message-format=json | ForEach-Object {
+            $artifact = $_ | ConvertFrom-Json
+            if ($artifact.reason -eq 'compiler-message' -and $artifact.message.rendered) {
+              [Console]::Error.Write($artifact.message.rendered)
+            }
+            if ($artifact.reason -eq 'compiler-artifact' -and
+                $artifact.profile.test -eq $true -and $artifact.executable) {
+              [void]$testExecutables.Add([string]$artifact.executable)
+            }
+          }
+          $cargoExit = $LASTEXITCODE
+          if ($cargoExit -ne 0) { exit $cargoExit }
+          if (-not $testExecutables.Count) { throw "cargo reported no test harness executables" }
 
           # Locate mt.exe (Windows SDK or MSVC host tools). Prefer Windows Kits —
           # VS 2026 images sometimes omit mt next to dumpbin under VC\Tools\MSVC.
@@ -175,13 +189,13 @@ jobs:
           $manifest = Join-Path (Get-Location) "windows-test-manifest.xml"
           if (-not (Test-Path -LiteralPath $manifest)) { throw "missing $manifest" }
 
-          $exes = @(Get-ChildItem -Path "target\debug\deps" -Filter "grok_app_lib-*.exe" -ErrorAction SilentlyContinue)
-          if (-not $exes.Count) {
-            # Fallback: any freshly built test harness under deps
-            $exes = @(Get-ChildItem -Path "target\debug\deps" -Filter "*-*.exe" -ErrorAction SilentlyContinue |
-              Where-Object { $_.Name -notmatch 'build_script|deps_dir' })
-          }
-          if (-not $exes.Count) { throw "no test harness exe found under target\debug\deps" }
+          $exes = @(
+            foreach ($path in $testExecutables) {
+              $exe = Get-Item -LiteralPath $path -ErrorAction Stop
+              if ($exe -isnot [IO.FileInfo]) { throw "test harness is not a file: $path" }
+              $exe
+            }
+          )
 
           foreach ($exe in $exes) {
             Write-Host "Embedding Common Controls v6 manifest into $($exe.Name)"
