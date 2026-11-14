@@ -98,6 +98,11 @@ impl SessionManager {
             )
         };
 
+        let rewind_fence = crate::cli_sessions::rewind_fence::RewindFence::capture(
+            &app_sid,
+            user_prompt_count.saturating_sub(1),
+        );
+
         // Agent: discard last user turn. TUI semantics keep the selected turn and drop after;
         // so for "drop last user" we target the previous turn when count > 1.
         // When count == 1, execute target 0 with best-effort; host journal is the source of truth for UI.
@@ -221,7 +226,7 @@ impl SessionManager {
         let msgs = store::load_messages(&app_sid);
         let cut = store::cut_index_before_last_user_prompt(&msgs);
         let kept: Vec<_> = msgs.into_iter().take(cut).collect();
-        store::replace_messages(&app_sid, &kept)?;
+        rewind_fence.replace_journal(&app_sid, &kept)?;
         self.drop_agent_link_when_no_user_prompt(&app_sid, &kept);
 
         {
@@ -330,6 +335,11 @@ impl SessionManager {
             ));
         }
 
+        let rewind_fence = crate::cli_sessions::rewind_fence::RewindFence::capture(
+            &app_sid,
+            target_prompt_index.saturating_add(1),
+        );
+
         let mut agent_ok = true;
         let mut agent_error: Option<String> = None;
 
@@ -436,7 +446,7 @@ impl SessionManager {
 
         let kept = store::truncate_through_user_prompt(&msgs, target_prompt_index)?;
         let kept_count = kept.len();
-        store::replace_messages(&app_sid, &kept)?;
+        rewind_fence.replace_journal(&app_sid, &kept)?;
 
         // Touch meta updated_at for index sort.
         let updated_at = chrono::Utc::now();

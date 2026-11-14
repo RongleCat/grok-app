@@ -74,6 +74,22 @@ event; UI also saves on dismiss/approve. On session open the UI loads chrome +
 state never carries a live `rpcId` — Approve waits for Build re-park. Sticky
 bar uses `planBar.resume` while `gateStale` / `awaitingAgentApproval`.
 
+**Post-turn disk recovery after rewind:** reconcile matches CLI user prompts to
+surviving journal prompts in order, after stripping sole-line attachment paths.
+A matching prompt count alone does not authorize a row: a replacement prompt
+can occupy the removed turn's ordinal. Assistant coverage, extension, and insert
+positions are scoped to the matched turn; unmatched branches contribute neither
+answers nor tool rows. The journal read-modify-write holds the same file lock as
+rewind replacement and stream appends, so a delayed recovery snapshot cannot
+reintroduce rows removed by a concurrent rewind.
+Before native rewind, Host captures digests of the abandoned prompts and
+assistant/tool rows. It persists that fence under the journal lock before
+truncation. Disk recovery never imports those rows again; repeated identical
+prompts conservatively use live output only because legacy logs have no stable
+branch identity. Unreadable/incomplete history or a corrupt fence disables disk
+recovery for that session, while live replies remain intact. Exclusions survive
+restart and are bounded; they never edit CLI history.
+
 Live turns (`prompt_in_flight == true`) still apply stream + tools normally.
 See crash investigation notes: ungated tool_call replay on open could thrash
 Host/UI/disk and correlate with dual-process SIGABRT.

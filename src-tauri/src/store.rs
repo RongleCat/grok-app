@@ -2639,8 +2639,7 @@ fn merge_message_snapshots(
 /// Save a journal snapshot without clobbering rows appended concurrently.
 ///
 /// This is the default for journal reconciliation and enrichment.  Call
-/// [`replace_messages`] for an intentional destructive operation such as
-/// rewind/truncate.
+/// the rewind fence transaction for an intentional destructive operation.
 pub fn save_messages(session_id: &str, messages: &[ChatMessageStored]) -> Result<(), String> {
     let path = session_dir(session_id).join("messages.json");
     crate::store_lock::with_exclusive_lock(&path, || {
@@ -2650,8 +2649,26 @@ pub fn save_messages(session_id: &str, messages: &[ChatMessageStored]) -> Result
     })
 }
 
+/// Reconcile against the current journal while holding its write lock. A
+/// rewind cannot slip between the read and save and resurrect removed rows.
+pub fn update_messages(
+    session_id: &str,
+    update: impl FnOnce(&mut Vec<ChatMessageStored>) -> u32,
+) -> Result<u32, String> {
+    let path = session_dir(session_id).join("messages.json");
+    crate::store_lock::with_exclusive_lock(&path, || {
+        let mut messages = read_json_recover(&path);
+        let changed = update(&mut messages);
+        if changed > 0 {
+            write_messages_locked(&path, &messages)?;
+        }
+        Ok(changed)
+    })
+}
+
 /// Intentionally replace a session journal under the same lock used by stream
 /// appends.  This is the only API that removes rows from an existing journal.
+#[cfg(test)]
 pub fn replace_messages(session_id: &str, messages: &[ChatMessageStored]) -> Result<(), String> {
     let path = session_dir(session_id).join("messages.json");
     crate::store_lock::with_exclusive_lock(&path, || write_messages_locked(&path, messages))
