@@ -13,6 +13,26 @@ See `docs/llm-wiki/release.md`.
 
 ## [Unreleased]
 
+## [0.2.51] - 2026-11-14
+
+> **Highlight:** Rewound chats keep their new replies, and model menus use a fresh catalog.
+>
+> **中文 · 亮点：** 回退后的对话保留新回复，模型菜单采用更新的目录。
+
+### Fixed
+
+- Rewound replies no longer return after you send a new message.
+- Official model menus use the newest available catalog.
+- CLI bulk import counts eligible sessions and reports complete import failures.
+- Markdown paste keeps block structure and stops formatting the next text.
+
+**中文 · 修复**
+
+- 回退后发送新消息，不再重新显示已丢弃的旧回复。
+- 官方模型菜单采用最新可用目录。
+- CLI 批量导入只统计符合条件的会话，全部失败时会显示错误。
+- Markdown 粘贴保留块结构，后续输入不再沿用粘贴内容的格式。
+
 ## [0.2.50] - 2026-10-28
 
 > **Highlight:** Every model of a custom provider is selectable again, and the chosen one is the one used.
