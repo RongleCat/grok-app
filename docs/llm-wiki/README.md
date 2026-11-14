@@ -41,3 +41,5 @@ Agent 与贡献者的**可执行知识库**。改产品行为或 UI 文案前，
 - i18n：`src/i18n/`
 - Build 目录：`src/lib/grokCatalog.ts`
 - UI 入口：`src/App.tsx`
+
+- [composer-markdown.md](./composer-markdown.md) — Markdown 输入框的来源感知粘贴、标记状态与兼容路径。
