@@ -857,16 +857,12 @@ pub fn is_memory_text_searchable(kind: &str, name: &str) -> bool {
         return false;
     }
     let n = name.to_ascii_lowercase();
-    if n.ends_with(".sqlite")
+    !(n.ends_with(".sqlite")
         || n.ends_with(".sqlite-wal")
         || n.ends_with(".sqlite-shm")
         || n.ends_with(".db")
         || n.ends_with(".bin")
-        || n.starts_with("index.sqlite")
-    {
-        return false;
-    }
-    true
+        || n.starts_with("index.sqlite"))
 }
 
 /// Case-insensitive name / relative-path match (pure).

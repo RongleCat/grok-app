@@ -62,10 +62,7 @@ pub fn stream_emit_can_merge(
     }
     let phase = next_thought_phase.to_ascii_lowercase();
     // New thought block must start a fresh emit so the UI can open a phase.
-    if phase == "new" || phase == "open" {
-        return false;
-    }
-    true
+    !(phase == "new" || phase == "open")
 }
 
 #[cfg(test)]

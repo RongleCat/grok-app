@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn panic_payload_helpers() {
-        let r = catch_unwind(AssertUnwindSafe(|| {
+        let r: Result<(), _> = catch_unwind(AssertUnwindSafe(|| {
             panic!("handler boom");
         }));
         let Err(p) = r else {

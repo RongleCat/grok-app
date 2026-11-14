@@ -443,12 +443,8 @@ pub fn looks_like_unsupported_worktree_db(stderr: &str, stdout: &str) -> bool {
         }
     }
     // Help-style "error: the subcommand wasn't recognized"
-    if (blob.contains("wasn't recognized") || blob.contains("was not recognized"))
+    (blob.contains("wasn't recognized") || blob.contains("was not recognized"))
         && (blob.contains("db") || blob.contains("worktree"))
-    {
-        return true;
-    }
-    false
 }
 
 // ── CLI worktree DB (path / stats / rebuild) — Grok Build 0.2.117+ ───────────

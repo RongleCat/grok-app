@@ -446,16 +446,13 @@ fn paths_equal_loose(a: &Path, b: &Path) -> bool {
     // Normalize by string form with unified separators for Windows.
     let sa = a.to_string_lossy().replace('\\', "/");
     let sb = b.to_string_lossy().replace('\\', "/");
-    if sa == sb {
-        return true;
-    }
     #[cfg(windows)]
     {
         sa.eq_ignore_ascii_case(&sb)
     }
     #[cfg(not(windows))]
     {
-        false
+        sa == sb
     }
 }
 

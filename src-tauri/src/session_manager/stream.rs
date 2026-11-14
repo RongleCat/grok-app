@@ -233,10 +233,7 @@ impl SessionManager {
         pending_plan: bool,
         has_rpc_id: bool,
     ) -> bool {
-        if has_rpc_id || pending_plan || prompt_in_flight || deferred_prompt_complete {
-            return false;
-        }
-        true
+        !(has_rpc_id || pending_plan || prompt_in_flight || deferred_prompt_complete)
     }
 
     /// Whether to drop an `ask_user_question` reverse-RPC.

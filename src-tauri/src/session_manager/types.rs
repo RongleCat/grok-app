@@ -1647,10 +1647,7 @@ pub(super) fn tool_is_media_capable(
         .and_then(|v| v.as_str())
         .map(|s| !s.trim().is_empty())
         .unwrap_or(false);
-    if has_command {
-        return false;
-    }
-    true
+    !has_command
 }
 
 /// Pull media path/URL from ACP tool_call / tool_call_update payload
