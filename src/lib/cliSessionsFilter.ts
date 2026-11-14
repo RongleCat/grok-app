@@ -32,11 +32,15 @@ export function filterCliSessions<T extends CliSessionFilterRow>(
   });
 }
 
-/**
- * Count not-yet-linked rows (for bulk import button).
- */
-export function countUnlinkedCliSessions(
-  rows: Array<{ alreadyLinked: boolean }>,
-): number {
+/** Count every unlinked row, including stubs, for the destructive delete action. */
+export function countUnlinkedCliSessions(rows: Array<{ alreadyLinked: boolean }>): number {
   return rows.reduce((n, r) => n + (r.alreadyLinked ? 0 : 1), 0);
+}
+
+/** Count the next host-eligible import batch; older hosts fall back to unlinked rows. */
+export function countBulkImportableCliSessions(
+  rows: Array<{ alreadyLinked: boolean; bulkImportable?: boolean }>,
+  limit = 50,
+): number {
+  return Math.min(limit, rows.reduce((n, r) => n + (!r.alreadyLinked && r.bulkImportable !== false ? 1 : 0), 0));
 }

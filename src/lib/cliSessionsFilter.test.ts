@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countUnlinkedCliSessions,
+  countBulkImportableCliSessions,
   filterCliSessions,
 } from "./cliSessionsFilter";
 
@@ -82,5 +83,20 @@ describe("countUnlinkedCliSessions", () => {
     expect(
       countUnlinkedCliSessions([{ alreadyLinked: true }, { alreadyLinked: true }]),
     ).toBe(0);
+  });
+});
+
+
+describe("bulk import policy parity (#1413)", () => {
+  it("does not count tombstones, stubs or noise rejected by the host", () => {
+    expect(countBulkImportableCliSessions([
+      { alreadyLinked: false, bulkImportable: false },
+      { alreadyLinked: false, bulkImportable: false },
+      { alreadyLinked: false, bulkImportable: true },
+      { alreadyLinked: true, bulkImportable: true },
+    ])).toBe(1);
+  });
+  it("counts only the next batch when more than 50 are eligible", () => {
+    expect(countBulkImportableCliSessions(Array.from({length: 75}, () => ({alreadyLinked: false, bulkImportable: true})))).toBe(50);
   });
 });

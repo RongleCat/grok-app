@@ -485,3 +485,8 @@ Old sessions without woven segments may still show tools after the answer body a
 8. Reopening a chat that is streaming in background shows the live spinner / streaming bubble, not an idle-looking finished thread.
 9. Send, then immediately open a new chat in another project → you stay on the new draft when the agent starts executing.
 10. Switch away mid-turn and back → the thread reads user → thinking → tools → answer, with no prompt stranded at the bottom.
+
+
+### CLI 批量导入统计（#1413）
+
+列表返回 `bulkImportable`，与宿主全部导入共享同一过滤规则：排除已关联、删除墓碑、空 stub 和噪声目录。按钮统计下一批（最多 50 条）候选，仍可能因文件损坏或并发删除而失败。候选实际尝试后全部失败时返回首个原始错误，不能显示成功导入 0 条。独立模式继续只扫描当前 GROK_HOME；不得因相似标题、同项目或相同正文自动合并不同 agent id 的会话，也不扩大磁盘删除允许范围。

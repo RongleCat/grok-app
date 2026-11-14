@@ -9,7 +9,7 @@ pub(crate) mod rewind_fence;
 #[cfg(test)]
 mod rewind_reconcile_tests;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -35,6 +35,8 @@ pub struct CliSessionSummary {
     pub num_messages: u32,
     /// App already has a session row pointing at this agent id.
     pub already_linked: bool,
+    /// Eligible for the bulk-import policy (single import remains explicit).
+    pub bulk_importable: bool,
     /// App session id when already linked (for one-click open / resume).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_session_id: Option<String>,
@@ -108,6 +110,8 @@ pub fn list_cli_sessions(session_data_mode: &str) -> Result<Vec<CliSessionSummar
         return Ok(Vec::new());
     }
 
+    let deleted: HashSet<_> = load_deleted_cli_ids().into_iter().collect();
+
     // agent_session_id → app session id (first match wins).
     let linked: std::collections::HashMap<String, String> = store::load_sessions_index()
         .into_iter()
@@ -150,6 +154,13 @@ pub fn list_cli_sessions(session_data_mode: &str) -> Result<Vec<CliSessionSummar
                 read_summary_bits(&summary_path, &cwd_decoded, &agent_id);
             let app_session_id = linked.get(&agent_id).cloned();
             out.push(CliSessionSummary {
+                bulk_importable: bulk_import_eligible(
+                    app_session_id.is_some(),
+                    deleted.contains(&agent_id),
+                    &title,
+                    cwd.as_deref(),
+                    n,
+                ),
                 already_linked: app_session_id.is_some(),
                 app_session_id,
                 agent_session_id: agent_id,
@@ -296,6 +307,8 @@ pub fn find_latest_cli_session_for_cwd(
         return Ok(None);
     }
 
+    let deleted: HashSet<_> = load_deleted_cli_ids().into_iter().collect();
+
     // agent_session_id → app session id (first match wins).
     let linked: std::collections::HashMap<String, String> = store::load_sessions_index()
         .into_iter()
@@ -315,7 +328,14 @@ pub fn find_latest_cli_session_for_cwd(
         if !cwd_dir.is_dir() {
             continue;
         }
-        collect_sessions_under_cwd_dir(&cwd_dir, path, &source_home, &linked, &mut candidates);
+        collect_sessions_under_cwd_dir(
+            &cwd_dir,
+            path,
+            &source_home,
+            &linked,
+            &deleted,
+            &mut candidates,
+        );
         if !candidates.is_empty() {
             break;
         }
@@ -339,6 +359,7 @@ pub fn find_latest_cli_session_for_cwd(
                 &cwd_decoded,
                 &source_home,
                 &linked,
+                &deleted,
                 &mut under,
             );
             for row in under {
@@ -367,6 +388,7 @@ fn collect_sessions_under_cwd_dir(
     cwd_fallback: &str,
     source_home: &str,
     linked: &std::collections::HashMap<String, String>,
+    deleted: &HashSet<String>,
     out: &mut Vec<CliSessionSummary>,
 ) {
     let Ok(sid_dirs) = fs::read_dir(cwd_dir) else {
@@ -392,6 +414,13 @@ fn collect_sessions_under_cwd_dir(
         let (title, cwd, updated, n) = read_summary_bits(&summary_path, cwd_fallback, &agent_id);
         let app_session_id = linked.get(&agent_id).cloned();
         out.push(CliSessionSummary {
+            bulk_importable: bulk_import_eligible(
+                app_session_id.is_some(),
+                deleted.contains(&agent_id),
+                &title,
+                cwd.as_deref(),
+                n,
+            ),
             already_linked: app_session_id.is_some(),
             app_session_id,
             agent_session_id: agent_id,
@@ -2096,6 +2125,16 @@ pub fn is_deleted_cli_id(agent_session_id: &str) -> bool {
     !id.is_empty() && load_deleted_cli_ids().iter().any(|x| x == id)
 }
 
+fn bulk_import_eligible(
+    already_linked: bool,
+    deleted: bool,
+    title: &str,
+    cwd: Option<&str>,
+    num_messages: u32,
+) -> bool {
+    !already_linked && !deleted && !should_skip_bulk_cli_import(title, cwd, num_messages)
+}
+
 /// True for CLI stubs / non-project cwd that bulk import should not resurrect.
 pub fn should_skip_bulk_cli_import(title: &str, cwd: Option<&str>, num_messages: u32) -> bool {
     if is_noise_cli_cwd(cwd) {
@@ -2140,16 +2179,23 @@ pub fn import_all_cli_sessions(
 ) -> Result<Vec<SessionMeta>, String> {
     let list = list_cli_sessions(session_data_mode)?;
     let mut imported = Vec::new();
+    let mut first_error = None;
     for s in list
         .into_iter()
-        .filter(|s| !s.already_linked)
-        .filter(|s| !is_deleted_cli_id(&s.agent_session_id))
-        .filter(|s| !should_skip_bulk_cli_import(&s.title, s.cwd.as_deref(), s.num_messages))
+        .filter(|s| s.bulk_importable && !is_deleted_cli_id(&s.agent_session_id))
         .take(limit)
     {
         match import_cli_session(&s.agent_session_id, Some(&s.dir), None, session_data_mode) {
             Ok(m) => imported.push(m),
-            Err(e) => tracing::warn!("cli import skip {}: {e}", s.agent_session_id),
+            Err(e) => {
+                tracing::warn!("cli import skip {}: {e}", s.agent_session_id);
+                first_error.get_or_insert(e);
+            }
+        }
+    }
+    if imported.is_empty() {
+        if let Some(error) = first_error {
+            return Err(error);
         }
     }
     Ok(imported)
@@ -2885,6 +2931,33 @@ mod tests {
     }
 
     #[test]
+    fn bulk_eligibility_matches_list_and_reports_complete_import_failure() {
+        let _guard = crate::paths::APP_HOME_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let app_home = std::env::temp_dir().join(format!("cli-bulk-eligible-{}", Uuid::new_v4()));
+        fs::create_dir_all(&app_home).unwrap();
+        std::env::set_var("GROK_APP_HOME", &app_home);
+        crate::paths::ensure_app_dirs().unwrap();
+        let dir = make_fake_cli_session(&crate::paths::agent_home_dir(), "bulk-eligible");
+        let rows = list_cli_sessions("independent").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].bulk_importable);
+        assert!(!bulk_import_eligible(false, false, "CLI abc", None, 2));
+        assert!(!bulk_import_eligible(
+            false,
+            false,
+            "real title",
+            Some(r"C:\Windows\System32"),
+            20
+        ));
+        fs::write(dir.join("chat_history.jsonl"), "{invalid json}").unwrap();
+        assert!(import_all_cli_sessions("independent", 50).is_err());
+        std::env::remove_var("GROK_APP_HOME");
+        fs::remove_dir_all(app_home).unwrap();
+    }
+
+    #[test]
     fn import_all_does_not_resurrect_deleted_app_session() {
         use crate::paths::APP_HOME_ENV_LOCK;
 
@@ -2945,6 +3018,14 @@ mod tests {
         remember_deleted_cli_id(agent_id).expect("tombstone");
         crate::store::delete_session(&imported.id).expect("delete app");
         assert!(dir.is_dir(), "CLI dir still on disk");
+        let listed = list_cli_sessions("independent").unwrap();
+        assert!(
+            !listed
+                .iter()
+                .find(|s| s.agent_session_id == agent_id)
+                .unwrap()
+                .bulk_importable
+        );
 
         let again = import_all_cli_sessions("independent", 50).expect("import all");
         assert!(
@@ -2982,6 +3063,7 @@ mod tests {
             .find(|s| s.agent_session_id == agent_id)
             .unwrap();
         assert!(row.already_linked);
+        assert!(!row.bulk_importable);
         assert_eq!(row.app_session_id.as_deref(), Some(imported.id.as_str()));
 
         let again = import_all_cli_sessions("independent", 50).expect("import all");

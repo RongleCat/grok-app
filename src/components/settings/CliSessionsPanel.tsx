@@ -8,6 +8,7 @@ import { IconCopy, IconSearch, IconTrash } from "@/components/icons";
 import { GlassModal } from "@/components/GlassModal";
 import {
   countUnlinkedCliSessions,
+  countBulkImportableCliSessions,
   filterCliSessions,
 } from "@/lib/cliSessionsFilter";
 import * as api from "@/lib/api";
@@ -138,6 +139,7 @@ export function CliSessionsPanel({
   }, [rows, filterQuery, searchHits]);
   /** Bulk import / delete unlinked always targets the full list (not the filter). */
   const pending = countUnlinkedCliSessions(rows);
+  const importable = countBulkImportableCliSessions(rows);
   const sourceHome =
     rows.find((r) => r.sourceHome)?.sourceHome ??
     (isIndependent ? agentHome || "" : "~/.grok");
@@ -314,12 +316,12 @@ export function CliSessionsPanel({
             <button
               type="button"
               className="btn btn--solid"
-              disabled={loading || !!busyId || pending === 0}
+              disabled={loading || !!busyId || importable === 0}
               onClick={() => void importAll()}
             >
               {busyId === "__all__"
                 ? t("settings.cliSessionsImporting")
-                : t("settings.cliSessionsImportAll", { n: String(pending) })}
+                : t("settings.cliSessionsImportAll", { n: String(importable) })}
             </button>
             <button
               type="button"
