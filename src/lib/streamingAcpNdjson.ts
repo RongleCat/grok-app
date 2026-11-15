@@ -43,6 +43,7 @@ export type AcpNdjsonEventKind =
   | "retry_state"
   | "task_backgrounded"
   | "task_completed"
+  | "background_tasks"
   | "hook"
   | "goal_updated"
   | "prompt_complete"
@@ -150,6 +151,8 @@ function normalizeSessionUpdateKind(raw: string): AcpNdjsonEventKind {
       return "task_backgrounded";
     case "task_completed":
       return "task_completed";
+    case "background_tasks":
+      return "background_tasks";
     case "hook_execution":
     case "hook_annotation":
     case "hookexecution":

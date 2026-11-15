@@ -1,0 +1,33 @@
+{
+  "_comment": "Recorded from grok 1.0.70 session/update task_backgrounded. Home-directory paths were redacted to /tmp/fleet-fixture. Host emits ToolOpenReleased plus FleetUpdate. Model, tokens, phase, and a child session id are not on this event — the decoder must not add them.",
+  "params": {
+    "update": {
+      "sessionUpdate": "task_backgrounded",
+      "tool_call_id": "call-1550ccd2-b4ab-485b-892b-448030dd0756-0",
+      "task_id": "e934d04c-01dc-4033-8bda-1cd45b5753cf",
+      "command": "printf 'fixture-ok\\nfixture-line-2\\n'",
+      "cwd": "/tmp/grok-fixture-capture",
+      "output_file": "/tmp/fleet-fixture/.grok/sessions/%2Ftmp%2Fgrok-fixture-capture/01a1889d-77b9-7501-aacd-49a8cd9c4ac6/terminal/call-1550ccd2-b4ab-485b-892b-448030dd0756-0.log",
+      "description": "background fixture echo."
+    }
+  },
+  "expect": {
+    "toolCallId": "call-1550ccd2-b4ab-485b-892b-448030dd0756-0",
+    "kind": "task_backgrounded",
+    "body": {
+      "task_id": "e934d04c-01dc-4033-8bda-1cd45b5753cf",
+      "tool_call_id": "call-1550ccd2-b4ab-485b-892b-448030dd0756-0",
+      "command": "printf 'fixture-ok\\nfixture-line-2\\n'",
+      "cwd": "/tmp/grok-fixture-capture",
+      "output_file": "/tmp/fleet-fixture/.grok/sessions/%2Ftmp%2Fgrok-fixture-capture/01a1889d-77b9-7501-aacd-49a8cd9c4ac6/terminal/call-1550ccd2-b4ab-485b-892b-448030dd0756-0.log",
+      "description": "background fixture echo."
+    },
+    "absent": [
+      "model",
+      "tokens",
+      "phase",
+      "session_id",
+      "subagent_id"
+    ]
+  }
+}

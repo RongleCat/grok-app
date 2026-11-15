@@ -8,6 +8,7 @@ import { Tip } from "@/components/ui/tooltip";
 import { OpenLocationButton } from "@/components/OpenLocationButton";
 import { EnvInfoButton } from "@/components/side-workbench/EnvInfoButton";
 import { BottomTerminalToggle } from "@/components/bottom-terminal/BottomTerminalToggle";
+import { BackgroundTasksToggle } from "@/components/BackgroundTasksToggle";
 import { PaneToggleButton } from "@/components/PaneToggleButton";
 import {
   IconAttach,
@@ -302,6 +303,9 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
                 open={bottomTerminalOpen}
                 onToggle={onToggleBottomTerminal}
               />
+              {mainPane === "chat" ? (
+                <BackgroundTasksToggle locale={locale} />
+              ) : null}
             </>
           ) : (
             <>
@@ -436,6 +440,9 @@ export function WorkbenchMain(props: WorkbenchMainProps) {
                 open={bottomTerminalOpen}
                 onToggle={onToggleBottomTerminal}
               />
+              {mainPane === "chat" ? (
+                <BackgroundTasksToggle locale={locale} />
+              ) : null}
             </>
           )}
         </div>

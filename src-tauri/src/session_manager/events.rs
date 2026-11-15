@@ -826,25 +826,26 @@ impl SessionManager {
                         already_terminal,
                     );
                 }
-                let _ = app.emit(
-                    "session://tool",
-                    serde_json::json!({
-                        "sessionId": app_sid,
-                        "toolCallId": tool_call_id,
-                        "title": live_title,
-                        "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
-                        "status": if status.is_empty() { "in_progress" } else { &status },
-                        "path": path_out,
-                        "detail": detail,
-                        // Call argument (target file / command / query) for primary labels.
-                        "input": input2,
-                        // What the tool actually produced (stdout / file text) — expand body.
-                        "output": output,
-                        // Optional content snippets for the session Changes / diff panel.
-                        "before": before_snip,
-                        "after": after_snip,
-                    }),
-                );
+                let mut tool_payload = serde_json::json!({
+                    "sessionId": app_sid,
+                    "toolCallId": tool_call_id,
+                    "title": live_title,
+                    "kind": if kind_j.is_empty() { kind.clone() } else { kind_j.clone() },
+                    "status": if status.is_empty() { "in_progress" } else { &status },
+                    "path": path_out,
+                    "detail": detail,
+                    // Call argument (target file / command / query) for primary labels.
+                    "input": input2,
+                    // What the tool actually produced (stdout / file text) — expand body.
+                    "output": output,
+                    // Optional content snippets for the session Changes / diff panel.
+                    "before": before_snip,
+                    "after": after_snip,
+                });
+                if let Some(hint) = crate::acp_client::fleet_tool_hint(&raw) {
+                    tool_payload["fleetHint"] = hint;
+                }
+                let _ = app.emit("session://tool", tool_payload);
 
                 // Persist completed/failed tool steps so reload still shows work trail.
                 let st = if status.is_empty() {
@@ -881,6 +882,10 @@ impl SessionManager {
                         // Always persist path/url so reload can paint “Browsed …”.
                         content.push('\n');
                         content.push_str(p);
+                    }
+                    if let Some(line) = crate::acp_client::fleet_hint_journal_line(&raw) {
+                        content.push('\n');
+                        content.push_str(&line);
                     }
                     // Real tool output last, behind a sentinel line, so everything
                     // above stays byte-identical to the legacy layout (old rows and
@@ -929,6 +934,23 @@ impl SessionManager {
                 Self::commit_session_persists(Some(app), pending_persists);
                 Self::emit_empty_run_if_any(app, empty_run);
                 Self::emit_state(app, &self.snapshot());
+            }
+            AcpEvent::FleetUpdate { kind, body } => {
+                let app_sid = {
+                    let guard = self.inner.lock();
+                    guard
+                        .as_ref()
+                        .map(|s| s.app_session_id.clone())
+                        .unwrap_or_default()
+                };
+                let _ = app.emit(
+                    "session://fleet",
+                    serde_json::json!({
+                        "sessionId": app_sid,
+                        "kind": kind,
+                        "body": body,
+                    }),
+                );
             }
             AcpEvent::Plan {
                 entries,

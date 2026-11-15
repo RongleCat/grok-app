@@ -133,6 +133,8 @@ mod paths;
 
 mod workflow_followup;
 
+mod workflow_runs;
+
 mod plan_chrome;
 
 mod permission;

@@ -210,6 +210,46 @@ describe("tool activity", () => {
     expect(p?.detail).not.toContain("input:");
   });
 
+  it("ignores a non-string fleet hint model instead of throwing", () => {
+    const payload = {
+      toolCallId: "t1",
+      title: "tool",
+      kind: "read",
+      status: "completed",
+      fleetHint: { model: 42 } as unknown as { model: string },
+    };
+    expect(() => applyToolEvent([], payload)).not.toThrow();
+    const messages = applyToolEvent([], payload);
+    expect(messages[0]?.fleetHint?.model).toBeUndefined();
+    const parsed = parseToolStepContent(
+      [
+        "tool_step|completed|read|tool",
+        'fleet:{"model":42,"background":"yes","blockUntilMs":"0","prompt":7,"argsLine":[],"sourceName":1,"agentBudget":"2","phaseIndex":null,"phaseTotal":{},"agentCount":false,"tokens":"9","isolation":1}',
+      ].join("\n"),
+    );
+    expect(parsed?.fleetHint).toBeUndefined();
+    const kept = parseToolStepContent(
+      'tool_step|completed|read|tool\nfleet:{"model":42,"background":true,"prompt":"keep"}',
+    );
+    expect(kept?.fleetHint?.model).toBeUndefined();
+    expect(kept?.fleetHint?.background).toBe(true);
+    expect(kept?.fleetHint?.prompt).toBe("keep");
+  });
+
+  it("parseToolStepContent keeps a fleet hint line off the path heuristic", () => {
+    const body = [
+      "tool_step|in_progress|spawn_subagent|Subagent",
+      "input:Audit the decoder",
+      'fleet:{"model":"grok-4.6-build","background":true}',
+    ].join("\n");
+    const p = parseToolStepContent(body);
+    expect(p?.input).toBe("Audit the decoder");
+    expect(p?.fleetHint?.model).toBe("grok-4.6-build");
+    expect(p?.fleetHint?.background).toBe(true);
+    expect(p?.path).toBeUndefined();
+    expect(p?.detail).toBeUndefined();
+  });
+
   it("parseToolStepContent promotes spaced article paths from input:", () => {
     const abs =
       "/Users/ronglecat/Documents/document/文章输出/进行中/2026-08-11-Mac Studio本地双模型：河南话问MES，Agent查库出图/04-正文/正文.md";

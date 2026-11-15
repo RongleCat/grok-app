@@ -1,0 +1,71 @@
+{
+  "_comment": "Recorded from grok 1.0.70 session/update task_completed. Home-directory paths were redacted to /tmp/fleet-fixture. task_snapshot.output is clipped to the last non-empty line and output_clipped is set. owner_session_id is the parent owner, not a child. No per-child tokens, model, or phase.",
+  "params": {
+    "update": {
+      "sessionUpdate": "task_completed",
+      "task_snapshot": {
+        "task_id": "e934d04c-01dc-4033-8bda-1cd45b5753cf",
+        "command": "printf 'fixture-ok\\nfixture-line-2\\n'",
+        "cwd": "/tmp/grok-fixture-capture",
+        "start_time": {
+          "secs_since_epoch": 1793293387,
+          "nanos_since_epoch": 375057579
+        },
+        "end_time": {
+          "secs_since_epoch": 1793293387,
+          "nanos_since_epoch": 383027211
+        },
+        "output": "fixture-ok\nfixture-line-2\n",
+        "output_file": "/tmp/fleet-fixture/.grok/sessions/%2Ftmp%2Fgrok-fixture-capture/01a1889d-77b9-7501-aacd-49a8cd9c4ac6/terminal/call-1550ccd2-b4ab-485b-892b-448030dd0756-0.log",
+        "truncated": false,
+        "output_total_bytes": 26,
+        "exit_code": 0,
+        "signal": null,
+        "completed": true,
+        "kind": "bash",
+        "block_waited": false,
+        "explicitly_killed": false,
+        "kill_result_delivered": false,
+        "owner_session_id": "01a1889d-77b9-7501-aacd-49a8cd9c4ac6",
+        "description": "background fixture echo.",
+        "is_backgrounded": true
+      },
+      "will_wake": true
+    }
+  },
+  "expect": {
+    "toolCallId": "e934d04c-01dc-4033-8bda-1cd45b5753cf",
+    "kind": "task_completed",
+    "body": {
+      "will_wake": true,
+      "task_snapshot": {
+        "task_id": "e934d04c-01dc-4033-8bda-1cd45b5753cf",
+        "command": "printf 'fixture-ok\\nfixture-line-2\\n'",
+        "cwd": "/tmp/grok-fixture-capture",
+        "start_time": {
+          "secs_since_epoch": 1793293387,
+          "nanos_since_epoch": 375057579
+        },
+        "end_time": {
+          "secs_since_epoch": 1793293387,
+          "nanos_since_epoch": 383027211
+        },
+        "output": "fixture-line-2",
+        "output_clipped": true,
+        "output_file": "/tmp/fleet-fixture/.grok/sessions/%2Ftmp%2Fgrok-fixture-capture/01a1889d-77b9-7501-aacd-49a8cd9c4ac6/terminal/call-1550ccd2-b4ab-485b-892b-448030dd0756-0.log",
+        "truncated": false,
+        "output_total_bytes": 26,
+        "exit_code": 0,
+        "signal": null,
+        "completed": true,
+        "kind": "bash",
+        "block_waited": false,
+        "explicitly_killed": false,
+        "kill_result_delivered": false,
+        "owner_session_id": "01a1889d-77b9-7501-aacd-49a8cd9c4ac6",
+        "description": "background fixture echo.",
+        "is_backgrounded": true
+      }
+    }
+  }
+}

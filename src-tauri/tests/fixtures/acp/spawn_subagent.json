@@ -1,0 +1,67 @@
+{
+  "_comment": "CLI 1.0.46 spawn_subagent tool_call. model is present only when rawInput.model is set. subagent_id and tool_calls/duration_ms live in content text, not as JSON fields on the tool call. No per-child token field. Host keeps the raw update on ToolCall and does not emit FleetUpdate.",
+  "withModel": {
+    "params": {
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "call-spawn-1",
+        "kind": "task",
+        "status": "in_progress",
+        "title": "Subagent",
+        "rawInput": {
+          "description": "Audit the decoder",
+          "prompt": "List the fleet fields that are actually on the wire.",
+          "subagent_type": "general",
+          "background": true,
+          "model": "grok-4.6-build"
+        },
+        "_meta": {
+          "x.ai/tool": { "name": "spawn_subagent", "namespace": "grok_build" },
+          "subagentBackground": true
+        }
+      }
+    }
+  },
+  "noModel": {
+    "params": {
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "call-spawn-2",
+        "kind": "task",
+        "status": "in_progress",
+        "title": "Subagent",
+        "rawInput": {
+          "description": "Audit the decoder",
+          "prompt": "List the fleet fields that are actually on the wire.",
+          "subagent_type": "general",
+          "background": true
+        }
+      }
+    }
+  },
+  "resultText": {
+    "params": {
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "call-spawn-1",
+        "kind": "task",
+        "status": "completed",
+        "title": "Subagent",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Subagent started in background.\nsubagent_id: 00000000-0000-7000-8000-000000000001\ntype: general\ndescription: Audit the decoder\n\n<subagent_meta>id=00000000-0000-7000-8000-000000000001, type=general, tool_calls=3, turns=2, duration_ms=1200</subagent_meta>\n<subagent_result>subagent_id=00000000-0000-7000-8000-000000000001 done</subagent_result>\n"
+            }
+          }
+        ]
+      }
+    },
+    "expectTextContains": [
+      "subagent_id: 00000000-0000-7000-8000-000000000001",
+      "tool_calls=3",
+      "duration_ms=1200"
+    ]
+  }
+}

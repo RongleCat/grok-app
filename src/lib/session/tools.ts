@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ContextCompactMeta,
   ContextCompactPayload,
+  FleetToolHint,
   MessageSegment,
   MessageToolSegment,
   ToolEventPayload,
@@ -158,6 +159,7 @@ export function toolSegmentFromFields(fields: {
   streaming?: boolean;
   isError?: boolean;
   createdAt?: string;
+  fleetHint?: FleetToolHint;
 }): MessageToolSegment {
   return {
     kind: "tool",
@@ -173,7 +175,49 @@ export function toolSegmentFromFields(fields: {
     streaming: !!fields.streaming,
     isError: !!fields.isError,
     createdAt: fields.createdAt,
+    fleetHint: fields.fleetHint,
   };
+}
+
+/** Persisted and IPC hints are untyped. Only real strings reach `trim`. */
+function hintText(value: unknown, storeTrimmed: boolean): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return storeTrimmed ? trimmed : value;
+}
+
+function asHintRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function mergeFleetHint(
+  prev?: FleetToolHint,
+  next?: unknown,
+): FleetToolHint | undefined {
+  const out: FleetToolHint = { ...(prev ?? {}) };
+  const record = asHintRecord(next);
+  if (record) {
+    const model = hintText(record.model, true);
+    if (model) out.model = model;
+    if (record.background === true) out.background = true;
+    if (typeof record.blockUntilMs === "number") out.blockUntilMs = record.blockUntilMs;
+    const prompt = hintText(record.prompt, false);
+    if (prompt) out.prompt = prompt;
+    const argsLine = hintText(record.argsLine, true);
+    if (argsLine) out.argsLine = argsLine;
+    const sourceName = hintText(record.sourceName, true);
+    if (sourceName) out.sourceName = sourceName;
+    if (typeof record.agentBudget === "number") out.agentBudget = record.agentBudget;
+    if (typeof record.phaseIndex === "number") out.phaseIndex = record.phaseIndex;
+    if (typeof record.phaseTotal === "number") out.phaseTotal = record.phaseTotal;
+    if (typeof record.agentCount === "number") out.agentCount = record.agentCount;
+    if (typeof record.tokens === "number") out.tokens = record.tokens;
+    const isolation = hintText(record.isolation, true);
+    if (isolation) out.isolation = isolation;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -226,6 +270,7 @@ export function upsertToolInSegments(
       output: (tool.output || "").trim() ? tool.output : prev.output,
       meta: tool.meta || prev.meta,
       toolKind: tool.toolKind || prev.toolKind,
+      fleetHint: mergeFleetHint(prev.fleetHint, tool.fleetHint),
     };
     return next;
   }
@@ -886,6 +931,7 @@ export function syncTurnToolsIntoAssistant(
       streaming: !!m.streaming,
       isError: !!m.isError || status === "failed" || status === "error",
       createdAt: m.createdAt,
+      fleetHint: m.fleetHint,
     });
     have.add(tcid);
     if (i < aIdx) pre.push(toolSeg);
@@ -968,6 +1014,7 @@ export function applyToolEvent(
   // Explicit Host presentation meta wins; otherwise keep the previous row's
   // meta so a later sparse tick never wipes the typed card.
   const toolMeta = payload.meta || prev?.toolMeta || undefined;
+  const fleetHint = mergeFleetHint(prev?.fleetHint, payload.fleetHint);
 
   // Host vision / X: **only** live on the assistant timeline. A separate
   // tool_step row + inlined segment was painting "搜索 X 信息" twice.
@@ -1002,6 +1049,7 @@ export function applyToolEvent(
         toolOutput,
         toolMeta,
         toolParentId: parentId,
+        fleetHint,
         streaming: running,
         marker: "tool_step",
         createdAt: prev?.createdAt || now,
@@ -1023,6 +1071,7 @@ export function applyToolEvent(
       streaming: running,
       isError,
       createdAt: prev?.createdAt || now,
+      fleetHint,
     });
     const segs = compactMessageSegments(
       upsertToolInSegments(ensureSegments(asst), toolSeg),
@@ -1045,6 +1094,7 @@ export function applyToolEvent(
     toolOutput,
     toolMeta,
     toolParentId: parentId,
+    fleetHint,
     streaming: running,
     marker: "tool_step",
     createdAt: now,
@@ -1068,6 +1118,7 @@ export function applyToolEvent(
       toolMeta: toolMeta || prev!.toolMeta,
       toolKind: toolKind || prev!.toolKind,
       toolParentId: parentId || prev!.toolParentId,
+      fleetHint: fleetHint || prev!.fleetHint,
     };
   }
 
@@ -1089,6 +1140,7 @@ export function applyToolEvent(
     streaming: running,
     isError: !!row.isError,
     createdAt: row.createdAt || prev?.createdAt || now,
+    fleetHint: row.fleetHint,
   });
   const segs = compactMessageSegments(
     upsertToolInSegments(ensureSegments(asst), toolSeg),
@@ -1268,6 +1320,7 @@ export function parseToolStepContent(content: string): {
   path?: string;
   input?: string;
   output?: string;
+  fleetHint?: FleetToolHint;
 } | null {
   if (!content.startsWith("tool_step|")) return null;
   // Split real tool output off first: it is free-form multi-line stdout and
@@ -1318,6 +1371,19 @@ export function parseToolStepContent(content: string): {
   if (inputIdx >= 0) {
     input = rest[inputIdx]!.slice("input:".length).trim() || undefined;
     rest = [...rest.slice(0, inputIdx), ...rest.slice(inputIdx + 1)];
+  }
+
+  let fleetHint: FleetToolHint | undefined;
+  const fleetIdx = rest.findIndex((line) => line.startsWith("fleet:"));
+  if (fleetIdx >= 0) {
+    const raw = rest[fleetIdx]!.slice("fleet:".length).trim();
+    rest = [...rest.slice(0, fleetIdx), ...rest.slice(fleetIdx + 1)];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      fleetHint = mergeFleetHint(undefined, parsed);
+    } catch {
+      fleetHint = undefined;
+    }
   }
 
   // Recover from Execute `…` title text. For multi-line shell journals the
@@ -1391,6 +1457,7 @@ export function parseToolStepContent(content: string): {
     path,
     input,
     output,
+    fleetHint,
   };
 }
 

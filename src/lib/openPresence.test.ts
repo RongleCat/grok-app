@@ -116,6 +116,27 @@ describe("floating pop CSS", () => {
     expect(envDock).toMatch(/var\(--motion-pane\) var\(--motion-pane-ease\)/);
   });
 
+  it("keeps the env card beside an open fleet pane and off an empty phone pane", () => {
+    const fleet = readFileSync(
+      resolve(__dirname, "../styles/background-tasks.css"),
+      "utf8",
+    );
+    const drawer = readFileSync(
+      resolve(__dirname, "../components/BackgroundTasksDrawer.tsx"),
+      "utf8",
+    );
+    expect(envDock).toMatch(
+      /\.main:has\(> \.chat-fleet-pane\):has\(\.sw-env-dock \.sw-env-menu\.is-open:not\(\.is-parked\)\)/,
+    );
+    expect(envDock).toMatch(/--env-summary-gutter:\s*0px/);
+    expect(envDock).toMatch(/right:\s*calc\(var\(--chat-fleet-gutter\) \+ 16px\)/);
+    expect(fleet).toMatch(
+      /\.app-shell--phone \.chat-fleet-pane\[data-fleet-running="true"\]/,
+    );
+    expect(fleet).not.toMatch(/\.app-shell--phone \.chat-fleet-pane \{\s*left:\s*0/);
+    expect(drawer).toContain("data-fleet-running=");
+  });
+
   it("switches settings atomically without a presence or paint gap", () => {
     const start = settings.indexOf(".app-settings-stage {");
     expect(start).toBeGreaterThanOrEqual(0);
