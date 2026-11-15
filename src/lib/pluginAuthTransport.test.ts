@@ -5,6 +5,13 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 const bootstrap = readFileSync(new URL("../../src-tauri/src/plugin_auth_stdin.mjs", import.meta.url), "utf8");
+
+function frame(payload: string): Buffer {
+  const body = Buffer.from(payload, "utf8");
+  const header = Buffer.alloc(4);
+  header.writeUInt32LE(body.length);
+  return Buffer.concat([header, body]);
+}
 const fixtureRoot = mkdtempSync(join(tmpdir(), "grok-auth-transport-test-"));
 const fixture = join(fixtureRoot, "plugin with spaces.mjs");
 writeFileSync(fixture, `
@@ -23,7 +30,7 @@ describe("plugin auth private pipe on the real Node process", () => {
     const args = ["login", "--tokens", "--api-key", "SIMULATED-KEY-987654321",
       "--api-secret", "SIMULATED-SECRET-中文-\"-+", "--access-token", "SIMULATED-TOKEN-123456789"];
     const out = execFileSync(process.execPath, ["--input-type=module", "--eval", bootstrap, fixture], {
-      input: JSON.stringify(args), encoding: "utf8", timeout: 20000, windowsHide: true,
+      input: frame(JSON.stringify(args)), encoding: "utf8", timeout: 20000, windowsHide: true,
     });
     const result = JSON.parse(out);
     expect(result.args).toEqual(args);
@@ -36,7 +43,7 @@ describe("plugin auth private pipe on the real Node process", () => {
 
   it("rejects malformed input without repeating any payload in the error", () => {
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", bootstrap, fixture], {
-      input: "{INVALID_SYNTHETIC_SECRET", encoding: "utf8", timeout: 10000, windowsHide: true,
+      input: frame("{INVALID_SYNTHETIC_SECRET"), encoding: "utf8", timeout: 10000, windowsHide: true,
     });
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Invalid plugin auth input");
@@ -45,7 +52,7 @@ describe("plugin auth private pipe on the real Node process", () => {
 
   it("limits private input before importing the plugin", () => {
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", bootstrap, fixture], {
-      input: JSON.stringify(["X".repeat(70000)]), encoding: "utf8", timeout: 10000, windowsHide: true,
+      input: frame(JSON.stringify(["X".repeat(70000)])), encoding: "utf8", timeout: 10000, windowsHide: true,
     });
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Plugin auth input is too large");
