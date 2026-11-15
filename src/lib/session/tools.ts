@@ -179,24 +179,43 @@ export function toolSegmentFromFields(fields: {
   };
 }
 
+/** Persisted and IPC hints are untyped. Only real strings reach `trim`. */
+function hintText(value: unknown, storeTrimmed: boolean): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return storeTrimmed ? trimmed : value;
+}
+
+function asHintRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
 function mergeFleetHint(
   prev?: FleetToolHint,
-  next?: FleetToolHint | null,
+  next?: unknown,
 ): FleetToolHint | undefined {
   const out: FleetToolHint = { ...(prev ?? {}) };
-  if (next) {
-    if (next.model?.trim()) out.model = next.model.trim();
-    if (next.background === true) out.background = true;
-    if (typeof next.blockUntilMs === "number") out.blockUntilMs = next.blockUntilMs;
-    if (next.prompt?.trim()) out.prompt = next.prompt;
-    if (next.argsLine?.trim()) out.argsLine = next.argsLine.trim();
-    if (next.sourceName?.trim()) out.sourceName = next.sourceName.trim();
-    if (typeof next.agentBudget === "number") out.agentBudget = next.agentBudget;
-    if (typeof next.phaseIndex === "number") out.phaseIndex = next.phaseIndex;
-    if (typeof next.phaseTotal === "number") out.phaseTotal = next.phaseTotal;
-    if (typeof next.agentCount === "number") out.agentCount = next.agentCount;
-    if (typeof next.tokens === "number") out.tokens = next.tokens;
-    if (next.isolation?.trim()) out.isolation = next.isolation.trim();
+  const record = asHintRecord(next);
+  if (record) {
+    const model = hintText(record.model, true);
+    if (model) out.model = model;
+    if (record.background === true) out.background = true;
+    if (typeof record.blockUntilMs === "number") out.blockUntilMs = record.blockUntilMs;
+    const prompt = hintText(record.prompt, false);
+    if (prompt) out.prompt = prompt;
+    const argsLine = hintText(record.argsLine, true);
+    if (argsLine) out.argsLine = argsLine;
+    const sourceName = hintText(record.sourceName, true);
+    if (sourceName) out.sourceName = sourceName;
+    if (typeof record.agentBudget === "number") out.agentBudget = record.agentBudget;
+    if (typeof record.phaseIndex === "number") out.phaseIndex = record.phaseIndex;
+    if (typeof record.phaseTotal === "number") out.phaseTotal = record.phaseTotal;
+    if (typeof record.agentCount === "number") out.agentCount = record.agentCount;
+    if (typeof record.tokens === "number") out.tokens = record.tokens;
+    const isolation = hintText(record.isolation, true);
+    if (isolation) out.isolation = isolation;
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -1360,8 +1379,8 @@ export function parseToolStepContent(content: string): {
     const raw = rest[fleetIdx]!.slice("fleet:".length).trim();
     rest = [...rest.slice(0, fleetIdx), ...rest.slice(fleetIdx + 1)];
     try {
-      const parsed = JSON.parse(raw) as FleetToolHint;
-      if (parsed && typeof parsed === "object") fleetHint = mergeFleetHint(undefined, parsed);
+      const parsed: unknown = JSON.parse(raw);
+      fleetHint = mergeFleetHint(undefined, parsed);
     } catch {
       fleetHint = undefined;
     }

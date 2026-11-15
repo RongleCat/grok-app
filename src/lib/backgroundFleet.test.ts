@@ -362,6 +362,74 @@ describe("buildBackgroundFleet", () => {
     expect(fleet.rows[0]?.running).toBe(true);
   });
 
+  it("keeps a background child running after the spawn tool completes", () => {
+    const fleet = buildBackgroundFleet({
+      tools: [
+        {
+          id: "spawn-1",
+          name: "spawn_subagent",
+          title: "Subagent",
+          status: "completed",
+          hint: { background: true },
+          output: `Subagent started in background\nsubagent_id: ${CHILD_A}`,
+        },
+      ],
+    });
+    expect(fleet.rows[0]?.running).toBe(true);
+    expect(fleet.rows[0]?.childSessionId).toBe(CHILD_A);
+    const finished = buildBackgroundFleet({
+      tools: [
+        {
+          id: "spawn-1",
+          name: "spawn_subagent",
+          title: "Subagent",
+          status: "completed",
+          hint: { background: true },
+          output: `Subagent started in background\nsubagent_id: ${CHILD_A}\n<subagent_result>done</subagent_result>`,
+        },
+      ],
+    });
+    expect(finished.rows[0]?.running).toBe(false);
+  });
+
+  it("ignores a non-string fleet hint instead of throwing", () => {
+    const fleet = buildBackgroundFleet({
+      tools: [
+        {
+          id: "spawn-1",
+          name: "spawn_subagent",
+          title: "Subagent",
+          status: "completed",
+          hint: { model: 42, background: true } as unknown as { model: string; background: boolean },
+          output: `Subagent started in background\nsubagent_id: ${CHILD_A}`,
+        },
+      ],
+    });
+    expect(fleet.rows[0]?.running).toBe(true);
+    expect(fleet.rows[0]?.model).toBeUndefined();
+  });
+
+  it("copies a workflow run id from the tool result and ignores the display name", () => {
+    const fleet = buildBackgroundFleet({
+      tools: [
+        {
+          id: "call-1",
+          name: "workflow",
+          title: "Workflow: audit",
+          status: "completed",
+          output: JSON.stringify({
+            type: "Workflow",
+            run_id: "wf_new",
+            name: "audit",
+            message: "Workflow 'audit' started in the background.",
+          }),
+        },
+      ],
+    });
+    expect(fleet.rows[0]?.runId).toBe("wf_new");
+    expect(fleet.rows[0]?.title).toBe("audit");
+  });
+
   it("passes the session bill through separately from child rows", () => {
     const fleet = buildBackgroundFleet({
       messages: [

@@ -52,6 +52,8 @@ export interface FleetRow {
   /** Per-child tokens. Absent unless that child reported a number. */
   tokens?: number;
   toolCallId?: string;
+  /** Workflow run id from the tool output. A display name is not an id. */
+  runId?: string;
 }
 
 export interface BackgroundFleet {
@@ -284,22 +286,57 @@ function mergeRec(prev: FleetToolInput, next: FleetToolInput): FleetToolInput {
   };
 }
 
+/** Runtime JSON is not a TypeScript type. Only real strings reach `trim`. */
+function hintText(value: unknown, storeTrimmed: boolean): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return storeTrimmed ? trimmed : value;
+}
+
 function stripEmptyHint(hint: FleetToolHint | undefined): FleetToolHint {
-  if (!hint) return {};
+  const record = asRecord(hint);
+  if (!record) return {};
   const out: FleetToolHint = {};
-  if (hint.model?.trim()) out.model = hint.model.trim();
-  if (hint.background === true) out.background = true;
-  if (typeof hint.blockUntilMs === "number") out.blockUntilMs = hint.blockUntilMs;
-  if (hint.prompt?.trim()) out.prompt = hint.prompt;
-  if (hint.argsLine?.trim()) out.argsLine = hint.argsLine.trim();
-  if (hint.sourceName?.trim()) out.sourceName = hint.sourceName.trim();
-  if (typeof hint.agentBudget === "number") out.agentBudget = hint.agentBudget;
-  if (typeof hint.phaseIndex === "number") out.phaseIndex = hint.phaseIndex;
-  if (typeof hint.phaseTotal === "number") out.phaseTotal = hint.phaseTotal;
-  if (typeof hint.agentCount === "number") out.agentCount = hint.agentCount;
-  if (typeof hint.tokens === "number") out.tokens = hint.tokens;
-  if (hint.isolation?.trim()) out.isolation = hint.isolation.trim();
+  const model = hintText(record.model, true);
+  if (model) out.model = model;
+  if (record.background === true) out.background = true;
+  if (typeof record.blockUntilMs === "number") out.blockUntilMs = record.blockUntilMs;
+  const prompt = hintText(record.prompt, false);
+  if (prompt) out.prompt = prompt;
+  const argsLine = hintText(record.argsLine, true);
+  if (argsLine) out.argsLine = argsLine;
+  const sourceName = hintText(record.sourceName, true);
+  if (sourceName) out.sourceName = sourceName;
+  if (typeof record.agentBudget === "number") out.agentBudget = record.agentBudget;
+  if (typeof record.phaseIndex === "number") out.phaseIndex = record.phaseIndex;
+  if (typeof record.phaseTotal === "number") out.phaseTotal = record.phaseTotal;
+  if (typeof record.agentCount === "number") out.agentCount = record.agentCount;
+  if (typeof record.tokens === "number") out.tokens = record.tokens;
+  const isolation = hintText(record.isolation, true);
+  if (isolation) out.isolation = isolation;
   return out;
+}
+
+/** Run id carried on a workflow tool result. A display name is not an id. */
+function workflowRunIdFromOutput(output: string | undefined): string | undefined {
+  if (!output) return undefined;
+  const trimmed = output.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      const record = asRecord(parsed);
+      const id = hintText(record?.run_id ?? record?.runId, true);
+      if (id) return id;
+    } catch {
+      // The body is the launch message, not a JSON result.
+    }
+  }
+  const labeled =
+    /(?:^|[\s,{])["']?(?:run_id|runId)["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9_-]{1,})/i.exec(
+      output,
+    );
+  return labeled?.[1];
 }
 
 export function fleetToolsFromMessages(messages: readonly ChatMessage[]): FleetToolInput[] {
@@ -387,8 +424,18 @@ export function buildBackgroundFleet(input: {
     if (isSpawnName(tool.name) || /subagent started in background/i.test(tool.output || "")) {
       const parsed = parseSubagent(tool.output);
       const childDone = parsed.durationMs != null || Boolean(parsed.completion);
+      // The spawn call completes when it returns the start ack. That is not
+      // the child finishing. Only subagent_meta duration or a result is.
+      const backgroundHandoff =
+        hint.background === true ||
+        /subagent started in background/i.test(tool.output || "");
+      const running = childDone
+        ? false
+        : backgroundHandoff
+          ? true
+          : runningStatus(tool.status, tool.streaming);
       const row = upsert(tool.id, "agent", {
-        running: childDone ? false : runningStatus(tool.status, tool.streaming),
+        running,
         title: oneLine(tool.input, 120) || oneLine(tool.title, 120) || "Agent",
         summary: oneLine(tool.input),
         prompt: hint.prompt,
@@ -420,6 +467,7 @@ export function buildBackgroundFleet(input: {
       upsert(tool.id, "workflow", {
         running: runningStatus(tool.status, tool.streaming),
         title: name,
+        runId: workflowRunIdFromOutput(tool.output),
         summary: oneLine(hint.argsLine || hint.prompt || tool.input),
         prompt: hint.prompt,
         startedAtMs,

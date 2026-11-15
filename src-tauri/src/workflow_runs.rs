@@ -6,6 +6,7 @@
 
 use std::fs;
 use std::path::Path;
+use std::time::SystemTime;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -311,12 +312,17 @@ fn parse_agent(item: &Value) -> Option<WorkflowAgentDto> {
     })
 }
 
+/// One call parses only the newest directories, and skips a huge state file.
+const MAX_DIRS_VISITED: usize = 256;
+const MAX_RUNS_RETURNED: usize = 32;
+const MAX_STATE_BYTES: u64 = 256 * 1024;
+
 pub fn read_runs_in_session_dir(dir: &Path) -> Vec<WorkflowRunDto> {
     let workflows = dir.join("workflows");
     let Ok(entries) = fs::read_dir(&workflows) else {
         return Vec::new();
     };
-    let mut out = Vec::new();
+    let mut candidates = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_dir() {
@@ -325,14 +331,37 @@ pub fn read_runs_in_session_dir(dir: &Path) -> Vec<WorkflowRunDto> {
         let folder = path
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("");
-        let Ok(text) = fs::read_to_string(path.join("state.json")) else {
+            .unwrap_or("")
+            .to_string();
+        let state_path = path.join("state.json");
+        let modified = fs::metadata(&state_path)
+            .and_then(|meta| meta.modified())
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+        candidates.push((modified, path, folder));
+    }
+    candidates.sort_by(|a, b| b.0.cmp(&a.0).then(a.2.cmp(&b.2)));
+    if candidates.len() > MAX_DIRS_VISITED {
+        candidates.truncate(MAX_DIRS_VISITED);
+    }
+    let mut out = Vec::new();
+    for (_modified, path, folder) in candidates {
+        if out.len() >= MAX_RUNS_RETURNED {
+            break;
+        }
+        let state_path = path.join("state.json");
+        let Ok(meta) = fs::metadata(&state_path) else {
+            continue;
+        };
+        if meta.len() > MAX_STATE_BYTES {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&state_path) else {
             continue;
         };
         let Ok(value) = serde_json::from_str::<Value>(&text) else {
             continue;
         };
-        if let Some(mut run) = parse_workflow_state(&value, folder) {
+        if let Some(mut run) = parse_workflow_state(&value, &folder) {
             attach_agent_meta(dir, &mut run.agents);
             out.push(run);
         }
@@ -377,8 +406,10 @@ pub fn runs_for_app_session(session_id: &str) -> Vec<WorkflowRunDto> {
 }
 
 #[tauri::command]
-pub fn workflow_runs_for_session(session_id: String) -> Vec<WorkflowRunDto> {
-    runs_for_app_session(&session_id)
+pub async fn workflow_runs_for_session(session_id: String) -> Vec<WorkflowRunDto> {
+    tauri::async_runtime::spawn_blocking(move || runs_for_app_session(&session_id))
+        .await
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -485,6 +516,73 @@ mod tests {
         assert_eq!(runs[0].agents[1].started_at_ms, None);
         let encoded = serde_json::to_string(&runs[0]).unwrap();
         assert!(!encoded.contains("do not leak"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn write_run(root: &std::path::Path, name: &str, modified: SystemTime) {
+        let run_dir = root.join("workflows").join(name);
+        fs::create_dir_all(&run_dir).unwrap();
+        let path = run_dir.join("state.json");
+        let body = serde_json::json!({
+            "state": {
+                "run_id": name,
+                "name": name,
+                "status": "complete"
+            }
+        });
+        fs::write(&path, serde_json::to_string(&body).unwrap()).unwrap();
+        let file = fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(modified).unwrap();
+    }
+
+    #[test]
+    fn read_runs_parses_only_the_newest_history() {
+        let root =
+            std::env::temp_dir().join(format!("grok-workflow-cap-{}-newest", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let base = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        let total = MAX_RUNS_RETURNED + 8;
+        for i in 0..total {
+            write_run(
+                &root,
+                &format!("run-{i:02}"),
+                base + std::time::Duration::from_secs(i as u64),
+            );
+        }
+        let runs = read_runs_in_session_dir(&root);
+        assert_eq!(runs.len(), MAX_RUNS_RETURNED);
+        let names: Vec<&str> = runs.iter().map(|run| run.name.as_str()).collect();
+        let newest = format!("run-{:02}", total - 1);
+        assert!(!names.contains(&"run-00"));
+        assert!(names.contains(&newest.as_str()));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_runs_skips_an_oversized_state_file() {
+        let root =
+            std::env::temp_dir().join(format!("grok-workflow-cap-{}-huge", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        write_run(
+            &root,
+            "small",
+            SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000),
+        );
+        let huge_dir = root.join("workflows").join("huge");
+        fs::create_dir_all(&huge_dir).unwrap();
+        let mut body = String::from(
+            r#"{"state":{"run_id":"huge","name":"huge-run","status":"running","pad":""#,
+        );
+        body.push_str(&"x".repeat(MAX_STATE_BYTES as usize));
+        body.push_str(r#""}}"#);
+        let path = huge_dir.join("state.json");
+        fs::write(&path, &body).unwrap();
+        let file = fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_800_000_000))
+            .unwrap();
+        let runs = read_runs_in_session_dir(&root);
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].run_id, "small");
         let _ = fs::remove_dir_all(&root);
     }
 }

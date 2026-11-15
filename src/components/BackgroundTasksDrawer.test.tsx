@@ -1,12 +1,18 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createT } from "@/i18n";
+import * as api from "@/lib/api";
 import type { FleetRow } from "@/lib/backgroundFleet";
+import {
+  forgetFleetAutoOpen,
+  setBackgroundTasksOpen,
+  setFleetChatContext,
+} from "@/lib/backgroundTasksStore";
 import type { WorkflowRunRecord } from "@/lib/workflowRunView";
-import { BackgroundFleetList } from "./BackgroundTasksDrawer";
+import { BackgroundFleetList, BackgroundTasksPane } from "./BackgroundTasksDrawer";
 
 const tr = createT("en");
 
@@ -264,5 +270,37 @@ describe("BackgroundFleetList", () => {
       />,
     );
     expect(screen.getByTestId("fleet-tokens-wf-1").textContent).toBe("860.4K tokens");
+  });
+});
+
+describe("BackgroundTasksPane workflow file poll", () => {
+  afterEach(() => {
+    forgetFleetAutoOpen();
+    setFleetChatContext("pane-poll", false);
+    setBackgroundTasksOpen(false);
+    setFleetChatContext(null, false);
+    vi.restoreAllMocks();
+  });
+
+  it("does not scan workflow files on an interval while the pane is closed", async () => {
+    const runs = vi.spyOn(api, "workflowRunsForSession").mockResolvedValue([]);
+    vi.spyOn(api, "isTauri").mockReturnValue(true);
+    const interval = vi.spyOn(window, "setInterval");
+    setFleetChatContext("pane-poll", false);
+    setBackgroundTasksOpen(false);
+    const view = render(<BackgroundTasksPane locale="en" tr={tr} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const pollWaits = () => interval.mock.calls.filter((call) => call[1] === 2000);
+    expect(runs).not.toHaveBeenCalled();
+    expect(pollWaits()).toHaveLength(0);
+    await act(async () => {
+      setBackgroundTasksOpen(true);
+      await Promise.resolve();
+    });
+    expect(runs).toHaveBeenCalledWith("pane-poll");
+    expect(pollWaits()).toHaveLength(1);
+    view.unmount();
   });
 });

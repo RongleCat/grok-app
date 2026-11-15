@@ -21,6 +21,14 @@ See `docs/llm-wiki/release.md`.
 
 - 后台任务会在运行时显示工作流的阶段、代理和令牌总量。没有后台任务时，这个面板保持收起。
 
+### Fixed
+
+- Background children stay listed as running after the launch call returns. A repeat of the same workflow name does not take over the older row.
+
+**中文 · 修复**
+
+- 后台子任务在启动调用返回后仍显示为运行中。同名的新工作流不会占用更早的那一行。
+
 ## [0.2.51] - 2026-11-14
 
 > **Highlight:** Rewound chats keep their new replies, and model menus use a fresh catalog.

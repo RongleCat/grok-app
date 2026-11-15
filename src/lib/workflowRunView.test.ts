@@ -75,10 +75,10 @@ describe("phaseGroups", () => {
 });
 
 describe("presentFleet", () => {
-  it("attaches a suffixed run name to the workflow row and hides that agent", () => {
+  it("attaches the run that shares the chip's run id and hides that agent", () => {
     const presented = presentFleet(
       [
-        workflowRow,
+        { ...workflowRow, runId: "wf_1" },
         {
           id: "a2",
           kind: "agent",
@@ -95,18 +95,64 @@ describe("presentFleet", () => {
     expect(presented.rows[0]?.running).toBe(true);
   });
 
+  it("does not revive an old workflow chip for a newer run with the same name", () => {
+    const now = 10_000;
+    const presented = presentFleet(
+      [{ id: "old-tool", kind: "workflow", title: "audit", running: false }],
+      [{ runId: "new", name: "audit", running: true, status: "running", phases: [], agents: [] }],
+      now,
+    );
+    const old = presented.rows.find((row) => row.id === "old-tool");
+    expect(old?.running).toBe(false);
+    expect(presented.byId.has("old-tool")).toBe(false);
+    expect(presented.byId.get("new")?.runId).toBe("new");
+    expect(presented.rows.find((row) => row.id === "new")?.running).toBe(true);
+  });
+
+  it("does not prefer an open same-name run over the chip's own run id", () => {
+    const presented = presentFleet(
+      [{ id: "old-tool", kind: "workflow", title: "audit", running: false, runId: "old" }],
+      [
+        { runId: "old", name: "audit", running: false, status: "complete", phases: [], agents: [] },
+        { runId: "new", name: "audit", running: true, status: "running", phases: [], agents: [] },
+      ],
+      10_000,
+    );
+    expect(presented.byId.get("old-tool")?.runId).toBe("old");
+    expect(presented.rows.find((row) => row.id === "old-tool")?.running).toBe(false);
+    expect(presented.byId.get("new")?.running).toBe(true);
+  });
+
+  it("does not pair a chip by a shared or prefixed name", () => {
+    const presented = presentFleet(
+      [{ id: "tool-1", kind: "workflow", running: false, title: "review-changes" }],
+      [run()],
+      10_000,
+    );
+    expect(presented.byId.has("tool-1")).toBe(false);
+    expect(presented.rows.find((row) => row.id === "tool-1")?.running).toBe(false);
+    expect(presented.rows.find((row) => row.id === "wf_1")?.running).toBe(true);
+  });
+
   it("treats a finished run as finished even when the tool row is still running", () => {
     const finished = run({ status: "complete", running: false, currentPhase: "Review" });
     const grouped = phaseGroups(finished);
     expect(grouped.phases.every((phase) => !phase.current)).toBe(true);
     expect(grouped.phases.flatMap((phase) => phase.agents).every((agent) => !agent.running)).toBe(true);
     const presented = presentFleet(
-      [{ ...workflowRow, title: "Workflow", running: true }],
+      [{ ...workflowRow, title: "Workflow", running: true, runId: "wf_1" }],
       [finished],
       10_000,
     );
     expect(presented.byId.get("tool-1")?.runId).toBe("wf_1");
     expect(presented.rows[0]?.running).toBe(false);
+    const unmatched = presentFleet(
+      [{ ...workflowRow, title: "Workflow", running: true }],
+      [finished],
+      10_000,
+    );
+    expect(unmatched.byId.has("tool-1")).toBe(false);
+    expect(unmatched.rows.find((row) => row.id === "tool-1")?.running).toBe(true);
   });
 
   it("adds a run that has no workflow tool row yet", () => {

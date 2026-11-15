@@ -227,37 +227,34 @@ function withRunClock(row: FleetRow, run: WorkflowRunRecord, nowMs: number): Fle
   };
 }
 
-function isGenericWorkflowTitle(title: string): boolean {
-  const key = title.trim().toLowerCase();
-  return key === "" || key === "workflow";
-}
-
-function namesMatch(title: string, name: string): boolean {
-  if (!title || !name) return false;
-  if (title === name) return true;
-  if (name.startsWith(`${title}-`)) return true;
-  if (title.startsWith(`${name}-`)) return true;
-  return false;
-}
-
-/** Prefer an exact name, then a run that is still open. */
+/**
+ * Pair a chip to a run only when both carry that run id.
+ * A shared or prefixed display name is a different invocation.
+ */
 export function matchWorkflowRun(
-  title: string,
+  runId: string | undefined,
   runs: readonly WorkflowRunRecord[],
   used: ReadonlySet<string>,
 ): WorkflowRunRecord | null {
-  const want = title.trim().toLowerCase();
-  const candidates = runs.filter(
-    (run) => !used.has(run.runId) && namesMatch(want, run.name.trim().toLowerCase()),
-  );
-  if (candidates.length === 0) return null;
-  candidates.sort((a, b) => rank(b, want) - rank(a, want));
-  return candidates[0] ?? null;
+  const want = runId?.trim() ?? "";
+  if (!want) return null;
+  for (const run of runs) {
+    if (used.has(run.runId)) continue;
+    if (run.runId === want) return run;
+  }
+  return null;
 }
 
-function rank(run: WorkflowRunRecord, want: string): number {
-  const name = run.name.trim().toLowerCase();
-  return (name === want ? 4 : 0) + (run.running ? 2 : 0);
+function chipRunId(row: FleetRow, runs: readonly WorkflowRunRecord[]): string | undefined {
+  const explicit = typeof row.runId === "string" ? row.runId.trim() : "";
+  if (explicit) return explicit;
+  const ids = [row.id, row.toolCallId];
+  for (const value of ids) {
+    const id = typeof value === "string" ? value.trim() : "";
+    if (!id) continue;
+    if (runs.some((run) => run.runId === id)) return id;
+  }
+  return undefined;
 }
 
 function syntheticRow(run: WorkflowRunRecord, nowMs: number): FleetRow {
@@ -275,9 +272,10 @@ function syntheticRow(run: WorkflowRunRecord, nowMs: number): FleetRow {
 }
 
 /**
- * Attach each run to the workflow row with the same name. Runs the chat has
- * not shown as a tool row yet are added. Agents already drawn under a phase
- * are removed from the flat agent list.
+ * Attach a run only when the chip carries that run id. Runs the chat has not
+ * linked are added as their own rows. An older chip does not take a newer
+ * run that merely shares a name. Agents already drawn under a phase are
+ * removed from the flat agent list.
  */
 export function presentFleet(
   rows: readonly FleetRow[],
@@ -293,11 +291,7 @@ export function presentFleet(
       next.push(row);
       continue;
     }
-    let run = matchWorkflowRun(row.title, runs, used);
-    if (!run && isGenericWorkflowTitle(row.title)) {
-      const leftover = runs.filter((item) => !used.has(item.runId));
-      if (leftover.length === 1) run = leftover[0] ?? null;
-    }
+    const run = matchWorkflowRun(chipRunId(row, runs), runs, used);
     if (!run) {
       next.push(row);
       continue;

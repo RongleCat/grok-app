@@ -566,6 +566,8 @@ export function BackgroundTasksPane({
       setWorkflowRuns([]);
       return;
     }
+    // Transcript rows still auto-open while this is closed. Do not scan files.
+    if (!ui.open) return;
     let cancel = false;
     const tick = () => {
       void api.workflowRunsForSession(sessionId).then((next) => {
@@ -578,7 +580,7 @@ export function BackgroundTasksPane({
       cancel = true;
       window.clearInterval(id);
     };
-  }, [sessionId]);
+  }, [sessionId, ui.open]);
 
   useEffect(() => {
     setDetailId(null);

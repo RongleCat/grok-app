@@ -210,6 +210,32 @@ describe("tool activity", () => {
     expect(p?.detail).not.toContain("input:");
   });
 
+  it("ignores a non-string fleet hint model instead of throwing", () => {
+    const payload = {
+      toolCallId: "t1",
+      title: "tool",
+      kind: "read",
+      status: "completed",
+      fleetHint: { model: 42 } as unknown as { model: string },
+    };
+    expect(() => applyToolEvent([], payload)).not.toThrow();
+    const messages = applyToolEvent([], payload);
+    expect(messages[0]?.fleetHint?.model).toBeUndefined();
+    const parsed = parseToolStepContent(
+      [
+        "tool_step|completed|read|tool",
+        'fleet:{"model":42,"background":"yes","blockUntilMs":"0","prompt":7,"argsLine":[],"sourceName":1,"agentBudget":"2","phaseIndex":null,"phaseTotal":{},"agentCount":false,"tokens":"9","isolation":1}',
+      ].join("\n"),
+    );
+    expect(parsed?.fleetHint).toBeUndefined();
+    const kept = parseToolStepContent(
+      'tool_step|completed|read|tool\nfleet:{"model":42,"background":true,"prompt":"keep"}',
+    );
+    expect(kept?.fleetHint?.model).toBeUndefined();
+    expect(kept?.fleetHint?.background).toBe(true);
+    expect(kept?.fleetHint?.prompt).toBe("keep");
+  });
+
   it("parseToolStepContent keeps a fleet hint line off the path heuristic", () => {
     const body = [
       "tool_step|in_progress|spawn_subagent|Subagent",
