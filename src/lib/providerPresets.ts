@@ -235,6 +235,34 @@ export const REQUESTY_MODELS: ProviderModelEntry[] = [
 ];
 
 /**
+ * TeapotRouter OpenAI-compatible gateway. Model ids are the gateway's own
+ * live list (Claude / GPT families); Claude reasoning accepts low / medium /
+ * high. See https://teapotrouter.com
+ */
+export const TEAPOTROUTER_MODELS: ProviderModelEntry[] = [
+  {
+    id: "claude-sonnet-5-5",
+    name: "Claude Sonnet 5.5",
+    contextWindow: 200_000,
+    supportsVision: true,
+  },
+  {
+    id: "claude-opus-5-5",
+    name: "Claude Opus 5.5",
+    contextWindow: 200_000,
+    supportsVision: true,
+  },
+  { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
+];
+
+/** Claude reasoning tiers on this gateway: low / medium / high. */
+export const TEAPOTROUTER_EFFORTS: ProviderEffortEntry[] = [
+  { id: "low", name: "low" },
+  { id: "medium", name: "medium", isDefault: true },
+  { id: "high", name: "high" },
+];
+
+/**
  * Public xAI API ids for Grok relays. Fast (`grok-4.7-build-fast`) is Grok
  * Build / Cursor only and is not listed here.
  */
@@ -384,6 +412,20 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     blurbKey: "prov.preset.requesty.blurb",
     apiKeyUrl: "https://app.requesty.ai/api-keys",
     supportsVision: true,
+  },
+  /**
+   * TeapotRouter unified OpenAI-compatible API (chat_completions). Model ids
+   * are the gateway's live list; Bearer API key. No brand logo yet.
+   */
+  {
+    id: "teapotrouter",
+    name: "TeapotRouter",
+    suggestedId: "teapotrouter",
+    baseUrl: "https://api.teapotrouter.com/v1",
+    apiBackend: "chat_completions",
+    models: TEAPOTROUTER_MODELS,
+    efforts: TEAPOTROUTER_EFFORTS.map((e) => ({ ...e })),
+    apiKeyUrl: "https://teapotrouter.com",
   },
   {
     id: "amux",
